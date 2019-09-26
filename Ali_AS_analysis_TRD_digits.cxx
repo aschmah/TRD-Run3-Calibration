@@ -682,6 +682,7 @@ void Ali_AS_analysis_TRD_digits::UserExec(Option_t *)
     std::vector<TVector3> TV3_TRD_hits_det_angle_middle;
     std::vector< std::vector<Double_t> > vec_TRD_hits_ADC_values_time;
     std::vector< std::vector<TVector3> > vec_TRD_hits_points_time;
+   // std::vector< std::vector<TVector3> > vec_TRD_hits_points_time_uncalib;
     std::vector< std::vector<Int_t> >    vec_TRD_hits_det_lay_row_col;
 
     vec_TRD_det_lay_row_col.resize(4);
@@ -1083,6 +1084,7 @@ void Ali_AS_analysis_TRD_digits::UserExec(Option_t *)
 
 		    vec_TRD_hits_ADC_values_time.push_back(vec_ADC_time_bins);
                     vec_TRD_hits_points_time.push_back(vec_points_time_bins);
+                    //vec_TRD_hits_points_time_uncalib.push_back(vec_points_time_bins);
 		}
 		//------------------------------------------------------------
 
@@ -1556,7 +1558,15 @@ void Ali_AS_analysis_TRD_digits::UserExec(Option_t *)
                         //AS_Digit ->setADC_time_value_corrected(i_time,(Short_t)ADC_value_corrected);
 
                         AS_Digit ->set_pos(i_time,vec_TRD_hits_points_time[i_TRD_hit][i_time].X(), vec_TRD_hits_points_time[i_TRD_hit][i_time].Y(), vec_TRD_hits_points_time[i_TRD_hit][i_time].Z());
+
+                        //cout << "vec_TRD_hits_points_time[i_TRD_hit][i_time].X()" << vec_TRD_hits_points_time[i_TRD_hit][i_time].X() << endl;
+                        //cout << << << endl;
+
+                        // AS_Digit ->set_pos_uncalib(i_time,vec_TRD_hits_points_time_uncalib[i_TRD_hit][i_time].X(), vec_TRD_hits_points_time_uncalib[i_TRD_hit][i_time].Y(), vec_TRD_hits_points_time_uncalib[i_TRD_hit][i_time].Z());
+
                         //if(fEventNoInFile < 2 && iTracks == 3) printf("iTracks: %d, layer: %d, i_time: %d, pos: {%4.3f, %4.3f, %4.3f} \n",iTracks,TRD_lay,i_time,vec_TRD_hits_points_time[i_TRD_hit][i_time].X(), vec_TRD_hits_points_time[i_TRD_hit][i_time].Y(), vec_TRD_hits_points_time[i_TRD_hit][i_time].Z());
+
+                        //here we need to save also uncalibrated 3D points vec_TRD_hits_points_time_uncalib
 
                         //AS_Digit ->setADC_time_value_corrected_tc(i_time,(Short_t)ADC_value_corrected_tc);
 		    }
