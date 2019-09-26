@@ -33,23 +33,55 @@ public:
 	// setters
 	void sethit_ids(UShort_t x, UShort_t y)                     { hit_ids[0] = x; hit_ids[1] = y; }
 	void setADC_time_value(Int_t time_bin, Short_t ADC_value)  { ADC_time_values[time_bin] = ADC_value; }
-        void set_pos(Int_t time_bin, Float_t x_pos, Float_t y_pos, Float_t z_pos)  { arr_pos[0][time_bin] = (Short_t)(100.0*x_pos); arr_pos[1][time_bin] = (Short_t)(100.0*y_pos); arr_pos[2][time_bin] = (Short_t)(100.0*z_pos); }
+        //void set_pos(Int_t time_bin, Float_t x_pos, Float_t y_pos, Float_t z_pos)  { arr_pos[0][time_bin] = (Short_t)(100.0*x_pos); arr_pos[1][time_bin] = (Short_t)(100.0*y_pos); arr_pos[2][time_bin] = (Short_t)(100.0*z_pos); }
+
+
+        void set_pos(Int_t time_bin, Float_t x_pos, Float_t y_pos, Float_t z_pos) //{arr_pos[0][time_bin] = (Short_t)(100.0*x_pos); arr_pos[1][time_bin] = (Short_t)(100.0*y_pos); arr_pos[2][time_bin] = (Short_t)(100.0*z_pos);}
+
+        {
+            //ici le vecteur vec_200cm est en cm
+
+            TVector3 vec_200cm(x_pos,y_pos,z_pos);
+            vec_200cm *= 200.0/vec_200cm.Mag();
+
+            arr_pos[0][time_bin] = (Short_t)(100.0*(x_pos-vec_200cm.X())); arr_pos[1][time_bin] = (Short_t)(100.0*(y_pos-vec_200cm.Y())); arr_pos[2][time_bin] = (Short_t)(100.0*(z_pos-vec_200cm.Z()));
+
+            //cout << "x_pos: " << x_pos << endl;
+            //cout << "y_pos: " << y_pos << endl;
+            //cout << "z_pos: " << z_pos << endl;
+            //cout << "x_pos-200: " << arr_pos[0][time_bin] << endl;
+            //cout << "y_pos-200: " << arr_pos[1][time_bin] << endl;
+            //cout << "z_pos-200: " << arr_pos[2][time_bin] << endl;
+        }
+
+
+
         //void setADC_time_value_corrected_tc(Int_t time_bin, Short_t ADC_value)  { ADC_time_values_corrected_tc[time_bin] = ADC_value; }
         void setdca_to_track(Float_t f, Float_t f_x, Float_t f_y, Float_t f_z) { dca_to_track = (Short_t)(100.0*f); dca_x = (Short_t)(100.0*f_x); dca_y = (Short_t)(100.0*f_y); dca_z = (Short_t)(100.0*f_z);}
 	void setImpactAngle(Float_t f)                              { ImpactAngle = (Short_t)(100.0*f); }
 
-        // TVector3 vec_blubb(x_pos,y_pos,z_pos);
-        // vec_blubb *= 1.0/vec_blubb.Mag(); // normalize the vector to length 1
-
-        // vector = {260.0,100,0}
-        // norm_vector = vector/length_of_vector;
-        // norm_vector *= 200.0;
-        // vector = {260.0,100,0} - norm_vector;
-
 	// getters
         UInt_t   gethit_ids(Int_t i)                const           { return hit_ids[i]; }
 	Short_t  getADC_time_value(Int_t time_bin)  const           { return ADC_time_values[time_bin]; }
-        Float_t  get_pos(Int_t time_bin, Int_t index)  const { return ((Float_t)arr_pos[index][time_bin])/100.0; }
+        //Float_t  get_pos(Int_t time_bin, Int_t index)  const { return ((Float_t)arr_pos[index][time_bin])/100.0; }
+
+
+        Float_t  get_pos(Int_t time_bin, Int_t index)  const //{ return ((Float_t)arr_pos[index][time_bin])/100.0; }
+        {
+            TVector3 vec_200cm((Float_t)arr_pos[0][time_bin]/100.0,(Float_t)arr_pos[1][time_bin]/100.0,(Float_t)arr_pos[2][time_bin]/100.0);
+            
+            //now vec_200cm is again in cm
+            vec_200cm *= 200.0/vec_200cm.Mag();     //
+            //arr_pos[index][time_bin]=arr_pos[index][time_bin]/100.0 + vec_200cm(index);
+
+
+            
+            return (Float_t)(arr_pos[index][time_bin]/100.0 + vec_200cm(index));
+             printf("arr_pos[0] from Ali_AS_Event.h: %f \n", arr_pos[index][time_bin]/100.0 + vec_200cm(index));
+
+            
+        }
+
         //Short_t  getADC_time_value_corrected_tc(Int_t time_bin)  const { return ADC_time_values_corrected_tc[time_bin]; }
 	Float_t  getdca_to_track()                  const           { return ((Float_t)dca_to_track)/100.0; }
 	Float_t  getdca_x()                         const           { return ((Float_t)dca_x)/100.0; }
