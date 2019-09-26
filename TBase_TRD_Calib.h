@@ -77,6 +77,11 @@ private:
     165,182,184,188,190,191,215,219,221,223,226,227,233,236,239,241,249,255,265,277,287,302,308,310,311,318,319,320,326,328,335,348,354,368,377,380,
     386,389,452,455,456,470,474,476,483,484,485,490,491,493,494,500,502,504,506};
 
+    Double_t max_dca_z_to_track = 8.0; // in cm
+    Double_t max_dca_r_to_track = 1.0; // in cm
+    vector<Int_t> vec_merge_time_bins;
+
+    vector< vector<TVector3> > vec_TV3_digit_pos_cluster; // layer, merged time bin
 
 public:
     TBase_TRD_Calib();
@@ -91,6 +96,9 @@ public:
     vector<TPolyMarker3D*> get_PM3D_digits() {return vec_TPM3D_digits;}
     void Draw_track(Int_t i_track);
     void Draw_TRD();
+    void set_dca_to_track(Double_t dca_r, Double_t dca_z) {max_dca_r_to_track = dca_r; max_dca_z_to_track = dca_z;}
+    void set_merged_time_bins(vector<Int_t> vec_merge_time_bins_in) {vec_merge_time_bins = vec_merge_time_bins_in;}
+    vector< vector<TVector3> >  make_clusters(Int_t i_track);
 
     ClassDef(TBase_TRD_Calib, 1)
 };
@@ -101,6 +109,14 @@ public:
 //----------------------------------------------------------------------------------------
 TBase_TRD_Calib::TBase_TRD_Calib()
 {
+    // Standard time bins
+    vec_merge_time_bins.resize(24+1);
+    for(Int_t i_time = 0; i_time < (24+1); i_time++)
+    {
+        vec_merge_time_bins[i_time] = i_time;
+    }
+
+
     vec_digit_single_info.resize(11); // x,y,z,time,ADC,sector,stack,layer,row,column,dca
     vec_track_single_info.resize(12); // dca,TPCdEdx,momentum,eta_track,pT_track,TOFsignal,Track_length,TRDsumADC,TRD_signal,nsigma_TPC_e,nsigma_TPC_pi,nsigma_TPC_p
 
@@ -172,6 +188,109 @@ TBase_TRD_Calib::TBase_TRD_Calib()
 
 
 //----------------------------------------------------------------------------------------
+vector< vector<TVector3> >  TBase_TRD_Calib::make_clusters(Int_t i_track)
+{
+    printf("TBase_TRD_Calib::make_clusters(%d) \n",i_track);
+    // Merge the ADC digits according to time bins set in set_merged_time_bins
+    // Digit space points are merged using the ADC values as weight
+
+    Int_t N_merged_time_bis = (Int_t)vec_merge_time_bins.size();
+
+    AS_Track      = AS_Event ->getTrack( i_track ); // take the track
+
+    //----------------------------------------------
+    // TRD digit information
+    UShort_t  fNumTRDdigits = AS_Track ->getNumTRD_digits();
+
+    //printf("i_track: %d, fNumTRDdigits: %d \n",i_track,fNumTRDdigits);
+
+    TVector3 TV3_digit_pos;
+    vec_TV3_digit_pos_cluster.clear();
+    vec_TV3_digit_pos_cluster.resize(6); // 6 layers
+    for(Int_t i_layer = 0; i_layer < 6; i_layer++)
+    {
+        vec_TV3_digit_pos_cluster[i_layer].resize(N_merged_time_bis);
+    }
+
+    vector< vector<Double_t> > vec_weight_digits_merged;
+    vector< vector< vector<Double_t> > > vec_pos_merge;
+    vec_weight_digits_merged.resize(6); // layer
+    vec_pos_merge.resize(6); // layer
+    for(Int_t i_layer = 0; i_layer < 6; i_layer++)
+    {
+        vec_weight_digits_merged[i_layer].resize(N_merged_time_bis);
+        vec_pos_merge[i_layer].resize(N_merged_time_bis);
+        for(Int_t i_time_merge = 0; i_time_merge < (N_merged_time_bis - 1); i_time_merge++)
+        {
+            vec_pos_merge[i_layer][i_time_merge].resize(3); // x,y,z
+        }
+    }
+
+    // Loop over all digits matched to the track
+    for(UShort_t i_digits = 0; i_digits < fNumTRDdigits; i_digits++)
+    {
+        //cout << "i_digits: " << i_digits << ", of " << fNumTRDdigits << endl;
+        AS_Digit              = AS_Track ->getTRD_digit(i_digits);
+        Int_t    layer        = AS_Digit ->get_layer();
+        Int_t    sector       = AS_Digit ->get_sector();
+        Int_t    column       = AS_Digit ->get_column();
+        Int_t    stack        = AS_Digit ->get_stack();
+        Int_t    row          = AS_Digit ->get_row();
+        Int_t    detector     = AS_Digit ->get_detector(layer,stack,sector);
+        Float_t  dca_to_track = AS_Digit ->getdca_to_track();
+        Float_t  dca_x        = AS_Digit ->getdca_x();
+        Float_t  dca_y        = AS_Digit ->getdca_y();
+        Float_t  dca_z        = AS_Digit ->getdca_z();
+        Float_t  ImpactAngle  = AS_Digit ->getImpactAngle();
+
+
+        for(Int_t i_time_merge = 0; i_time_merge < (N_merged_time_bis - 1); i_time_merge++)
+        {
+            Int_t i_time_start = vec_merge_time_bins[i_time_merge];
+            Int_t i_time_stop  = vec_merge_time_bins[i_time_merge + 1];
+
+            for(Int_t i_time = i_time_start; i_time < i_time_stop; i_time++)
+            {
+                Float_t ADC = (Float_t)AS_Digit ->getADC_time_value(i_time) - 10.0;  // baseline correction
+                if(ADC <= 0.0) continue; // Don't use negative ADC values
+                for(Int_t i_xyz = 0; i_xyz < 3; i_xyz++)
+                {
+                    TV3_digit_pos[i_xyz] = AS_Digit ->get_pos(i_time,i_xyz); // get original digit space point
+                    vec_pos_merge[layer][i_time_merge][i_xyz] += ADC*TV3_digit_pos[i_xyz]; // use ADC value as weight
+                }
+                vec_weight_digits_merged[layer][i_time_merge] += ADC; // keep track of the weights used
+
+                //printf("track: %d/%d, digit: %d/%d \n",i_track,NumTracks,i_digits,fNumTRDdigits);
+                //printf("pos: {%4.3f, %4.3f, %4.3f} \n,",digit_pos[0],digit_pos[1],digit_pos[2]);
+            }
+        }
+    }
+
+    // Calculate the average cluster vector for each merged time bin and layer
+    for(Int_t i_layer = 0; i_layer < 6; i_layer++)
+    {
+        printf("i_layer: %d \n",i_layer);
+        for(Int_t i_time_merge = 0; i_time_merge < (N_merged_time_bis - 1); i_time_merge++)
+        {
+            printf("   i_time_merge: %d \n",i_time_merge);
+            if(vec_weight_digits_merged[i_layer][i_time_merge] > 0.0)
+            {
+                for(Int_t i_xyz = 0; i_xyz < 3; i_xyz++)
+                {
+                    vec_TV3_digit_pos_cluster[i_layer][i_time_merge][i_xyz] = vec_pos_merge[i_layer][i_time_merge][i_xyz]/vec_weight_digits_merged[i_layer][i_time_merge];
+                }
+                printf("       pos: {%4.3f, %4.3f, %4.3f} \n",vec_TV3_digit_pos_cluster[i_layer][i_time_merge][0],vec_TV3_digit_pos_cluster[i_layer][i_time_merge][1],vec_TV3_digit_pos_cluster[i_layer][i_time_merge][2]);
+            }
+        }
+    }
+
+    return vec_TV3_digit_pos_cluster;
+}
+//----------------------------------------------------------------------------------------
+
+
+
+//----------------------------------------------------------------------------------------
 void TBase_TRD_Calib::Draw_track(Int_t i_track)
 {
     AS_Track      = AS_Event ->getTrack( i_track ); // take the track
@@ -199,6 +318,12 @@ void TBase_TRD_Calib::Draw_track(Int_t i_track)
     TPL3D_helix    ->SetLineWidth(2);
     TPL3D_helix    ->DrawClone("ogl");
 }
+//----------------------------------------------------------------------------------------
+
+
+
+//----------------------------------------------------------------------------------------
+
 //----------------------------------------------------------------------------------------
 
 

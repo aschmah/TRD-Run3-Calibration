@@ -40,6 +40,7 @@ private:
 
     TBase_TRD_Calib *Base_TRD_Calib;
     vector<TPolyMarker3D*> vec_TPM3D_digits;
+    TPolyMarker3D* TPM3D_cluster;
 
     Long64_t N_Events;
     Long64_t N_Tracks;
@@ -51,8 +52,10 @@ private:
     TCanvas* c_3D        = NULL;
     TCanvas* c_3D_track  = NULL;
 
-    Int_t color_layer[6] = {kRed,kGreen,kBlue,kOrange,kCyan,kYellow};
+    Int_t color_layer[6] = {kBlack,kGreen,kBlue,kMagenta,kCyan,kYellow};
+    vector<TPolyMarker3D*> vec_TPM3D_single_track_digit_layer;
     vector<TPolyMarker3D*> vec_TPM3D_single_track_digit;
+    TPolyMarker3D* TPM3D_single;
 
 public:
     TGUI_TRD_Calib();
@@ -83,11 +86,13 @@ TGUI_TRD_Calib::TGUI_TRD_Calib() : TGMainFrame(gClient->GetRoot(), 100, 100)
 
 
     //-------------------------------------
-    vec_TPM3D_single_track_digit.resize(6); // layer
+    vec_TPM3D_single_track_digit_layer.resize(6); // layer
     for(Int_t i_layer = 0; i_layer < 6; i_layer++)
     {
-        vec_TPM3D_single_track_digit[i_layer] = new TPolyMarker3D();
+        vec_TPM3D_single_track_digit_layer[i_layer] = new TPolyMarker3D();
     }
+    TPM3D_single = new TPolyMarker3D();
+    TPM3D_cluster = new TPolyMarker3D();
     //-------------------------------------
 
 
@@ -251,19 +256,39 @@ Int_t TGUI_TRD_Calib::Draw3D_track()
     gClient->GetColorByName("green", green);
     Button_draw3D_track->ChangeBackground(green);
 
-    Base_TRD_Calib ->Draw_TRD();
 
     //if(!c_3D_track) c_3D_track    = new TCanvas("c_3D_track","c_3D_track",10,10,800,800);
 
-
     Int_t i_track = arr_NEntry_ana_params[1]->GetNumberEntry()->GetNumber();
 
+    Base_TRD_Calib ->Draw_TRD();
     Base_TRD_Calib ->Draw_track(i_track);
+
+    vector<Int_t> vec_merge_time_bins;
+    vec_merge_time_bins.resize(4);
+    vec_merge_time_bins[0] = 0;
+    vec_merge_time_bins[1] = 5;
+    vec_merge_time_bins[2] = 12;
+    vec_merge_time_bins[3] = 23;
+
+    Base_TRD_Calib ->set_merged_time_bins(vec_merge_time_bins);
+    vector< vector<TVector3> > vec_TV3_digit_pos_cluster = Base_TRD_Calib ->make_clusters(i_track); // layer, merged time bin
 
     for(Int_t i_layer = 0; i_layer < 6; i_layer++)
     {
-        vec_TPM3D_single_track_digit[i_layer] ->Clear();
+        for(Int_t i_time_merge = 0; i_time_merge < (Int_t)vec_TV3_digit_pos_cluster[i_layer].size(); i_time_merge++)
+        {
+            TPM3D_cluster ->SetNextPoint(vec_TV3_digit_pos_cluster[i_layer][i_time_merge][0],vec_TV3_digit_pos_cluster[i_layer][i_time_merge][1],vec_TV3_digit_pos_cluster[i_layer][i_time_merge][2]);
+        }
     }
+
+
+    for(Int_t i_layer = 0; i_layer < 6; i_layer++)
+    {
+        vec_TPM3D_single_track_digit_layer[i_layer] ->Clear();
+    }
+
+    vec_TPM3D_single_track_digit.clear();
 
 
     Float_t dca            = vec_track_info[i_track][0];
@@ -297,18 +322,42 @@ Int_t TGUI_TRD_Calib::Draw3D_track()
         Int_t column    = (Int_t)vec_digit_track_info[i_track][i_digit][9];
         Float_t dca     = vec_digit_track_info[i_track][i_digit][10];
 
-        vec_TPM3D_single_track_digit[layer] ->SetNextPoint(x_pos,y_pos,z_pos);
+        Double_t digit_size = raw_ADC/50.0;
 
-        printf("  -> i_digit: %d, pos: {%4.3f, %4.3f, %4.3f}, time_bin: %d, sector: %d, stack: %d, layer: %d, raw_ADC: %4.3f \n",i_digit,x_pos,y_pos,z_pos,time_bin,sector,stack,layer,raw_ADC);
+        //if(!(row == 14 && column == 120)) continue;
+        TPM3D_single ->SetNextPoint(x_pos,y_pos,z_pos);
+        vec_TPM3D_single_track_digit_layer[layer]   ->SetNextPoint(x_pos,y_pos,z_pos);
+        vec_TPM3D_single_track_digit.push_back((TPolyMarker3D*)TPM3D_single ->Clone());
+        Int_t N_digits = (Int_t)vec_TPM3D_single_track_digit.size();
+        vec_TPM3D_single_track_digit[N_digits - 1] ->SetMarkerSize(1.0);
+        vec_TPM3D_single_track_digit[N_digits - 1] ->SetMarkerColor(kGreen+2);
+        vec_TPM3D_single_track_digit[N_digits - 1] ->SetMarkerStyle(20);
+
+        printf("  -> i_digit: %d, pos: {%4.3f, %4.3f, %4.3f}, row: %d, column: %d, time_bin: %d, sector: %d, stack: %d, layer: %d, raw_ADC: %4.3f \n",i_digit,x_pos,y_pos,z_pos,row,column,time_bin,sector,stack,layer,raw_ADC);
     }
+
 
     for(Int_t i_layer = 0; i_layer < 6; i_layer++)
     {
-        vec_TPM3D_single_track_digit[i_layer] ->SetMarkerColor(color_layer[i_layer]);
-        vec_TPM3D_single_track_digit[i_layer] ->SetMarkerSize(1.0);
-        vec_TPM3D_single_track_digit[i_layer] ->SetMarkerStyle(20);
-        vec_TPM3D_single_track_digit[i_layer] ->DrawClone("");
+        vec_TPM3D_single_track_digit_layer[i_layer] ->SetMarkerColor(color_layer[i_layer]);
+        vec_TPM3D_single_track_digit_layer[i_layer] ->SetMarkerSize(1.0);
+        vec_TPM3D_single_track_digit_layer[i_layer] ->SetMarkerStyle(20);
+        vec_TPM3D_single_track_digit_layer[i_layer] ->DrawClone("");
     }
+
+    TPM3D_cluster ->SetMarkerColor(kRed);
+    TPM3D_cluster ->SetMarkerSize(1.0);
+    TPM3D_cluster ->SetMarkerStyle(20);
+    TPM3D_cluster ->DrawClone("");
+
+
+#if 0
+    for(Int_t i_digit = 0; i_digit < (Int_t)vec_TPM3D_single_track_digit.size(); i_digit++)
+    {
+        printf("i_digit: %d \n",i_digit);
+        vec_TPM3D_single_track_digit[i_digit] ->DrawClone("");
+    }
+#endif
 
 
     return 1;

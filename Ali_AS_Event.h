@@ -31,7 +31,12 @@ public:
 	// setters
 	void sethit_ids(UShort_t x, UShort_t y)                     { hit_ids[0] = x; hit_ids[1] = y; }
 	void setADC_time_value(Int_t time_bin, Short_t ADC_value)  { ADC_time_values[time_bin] = ADC_value; }
-        void set_pos(Int_t time_bin, Float_t x_pos, Float_t y_pos, Float_t z_pos)  { arr_pos[0][time_bin] = (Short_t)(100.0*x_pos); arr_pos[1][time_bin] = (Short_t)(100.0*y_pos); arr_pos[2][time_bin] = (Short_t)(100.0*z_pos); }
+        void set_pos(Int_t time_bin, Float_t x_pos, Float_t y_pos, Float_t z_pos)
+        {
+
+            arr_pos[0][time_bin] = (Short_t)(100.0*x_pos); arr_pos[1][time_bin] = (Short_t)(100.0*y_pos); arr_pos[2][time_bin] = (Short_t)(100.0*z_pos);
+
+        }
         //void setADC_time_value_corrected_tc(Int_t time_bin, Short_t ADC_value)  { ADC_time_values_corrected_tc[time_bin] = ADC_value; }
         void setdca_to_track(Float_t f, Float_t f_x, Float_t f_y, Float_t f_z) { dca_to_track = (Short_t)(100.0*f); dca_x = (Short_t)(100.0*f_x); dca_y = (Short_t)(100.0*f_y); dca_z = (Short_t)(100.0*f_z);}
 	void setImpactAngle(Float_t f)                              { ImpactAngle = (Short_t)(100.0*f); }
