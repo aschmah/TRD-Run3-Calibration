@@ -46,6 +46,8 @@ private:
 
     AliHelix aliHelix;
     TPolyLine3D* TPL3D_helix;
+    vector<TPolyLine3D*> vec_TPL3D_helix_neighbor;
+
 
 
     // TRD 3D graphics
@@ -95,9 +97,11 @@ public:
     vector< vector< vector<Float_t> > > get_digit_track_info() {return vec_digit_track_info;}
     vector<TPolyMarker3D*> get_PM3D_digits() {return vec_TPM3D_digits;}
     void Draw_track(Int_t i_track);
+    void Draw_neighbor_tracks(Int_t i_track);
     void Draw_TRD();
     void set_dca_to_track(Double_t dca_r, Double_t dca_z) {max_dca_r_to_track = dca_r; max_dca_z_to_track = dca_z;}
     void set_merged_time_bins(vector<Int_t> vec_merge_time_bins_in) {vec_merge_time_bins = vec_merge_time_bins_in;}
+    TPolyLine3D* get_helix_polyline(Int_t i_track);
     vector< vector<TVector3> >  make_clusters(Int_t i_track);
 
     ClassDef(TBase_TRD_Calib, 1)
@@ -291,8 +295,9 @@ vector< vector<TVector3> >  TBase_TRD_Calib::make_clusters(Int_t i_track)
 
 
 //----------------------------------------------------------------------------------------
-void TBase_TRD_Calib::Draw_track(Int_t i_track)
+TPolyLine3D* TBase_TRD_Calib::get_helix_polyline(Int_t i_track)
 {
+    TPolyLine3D* TPL3D_helix_track = new TPolyLine3D();
     AS_Track      = AS_Event ->getTrack( i_track ); // take the track
     for(Int_t i_param = 0; i_param < 9; i_param++)
     {
@@ -308,10 +313,21 @@ void TBase_TRD_Calib::Draw_track(Int_t i_track)
         aliHelix.Evaluate(pathA,helix_point);
 
         radius = TMath::Sqrt(TMath::Power(helix_point[0],2.0) + TMath::Power(helix_point[1],2.0) + TMath::Power(helix_point[2],2.0));
-        TPL3D_helix ->SetPoint(i_step,helix_point[0],helix_point[1],helix_point[2]);
+        TPL3D_helix_track ->SetPoint(i_step,helix_point[0],helix_point[1],helix_point[2]);
         //printf("i_step: %d, pos: {%4.3f, %4.3f, %4.3f} \n",i_step,helix_point[0],helix_point[1],helix_point[2]);
         if(radius > 420.0) break;
     }
+
+    return TPL3D_helix_track;
+}
+//----------------------------------------------------------------------------------------
+
+
+
+//----------------------------------------------------------------------------------------
+void TBase_TRD_Calib::Draw_track(Int_t i_track)
+{
+    TPL3D_helix = get_helix_polyline(i_track);
 
     TPL3D_helix    ->SetLineStyle(0);
     TPL3D_helix    ->SetLineColor(kBlue);
@@ -323,7 +339,77 @@ void TBase_TRD_Calib::Draw_track(Int_t i_track)
 
 
 //----------------------------------------------------------------------------------------
+void TBase_TRD_Calib::Draw_neighbor_tracks(Int_t i_track_sel)
+{
+    // Draws all tracks with hits in the same TRD module(s)
 
+    UShort_t NumTracks = AS_Event ->getNumTracks(); // number of tracks in this event
+    AS_Track      = AS_Event ->getTrack( i_track_sel ); // take the track
+    UShort_t  fNumTRDdigits = AS_Track ->getNumTRD_digits();
+    vector<Int_t> vec_detectors_hit;
+
+    // Get the detectors which were hit from the track of interest
+    for(UShort_t i_digits = 0; i_digits < fNumTRDdigits; i_digits++)
+    {
+        //cout << "i_digits: " << i_digits << ", of " << fNumTRDdigits << endl;
+        AS_Digit              = AS_Track ->getTRD_digit(i_digits);
+        Int_t    layer        = AS_Digit ->get_layer();
+        Int_t    sector       = AS_Digit ->get_sector();
+        Int_t    stack        = AS_Digit ->get_stack();
+        Int_t    detector     = AS_Digit ->get_detector(layer,stack,sector);
+
+        Int_t flag_exist = 0;
+        for(Int_t i_ele = 0; i_ele < (Int_t)vec_detectors_hit.size(); i_ele++)
+        {
+            if(vec_detectors_hit[i_ele] == detector)
+            {
+                flag_exist = 1;
+                break;
+            }
+        }
+        if(!flag_exist) vec_detectors_hit.push_back(detector);
+    }
+
+
+    // Loop over all tracks and find those with hits in vec_detectors_hit
+    for(UShort_t i_track = 0; i_track < NumTracks; ++i_track) // loop over all tracks of the actual event
+    {
+        if(i_track == i_track_sel) continue; // Don't use the selected track twice
+        AS_Track      = AS_Event ->getTrack( i_track ); // take the track
+
+        for(UShort_t i_digits = 0; i_digits < fNumTRDdigits; i_digits++)
+        {
+            //cout << "i_digits: " << i_digits << ", of " << fNumTRDdigits << endl;
+            AS_Digit              = AS_Track ->getTRD_digit(i_digits);
+            Int_t    layer        = AS_Digit ->get_layer();
+            Int_t    sector       = AS_Digit ->get_sector();
+            Int_t    stack        = AS_Digit ->get_stack();
+            Int_t    detector     = AS_Digit ->get_detector(layer,stack,sector);
+
+            Int_t flag_exist = 0;
+            for(Int_t i_ele = 0; i_ele < (Int_t)vec_detectors_hit.size(); i_ele++)
+            {
+                if(vec_detectors_hit[i_ele] == detector)
+                {
+                    flag_exist = 1;
+                    break;
+                }
+            }
+            if(flag_exist)
+            {
+                vec_TPL3D_helix_neighbor.push_back(get_helix_polyline(i_track));
+            }
+        }
+    }
+
+    for(Int_t i_track_neighbor = 0; i_track_neighbor < (Int_t)vec_TPL3D_helix_neighbor.size(); i_track_neighbor++)
+    {
+        vec_TPL3D_helix_neighbor[i_track_neighbor]  ->SetLineStyle(0);
+        vec_TPL3D_helix_neighbor[i_track_neighbor]  ->SetLineColor(kGreen+2);
+        vec_TPL3D_helix_neighbor[i_track_neighbor]  ->SetLineWidth(2);
+        vec_TPL3D_helix_neighbor[i_track_neighbor]  ->DrawClone("ogl");
+    }
+}
 //----------------------------------------------------------------------------------------
 
 
