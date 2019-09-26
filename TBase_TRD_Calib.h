@@ -307,15 +307,15 @@ TPolyLine3D* TBase_TRD_Calib::get_helix_polyline(Int_t i_track)
     Double_t helix_point[3];
     Double_t pathA = 0.0;
     Double_t radius = 0.0;
-    for(Int_t i_step = 0; i_step < 200; i_step++)
+    for(Int_t i_step = 0; i_step < 400; i_step++)
     {
         pathA = i_step*3.0;
         aliHelix.Evaluate(pathA,helix_point);
 
-        radius = TMath::Sqrt(TMath::Power(helix_point[0],2.0) + TMath::Power(helix_point[1],2.0) + TMath::Power(helix_point[2],2.0));
+        radius = TMath::Sqrt(TMath::Power(helix_point[0],2.0) + TMath::Power(helix_point[1],2.0));
         TPL3D_helix_track ->SetPoint(i_step,helix_point[0],helix_point[1],helix_point[2]);
         //printf("i_step: %d, pos: {%4.3f, %4.3f, %4.3f} \n",i_step,helix_point[0],helix_point[1],helix_point[2]);
-        if(radius > 420.0) break;
+        if(radius > 368.0) break;
     }
 
     return TPL3D_helix_track;
@@ -371,11 +371,18 @@ void TBase_TRD_Calib::Draw_neighbor_tracks(Int_t i_track_sel)
     }
 
 
+    for(Int_t i_ele = 0; i_ele < (Int_t)vec_detectors_hit.size(); i_ele++)
+    {
+        printf("detector hit: %d \n",vec_detectors_hit[i_ele]);
+    }
+
+
     // Loop over all tracks and find those with hits in vec_detectors_hit
     for(UShort_t i_track = 0; i_track < NumTracks; ++i_track) // loop over all tracks of the actual event
     {
         if(i_track == i_track_sel) continue; // Don't use the selected track twice
         AS_Track      = AS_Event ->getTrack( i_track ); // take the track
+        fNumTRDdigits = AS_Track ->getNumTRD_digits();
 
         for(UShort_t i_digits = 0; i_digits < fNumTRDdigits; i_digits++)
         {
@@ -397,7 +404,9 @@ void TBase_TRD_Calib::Draw_neighbor_tracks(Int_t i_track_sel)
             }
             if(flag_exist)
             {
+                printf("Added track: %d to neighbor tracks \n",i_track);
                 vec_TPL3D_helix_neighbor.push_back(get_helix_polyline(i_track));
+                break;
             }
         }
     }
@@ -409,6 +418,7 @@ void TBase_TRD_Calib::Draw_neighbor_tracks(Int_t i_track_sel)
         vec_TPL3D_helix_neighbor[i_track_neighbor]  ->SetLineWidth(2);
         vec_TPL3D_helix_neighbor[i_track_neighbor]  ->DrawClone("ogl");
     }
+
 }
 //----------------------------------------------------------------------------------------
 

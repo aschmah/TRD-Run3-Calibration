@@ -263,7 +263,7 @@ Int_t TGUI_TRD_Calib::Draw3D_track()
 
     Base_TRD_Calib ->Draw_TRD();
     Base_TRD_Calib ->Draw_track(i_track);
-    //Base_TRD_Calib ->Draw_neighbor_tracks(i_track);
+    Base_TRD_Calib ->Draw_neighbor_tracks(i_track);
 
     vector<Int_t> vec_merge_time_bins;
     vec_merge_time_bins.resize(4);
