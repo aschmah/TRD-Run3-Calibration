@@ -5,6 +5,7 @@
 #include "TClonesArray.h"
 
 
+
 //----------------------------------------------------------------------------------------
 class Ali_AS_TRD_digit : public TObject
 {
@@ -12,18 +13,19 @@ private:
     // Digit data
     UShort_t hit_ids[2]; // contains the full information of the TRD hit position (sector, stack, layer, row, column), definition see below
     Short_t ADC_time_values[24]; // raw ADC values for all 24 time bins of a single pad
-    Short_t arr_pos[3][24]; //
+    Short_t ADC_time_values_corrected[24]; // raw ADC values for all 24 time bins of a single pad
+    Float_t arr_pos[3][24]; // 
     //Short_t ADC_time_values_corrected_tc[24]; // raw ADC values for all 24 time bins of a single pad
-    Short_t  dca_to_track; // distance of closest approach of digit TRD hit to TPC track
-    Short_t  dca_x;
-    Short_t  dca_y;
-    Short_t  dca_z;
-    Short_t  ImpactAngle; // impact angle of TPC track to this TRD digit
+    Float_t  dca_to_track; // distance of closest approach of digit TRD hit to TPC track
+    Float_t  dca_x;
+    Float_t  dca_y;
+    Float_t  dca_z;
+    Float_t  ImpactAngle; // impact angle of TPC track to this TRD digit
 
 public:
     Ali_AS_TRD_digit() :
 	//hit_ids(), ADC_time_values(), ADC_time_values_corrected(), ADC_time_values_corrected_tc(), dca_to_track(-1), dca_x(-1), dca_y(-1), dca_z(-1), ImpactAngle(-1)
-        hit_ids(), ADC_time_values(), arr_pos(), dca_to_track(-1), dca_x(-1), dca_y(-1), dca_z(-1), ImpactAngle(-1)
+        hit_ids(), ADC_time_values(), ADC_time_values_corrected(), arr_pos(), dca_to_track(-1), dca_x(-1), dca_y(-1), dca_z(-1), ImpactAngle(-1)
     {
     }
 	~Ali_AS_TRD_digit() {}
@@ -31,26 +33,23 @@ public:
 	// setters
 	void sethit_ids(UShort_t x, UShort_t y)                     { hit_ids[0] = x; hit_ids[1] = y; }
 	void setADC_time_value(Int_t time_bin, Short_t ADC_value)  { ADC_time_values[time_bin] = ADC_value; }
-        void set_pos(Int_t time_bin, Float_t x_pos, Float_t y_pos, Float_t z_pos)
-        {
-
-            arr_pos[0][time_bin] = (Short_t)(100.0*x_pos); arr_pos[1][time_bin] = (Short_t)(100.0*y_pos); arr_pos[2][time_bin] = (Short_t)(100.0*z_pos);
-
-        }
+        void setADC_time_value_corrected(Int_t time_bin, Short_t ADC_value)  { ADC_time_values_corrected[time_bin] = ADC_value; }
+        void set_pos(Int_t time_bin, Float_t x_pos, Float_t y_pos, Float_t z_pos)  { arr_pos[0][time_bin] = x_pos; arr_pos[1][time_bin] = y_pos; arr_pos[2][time_bin] = z_pos; }
         //void setADC_time_value_corrected_tc(Int_t time_bin, Short_t ADC_value)  { ADC_time_values_corrected_tc[time_bin] = ADC_value; }
-        void setdca_to_track(Float_t f, Float_t f_x, Float_t f_y, Float_t f_z) { dca_to_track = (Short_t)(100.0*f); dca_x = (Short_t)(100.0*f_x); dca_y = (Short_t)(100.0*f_y); dca_z = (Short_t)(100.0*f_z);}
-	void setImpactAngle(Float_t f)                              { ImpactAngle = (Short_t)(100.0*f); }
+        void setdca_to_track(Float_t f, Float_t f_x, Float_t f_y, Float_t f_z) { dca_to_track = f; dca_x = f_x; dca_y = f_y; dca_z = f_z;}
+	void setImpactAngle(Float_t f)                              { ImpactAngle = f; }
 
 	// getters
         UInt_t   gethit_ids(Int_t i)                const           { return hit_ids[i]; }
 	Short_t  getADC_time_value(Int_t time_bin)  const           { return ADC_time_values[time_bin]; }
-        Float_t  get_pos(Int_t time_bin, Int_t index)  const { return ((Float_t)arr_pos[index][time_bin])/100.0; }
+	Short_t  getADC_time_value_corrected(Int_t time_bin)  const { return ADC_time_values_corrected[time_bin]; }
+        Float_t  get_pos(Int_t time_bin, Int_t index)  const { return arr_pos[index][time_bin]; }
         //Short_t  getADC_time_value_corrected_tc(Int_t time_bin)  const { return ADC_time_values_corrected_tc[time_bin]; }
-	Float_t  getdca_to_track()                  const           { return ((Float_t)dca_to_track)/100.0; }
-	Float_t  getdca_x()                         const           { return ((Float_t)dca_x)/100.0; }
-	Float_t  getdca_y()                         const           { return ((Float_t)dca_y)/100.0; }
-        Float_t  getdca_z()                         const           { return ((Float_t)dca_z)/100.0; }
-	Float_t  getImpactAngle()                   const           { return ((Float_t)ImpactAngle)/100.0; }
+	Float_t  getdca_to_track()                  const           { return dca_to_track; }
+	Float_t  getdca_x()                         const           { return dca_x; }
+	Float_t  getdca_y()                         const           { return dca_y; }
+        Float_t  getdca_z()                         const           { return dca_z; }
+	Float_t  getImpactAngle()                   const           { return ImpactAngle; }
 
 	// x = TRD_col + TRD_sec*144;
         // y = TRD_row + TRD_stack*16 + TRD_lay*16*5;
@@ -92,7 +91,7 @@ private:
     Float_t        TPCdEdx; // Energy loss information of TPC
     Float_t        TOFsignal; // Time-of-flight
     Float_t        Track_length; // length of track
-    Float_t        aliHelix_params[9];
+    AliHelix       aliHelix;
 
     UShort_t      fNumTRDdigits; // number of TRD digits for this track
 
@@ -102,7 +101,7 @@ public:
     Ali_AS_Track() :
 	nsigma_e_TPC(-1),nsigma_e_TOF(-1),nsigma_pi_TPC(-1),nsigma_pi_TOF(-1),nsigma_K_TPC(-1),nsigma_K_TOF(-1),nsigma_p_TPC(-1),nsigma_p_TOF(-1),TRD_signal(-1),
         TRDsumADC(-1),dca(-1),TLV_part(),NTPCcls(-1),NTRDcls(-1),NITScls(-1),status(-1),TPCchi2(-1),TRD_ADC_time_layer(),
-        impact_angle_on_TRD(-1),TPCdEdx(-1),TOFsignal(-1),Track_length(-1),aliHelix_params(),fNumTRDdigits(0)
+        impact_angle_on_TRD(-1),TPCdEdx(-1),TOFsignal(-1),Track_length(-1),aliHelix(),fNumTRDdigits(0)
     {
 	fTRD_digits      = new TClonesArray( "Ali_AS_TRD_digit", 10 );
     }
@@ -135,18 +134,7 @@ public:
 	void setTPCdEdx(Float_t f)                       {TPCdEdx = f;}
 	void setTOFsignal(Float_t f)                     {TOFsignal = f;}
         void setTrack_length(Float_t f)                  {Track_length = f;}
-        void setHelix(Float_t a, Float_t b,Float_t c,Float_t d,Float_t e,Float_t f,Float_t g,Float_t h,Float_t i)
-        {
-            aliHelix_params[0] = a;
-            aliHelix_params[1] = b;
-            aliHelix_params[2] = c;
-            aliHelix_params[3] = d;
-            aliHelix_params[4] = e;
-            aliHelix_params[5] = f;
-            aliHelix_params[6] = g;
-            aliHelix_params[7] = h;
-            aliHelix_params[8] = i;
-        }
+        void setHelix(AliHelix h)                      {aliHelix = h;}
 
 	// getters
 	Float_t getnsigma_e_TPC() const                     { return nsigma_e_TPC;         }
@@ -171,7 +159,7 @@ public:
 	Float_t   getTPCdEdx() const                { return TPCdEdx; }
 	Float_t   getTOFsignal() const              { return TOFsignal; }
         Float_t   getTrack_length() const           { return Track_length; }
-        Float_t   getHelix_param(Int_t i_param) const              {return aliHelix_params[i_param]; }
+        //AliHelix  getHelix() const              {return aliHelix; }
 
 
 	Float_t   getTRD_ADC(Int_t i_layer, Int_t i_time_bin) const
@@ -221,7 +209,6 @@ public:
 
 	ClassDef(Ali_AS_Track,1);  // A simple track of a particle
 };
-
 
 
 class Ali_AS_Event : public TObject
