@@ -48,10 +48,10 @@ public:
 
             arr_pos[0][time_bin] = (Short_t)(100.0*(x_pos-vec_200cm.X())); arr_pos[1][time_bin] = (Short_t)(100.0*(y_pos-vec_200cm.Y())); arr_pos[2][time_bin] = (Short_t)(100.0*(z_pos-vec_200cm.Z()));
 
-            cout << "x_pos: " << x_pos << endl;
+            //cout << "x_pos: " << x_pos << endl;
             //cout << "y_pos: " << y_pos << endl;
             //cout << "z_pos: " << z_pos << endl;
-            cout << "x_pos-200: " << arr_pos[0][time_bin] << endl;
+            //cout << "x_pos-200: " << arr_pos[0][time_bin] << endl;
             //cout << "y_pos-200: " << arr_pos[1][time_bin] << endl;
             //cout << "z_pos-200: " << arr_pos[2][time_bin] << endl;
         }
@@ -76,10 +76,13 @@ public:
 	Short_t  getADC_time_value(Int_t time_bin)  const           { return ADC_time_values[time_bin]; }
         Float_t  get_pos(Int_t time_bin, Int_t index)  const //{ return ((Float_t)arr_pos[index][time_bin])/100.0; }
         {
-            TVector3 vec_200cm(arr_pos[0][time_bin],arr_pos[1][time_bin],arr_pos[2][time_bin]);
-            vec_200cm *= 200.0/vec_200cm.Mag();
+            TVector3 vec_200cm((Float_t)arr_pos[0][time_bin]/100.0,(Float_t)arr_pos[1][time_bin]/100.0,(Float_t)arr_pos[2][time_bin]/100.0);
+            
+            //now vec_200cm is again in cm
 
-            return ((Float_t)(arr_pos[index][time_bin]+vec_200cm(index)))/100.0;
+            //vec_200cm *= 200.0/vec_200cm.Mag();     //when we get positions XYZ-200cm
+            vec_200cm *= 1.0/vec_200cm.Mag();         //for the moment
+            return (Float_t)(arr_pos[index][time_bin]/100.0 + vec_200cm(index));
         }
 
         //Float_t  get_pos_uncalib(Int_t time_bin, Int_t index)  const { return ((Float_t)arr_pos_uncalib[index][time_bin])/100.0; }
