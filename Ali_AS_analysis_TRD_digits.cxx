@@ -643,6 +643,7 @@ void Ali_AS_analysis_TRD_digits::UserExec(Option_t *)
     //-----------------------------------------------------------------
     // Loop over all TRD channels
     std::vector<TVector3> TV3_TRD_hits;
+    std::vector<TVector3> TV3_TRD_hits_uncalib;
     std::vector<TVector3> TV3_TRD_hits_det_angle;
     std::vector<Double_t> vec_TRD_hits_ADC_value;
     std::vector<Double_t> vec_TRD_hits_time;
@@ -652,7 +653,7 @@ void Ali_AS_analysis_TRD_digits::UserExec(Option_t *)
     std::vector<TVector3> TV3_TRD_hits_det_angle_middle;
     std::vector< std::vector<Double_t> > vec_TRD_hits_ADC_values_time;
     std::vector< std::vector<TVector3> > vec_TRD_hits_points_time;
-   // std::vector< std::vector<TVector3> > vec_TRD_hits_points_time_uncalib;
+    std::vector< std::vector<TVector3> > vec_TRD_hits_points_time_uncalib;
     std::vector< std::vector<Int_t> >    vec_TRD_hits_det_lay_row_col;
 
     vec_TRD_det_lay_row_col.resize(4);
@@ -687,8 +688,10 @@ void Ali_AS_analysis_TRD_digits::UserExec(Option_t *)
 		Double_t ADC_amplitude_sum_times = 0.0;
 		std::vector<Double_t> vec_ADC_time_bins;
 		vec_ADC_time_bins.resize(N_times);
-		std::vector<TVector3> vec_points_time_bins;
-		vec_points_time_bins.resize(N_times);
+                std::vector<TVector3> vec_points_time_bins;
+                vec_points_time_bins.resize(N_times);
+                std::vector<TVector3> vec_points_time_bins_uncalib;
+                vec_points_time_bins_uncalib.resize(N_times);
 		//cout << "i_column: " << i_column << ", i_row: " << i_row << ", N_times: " << N_times << endl;
 		Double_t arr[24] = {0.0};
 		for(Int_t i_time = 0; i_time < N_times; i_time++)
@@ -713,21 +716,23 @@ void Ali_AS_analysis_TRD_digits::UserExec(Option_t *)
 
 			//----------------------
 			// Calculate global position for fired TRD pad
-			Float_t              TRD_time0        = fGeo         ->GetTime0(i_layer); // in cm
-			AliTRDpadPlane*      padplane         = fGeo         ->GetPadPlane(i_det);
-			Double_t             TRD_col_end      = padplane     ->GetColEnd();
-			Double_t             TRD_row_end      = padplane     ->GetRowEnd();            // fPadRow[fNrows-1] - fLengthOPad + fPadRowSMOffset;
-			Double_t             TRD_row_start    = padplane     ->GetRow0();              // fPadRow[0] + fPadRowSMOffset
-			Double_t             TRD_row_end_ROC  = padplane     ->GetRowEndROC();         // fPadRow[fNrows-1] - fLengthOPad;
-			Double_t             TRD_col_spacing  = padplane     ->GetColSpacing();
-			Double_t             TRD_row_spacing  = padplane     ->GetRowSpacing();
-			Double_t             TRD_col_pos      = padplane     ->GetColPos(i_column);
-			Double_t             TRD_row_pos      = padplane     ->GetRowPos(i_row);       // fPadRow[row] + fPadRowSMOffset;
-			Double_t             TRD_row_pos_ROC  = padplane     ->GetRowPosROC(i_row);    // fPadRow[row]; = pad border position
-		        Double_t             TRD_col_size     = padplane     ->GetColSize(i_column);
-			Double_t             TRD_row_size     = padplane     ->GetRowSize(i_row);
-			Float_t              TRD_loc_Y        = TRD_col_pos + 0.5*TRD_col_size;
-			Double_t             TRD_drift_time   = ((Double_t)i_time)*TRD_time_per_bin*ChamberVdrift->GetValue(i_det); // 100 ns per time bin, 1.56 cm/mus drift velocity, 3 cm drift length at maximum
+			Float_t              TRD_time0                = fGeo         ->GetTime0(i_layer); // in cm
+                        AliTRDpadPlane*      padplane                 = fGeo         ->GetPadPlane(i_det);
+			Double_t             TRD_col_end              = padplane     ->GetColEnd();
+			Double_t             TRD_row_end              = padplane     ->GetRowEnd();            // fPadRow[fNrows-1] - fLengthOPad + fPadRowSMOffset;
+			Double_t             TRD_row_start            = padplane     ->GetRow0();              // fPadRow[0] + fPadRowSMOffset
+			Double_t             TRD_row_end_ROC          = padplane     ->GetRowEndROC();         // fPadRow[fNrows-1] - fLengthOPad;
+			Double_t             TRD_col_spacing          = padplane     ->GetColSpacing();
+			Double_t             TRD_row_spacing          = padplane     ->GetRowSpacing();
+			Double_t             TRD_col_pos              = padplane     ->GetColPos(i_column);
+			Double_t             TRD_row_pos              = padplane     ->GetRowPos(i_row);       // fPadRow[row] + fPadRowSMOffset;
+			Double_t             TRD_row_pos_ROC          = padplane     ->GetRowPosROC(i_row);    // fPadRow[row]; = pad border position
+		        Double_t             TRD_col_size             = padplane     ->GetColSize(i_column);
+			Double_t             TRD_row_size             = padplane     ->GetRowSize(i_row);
+                        Float_t              TRD_loc_Y                = TRD_col_pos + 0.5*TRD_col_size;
+                        Float_t              TRD_loc_Y_uncalib        = TRD_loc_Y;
+                        Double_t             TRD_drift_time           = ((Double_t)i_time)*TRD_time_per_bin*ChamberVdrift->GetValue(i_det); // 100 ns per time bin, 1.56 cm/mus drift velocity, 3 cm drift length at maximum
+                        Double_t             TRD_drift_time_uncalib   = ((Double_t)i_time)*TRD_time_per_bin*1.56; // 100 ns per time bin, 1.56 cm/mus drift velocity, 3 cm drift length at maximum
 
                         //printf("TRD_tim0: %4.3f, vdrift: %4.3f \n",TRD_time0,ChamberVdrift->GetValue(i_det));
 
@@ -740,41 +745,49 @@ void Ali_AS_analysis_TRD_digits::UserExec(Option_t *)
 			//Double_t             loc[3]           = {TRD_time0,TRD_loc_Y,TRD_loc_Z+TRD_row_end};
 
 			// Determine global position of TRD hit
-			Double_t             loc[3]           = {TRD_time0 - TRD_drift_time,TRD_loc_Y,TRD_row_pos - TRD_row_size/2.0};
-			Double_t             glb[3]           = {0.0,0.0,0.0};
-			fGeo ->RotateBack(i_det,loc,glb);
+                        Double_t             loc[3]           = {TRD_time0 - TRD_drift_time,TRD_loc_Y,TRD_row_pos - TRD_row_size/2.0};
+                        Double_t             loc_uncalib[3]   = {TRD_time0 - TRD_drift_time_uncalib,TRD_loc_Y_uncalib,TRD_row_pos - TRD_row_size/2.0};
+                        Double_t             glb[3]           = {0.0,0.0,0.0};
+                        Double_t             glb_uncalib[3]   = {0.0,0.0,0.0};
+                        fGeo ->RotateBack(i_det,loc,glb);
+                        fGeo ->RotateBack(i_det,loc_uncalib,glb_uncalib);
 
-			// Apply alignment
+			// Apply alignment     
 			Double_t glb_align_sec[3];
-			Double_t glb_align[3];
+                        Double_t glb_align[3];
+                        Double_t glb_align_sec_uncalib[3];
+			Double_t glb_align_uncalib[3];
 
-			TM_TRD_rotation_sector[i_sector].LocalToMaster(glb,glb_align_sec);
-			TM_TRD_rotation_det[i_det].LocalToMaster(glb_align_sec,glb_align);
+                        TM_TRD_rotation_sector[i_sector].LocalToMaster(glb,glb_align_sec);
+                        TM_TRD_rotation_det[i_det].LocalToMaster(glb_align_sec,glb_align);
+                        TM_TRD_rotation_sector[i_sector].LocalToMaster(glb_uncalib,glb_align_sec_uncalib);
+                        TM_TRD_rotation_det[i_det].LocalToMaster(glb_align_sec_uncalib,glb_align_uncalib);
 
 			//glb_align[0] = glb[0];
                         //glb_align[1] = glb[1];
                         //glb_align[2] = glb[2];
 
-			// Determine global pointing vector of TRD plane (vector perpendicular to plane in global system)
+			// Determine global pointing vector of TRD plane (vector perpendicular to plane in global system)  // here no changes 
 			Double_t             loc_vec[3]           = {TRD_time0,0.0,(TRD_row_end + TRD_row_start)/2.0};
 			Double_t             glb_vec[3]           = {0.0,0.0,0.0};
 			fGeo ->RotateBack(i_det,loc_vec,glb_vec);
 
 
-			// Apply alignment
+			// Apply alignment  // here no changes
 			Double_t glb_vec_align_sec[3];
 			Double_t glb_vec_align[3];
 			TM_TRD_rotation_sector[i_sector].LocalToMaster(glb_vec,glb_vec_align_sec);
 			TM_TRD_rotation_det[i_det].LocalToMaster(glb_vec_align_sec,glb_vec_align);
 
-			//for(Int_t i = 0; i < 3; i++)
+                        //for(Int_t i = 0; i < 3; i++)
 			//{
 			//    glb_align[i] = glb[i];
                         //    glb_vec_align[i] = glb_vec[i];
 			//}
 
 
-			Double_t             TRD_radius   = TMath::Sqrt(glb_align[0]*glb_align[0] + glb_align[1]*glb_align[1]);
+                        Double_t             TRD_radius           = TMath::Sqrt(glb_align[0]*glb_align[0] + glb_align[1]*glb_align[1]);
+                        Double_t             TRD_radius_uncalib   = TMath::Sqrt(glb_align_uncalib[0]*glb_align_uncalib[0] + glb_align_uncalib[1]*glb_align_uncalib[1]);
 #if 0
 			if(i_det >= 0 && i_time == 0 && i_column == 0 && i_row >= 0)
 			{
@@ -796,10 +809,12 @@ void Ali_AS_analysis_TRD_digits::UserExec(Option_t *)
 
 			if(ADC_amplitude > 0.0)
 			{
-			    TVector3 TV3_TRD_hit, TV3_TRD_hit_det_angle;
+			    TVector3 TV3_TRD_hit, TV3_TRD_hit_uncalib, TV3_TRD_hit_det_angle;
 			    TV3_TRD_hit.SetXYZ(glb_align[0],glb_align[1],glb_align[2]);
-			    TV3_TRD_hit_det_angle.SetXYZ(glb_vec_align[0],glb_vec_align[1],0.0); // glb_vec is from {0,0,0} to center of detector, set z component to 0 to get vector perpendicular to detector plane
-			    TV3_TRD_hits.push_back(TV3_TRD_hit);
+                            TV3_TRD_hit_uncalib.SetXYZ(glb_align_uncalib[0],glb_align_uncalib[1],glb_align_uncalib[2]);
+                            TV3_TRD_hit_det_angle.SetXYZ(glb_vec_align[0],glb_vec_align[1],0.0); // glb_vec is from {0,0,0} to center of detector, set z component to 0 to get vector perpendicular to detector plane
+                            TV3_TRD_hits.push_back(TV3_TRD_hit);
+                            TV3_TRD_hits_uncalib.push_back(TV3_TRD_hit_uncalib);
 			    TV3_TRD_hits_det_angle.push_back(TV3_TRD_hit_det_angle);
 			    vec_TRD_hits_ADC_value.push_back(ADC_amplitude);
 			    vec_TRD_hits_time.push_back(((Double_t)i_time)*0.1); // time in mus
@@ -808,9 +823,12 @@ void Ali_AS_analysis_TRD_digits::UserExec(Option_t *)
 			    vec_TRD_det_lay_row_col[2].push_back(i_row);
 			    vec_TRD_det_lay_row_col[3].push_back(i_column);
 
-			    vec_ADC_time_bins[i_time]    = ADC_amplitude;
-			    vec_points_time_bins[i_time] = TV3_TRD_hit;
-			}
+			    vec_ADC_time_bins[i_time]            = ADC_amplitude;
+                            vec_points_time_bins[i_time]         = TV3_TRD_hit;
+                            vec_points_time_bins_uncalib[i_time] = TV3_TRD_hit_uncalib;
+                            //cout << "vec calib: " << vec_points_time_bins[i_time] << endl;
+                            //cout << "vec uncalib: " << vec_points_time_bins_uncalib[i_time] << endl;
+                        }
 			//----------------------
 		    }
 		} // end of time loop
@@ -925,7 +943,7 @@ void Ali_AS_analysis_TRD_digits::UserExec(Option_t *)
 
 		    vec_TRD_hits_ADC_values_time.push_back(vec_ADC_time_bins);
                     vec_TRD_hits_points_time.push_back(vec_points_time_bins);
-                    //vec_TRD_hits_points_time_uncalib.push_back(vec_points_time_bins);
+                    vec_TRD_hits_points_time_uncalib.push_back(vec_points_time_bins_uncalib);
 		}
 		//------------------------------------------------------------
 
@@ -1309,17 +1327,11 @@ void Ali_AS_analysis_TRD_digits::UserExec(Option_t *)
                         //printf("ADC_value: %hi \n",(Short_t)ADC_value);
                         //AS_Digit ->setADC_time_value_corrected(i_time,(Short_t)ADC_value_corrected);
 
-                        AS_Digit ->set_pos(i_time,vec_TRD_hits_points_time[i_TRD_hit][i_time].X(), vec_TRD_hits_points_time[i_TRD_hit][i_time].Y(), vec_TRD_hits_points_time[i_TRD_hit][i_time].Z());
+                        AS_Digit ->set_pos(i_time,vec_TRD_hits_points_time_uncalib[i_TRD_hit][i_time].X(), vec_TRD_hits_points_time_uncalib[i_TRD_hit][i_time].Y(), vec_TRD_hits_points_time_uncalib[i_TRD_hit][i_time].Z());
 
                         //cout << "vec_TRD_hits_points_time[i_TRD_hit][i_time].X()" << vec_TRD_hits_points_time[i_TRD_hit][i_time].X() << endl;
                         //cout << << << endl;
-
-                        // AS_Digit ->set_pos_uncalib(i_time,vec_TRD_hits_points_time_uncalib[i_TRD_hit][i_time].X(), vec_TRD_hits_points_time_uncalib[i_TRD_hit][i_time].Y(), vec_TRD_hits_points_time_uncalib[i_TRD_hit][i_time].Z());
-
                         //if(fEventNoInFile < 2 && iTracks == 3) printf("iTracks: %d, layer: %d, i_time: %d, pos: {%4.3f, %4.3f, %4.3f} \n",iTracks,TRD_lay,i_time,vec_TRD_hits_points_time[i_TRD_hit][i_time].X(), vec_TRD_hits_points_time[i_TRD_hit][i_time].Y(), vec_TRD_hits_points_time[i_TRD_hit][i_time].Z());
-
-                        //here we need to save also uncalibrated 3D points vec_TRD_hits_points_time_uncalib
-
                         //AS_Digit ->setADC_time_value_corrected_tc(i_time,(Short_t)ADC_value_corrected_tc);
 		    }
 
