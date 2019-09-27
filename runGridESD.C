@@ -7,6 +7,8 @@ class  AliAnalysisAlien;
 //        "terminate" to merge results after "full"
 void runGridESD(TString mode="terminate",Int_t sub=702, TString fname="Ali_AS_analysis_TRD_digits", Int_t alien=1)
 {
+    // Use root 5
+
     // aliroot runGridESD.C\(\"test\",702,\"Ali_AS_analysis_TRD_digits\",0\)
     // aliroot runGridESD.C\(\"test\",702,\"Ali_AS_analysis_TRD_digits\",1\)
     // aliroot runGridESD.C\(\"full\",702,\"Ali_AS_analysis_TRD_digits\",1\)

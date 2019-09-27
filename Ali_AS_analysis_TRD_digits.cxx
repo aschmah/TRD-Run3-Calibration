@@ -76,7 +76,6 @@ using namespace std;
 static Int_t flag_plot_event = 0;
 static TString HistName;
 
-static const Double_t mass_array[16]    = {0.0,0.0,0.00051099892,0.00051099892,0.0,0.105658369,0.105658369,0.1349766,0.13957018,0.13957018,0.497648,0.493677,0.493677,0.93956536,0.93827203,0.93827203}; // in GeV/c^2  {empty,gamma,e+,e-,neutrino,mu+,mu-,pi0,pi+,pi-,K0long,K+,K-,n,p,anti-p}
 static TFile* dfile;
 static TFile* TRD_alignment_file;
 static TGeoHMatrix TM_TRD_rotation_det[540];
@@ -468,15 +467,6 @@ void Ali_AS_analysis_TRD_digits::UserCreateOutputObjects()
     fListOfHistos = new TList();
     fListOfHistos ->SetOwner();
 
-    h_dca.resize(N_pT_bins);
-    for(Int_t i_pT = 0; i_pT < N_pT_bins; i_pT++)
-    {
-	HistName = "h_dca_pT_";
-        HistName += i_pT;
-	h_dca[i_pT] = new TH1D(HistName.Data(),HistName.Data(),1000,0.0,70.0);
-	h_dca[i_pT] ->GetXaxis()->SetTitle("dca");
-	fListOfHistos->Add(h_dca[i_pT]);
-    }
     h_ADC_tracklet.resize(2);
     for(Int_t i_ADC = 0; i_ADC < 2; i_ADC++)
     {
@@ -485,26 +475,6 @@ void Ali_AS_analysis_TRD_digits::UserCreateOutputObjects()
         h_ADC_tracklet[i_ADC] = new TH1D(HistName.Data(),HistName.Data(),350,-50.0,300.0);
         fListOfHistos->Add(h_ADC_tracklet[i_ADC]);
     }
-
-    h_dca_xyz.resize(6); // x, y, z
-    for(Int_t i_xyz = 0; i_xyz < 6; i_xyz++)
-    {
-	h_dca_xyz[i_xyz].resize(N_pT_bins);
-	for(Int_t i_pT = 0; i_pT < N_pT_bins; i_pT++)
-	{
-	    HistName = "h_dca_xyz_";
-	    HistName += i_xyz;
-            HistName += "_pT_";
-	    HistName += i_pT;
-	    h_dca_xyz[i_xyz][i_pT] = new TH1D(HistName.Data(),HistName.Data(),1000,-70.0,70.0);
-	    h_dca_xyz[i_xyz][i_pT] ->GetXaxis()->SetTitle("dca");
-	    fListOfHistos->Add(h_dca_xyz[i_xyz][i_pT]);
-	}
-    }
-
-    HistName = "h2D_TPC_dEdx_vs_momentum";
-    h2D_TPC_dEdx_vs_momentum = new TH2D(HistName.Data(),HistName.Data(),2000,-30.0,30.0,2000,0,1000);
-    fListOfHistos->Add(h2D_TPC_dEdx_vs_momentum);
 
     OpenFile(2);
     cout << "File opened" << endl;
@@ -701,11 +671,6 @@ void Ali_AS_analysis_TRD_digits::UserExec(Option_t *)
 	Int_t N_times     = fDigMan->GetDigits(i_det)->GetNtime();
 	Int_t N_detectors = fDigMan->GetDigits(i_det)->GetNdet();
 
-	//AliTRDarrayADC* trd_array_adc = fDigMan->GetDigits(i_det);
-	//trd_array_adc->CreateLut();
-
-	//cout << "TRD detector: " << i_det << endl;
-
 	Int_t i_sector = fGeo->GetSector(i_det);
 	Int_t i_stack  = fGeo->GetStack(i_det);
 	Int_t i_layer  = fGeo->GetLayer(i_det);
@@ -866,78 +831,8 @@ void Ali_AS_analysis_TRD_digits::UserExec(Option_t *)
                             max_time_bin = i_time;
 			}
 		    }
-		    //printf("   ->peak at time bin: %d, ADC: %f \n",max_time_bin,max_ADC_val);
-		    //my_class_peak_finder.add_TH1D(h_ADC_vs_time);
-		    //my_class_peak_finder.set_debug(0);
-		    //my_class_peak_finder.set_finding_parameters(0,2.0,1.2,4,1,0.0,6.0); //(0 = peak, 1 = rim), width, min S/B, exlcusion range, N_maxima, min_radius, max_width_scan
-		    //my_class_peak_finder.find_peaks();
-		    //vector< vector<Double_t> > vec_peak_positions = my_class_peak_finder.get_peak_positions();  // time bin, height, density
-		    //printf("   ->peak at time bin: %f, height: %f, density: %f \n",vec_peak_positions[0][0],vec_peak_positions[1][0],vec_peak_positions[2][0]);
-
-		    //my_class_peak_finder.clear();
-		    //h_ADC_vs_time ->Reset();
 		}
                 //--------------------------------------------------
-
-
-#if 0
-		//--------------------------------------------------
-		if(ADC_amplitude_sum_times > 0.0)
-		{
-		    cout << " " << endl;
-		    cout << "--------------------------------------------------" << endl;
-                    Double_t arr_raw[24];
-		    for(int i = 0; i < 24; i++)
-		    {
-                        arr_raw[i] = arr[i];
-		    }
-		    // Tail cancelation
-		    Float_t rates[2];
-		    Float_t coefficients[2];
-
-		    // Initialization (coefficient = alpha, rates = lambda)
-		    Float_t r1 = 1.0;
-		    Float_t r2 = 1.0;
-		    Float_t c1 = 0.5;
-		    Float_t c2 = 0.5;
-
-		    r1 = 1.156;
-		    r2 = 0.130;
-		    c1 = 0.066;
-		    c2 = 0.000;
-
-		    coefficients[0] = c1;
-		    coefficients[1] = c2;
-
-		    Double_t dt = 0.1;
-
-		    rates[0] = TMath::Exp(-dt/(r1));
-		    rates[1] = 0.0;
-
-		    Float_t reminder[2] = { .0, .0 };
-		    Float_t correction = 0.0;
-		    Float_t result     = 0.0;
-
-		    Int_t fBaseline = 10;
-
-		    for(int i = 0; i < 24; i++)
-		    {
-			result = arr[i] - correction - fBaseline;    // No rescaling
-			arr[i] = (Short_t)(result + fBaseline + 0.5f);
-
-			correction = 0.0;
-			for(int k = 0; k < 2; k++)
-			{
-			    correction += reminder[k] = rates[k] * (reminder[k] + coefficients[k] * result);
-			}
-		    }
-		    for(int i = 0; i < 24; i++)
-		    {
-			cout << "time bin: " << i << ", after tail cancelation ADC: " << arr[i] << ", before: " << arr_raw[i] << endl;
-		    }
-		}
-		//--------------------------------------------------
-#endif
 
 
 
@@ -982,48 +877,6 @@ void Ali_AS_analysis_TRD_digits::UserExec(Option_t *)
 		    // ExB correction
 		    Double_t exb = fCalExBDetValue;//AliTRDCommonParam::Instance()->GetOmegaTau(vd);
 
-		    //Float_t x = c->GetXloc(t0, vd);
-		    //printf("AnodePos: %f, sf: %f, TRD_time0: %f \n",kX0shift,fSamplingFrequency,TRD_time0);
-
-                    // http://personalpages.to.infn.it/~puccio/htmldoc/src/AliTRDtransform.cxx.html#LoiVTE
-		    // Parameters to adjust the X position of clusters in the alignable volume
-                    /*
-		    const Double_t kX0shift = AliTRDgeometry::AnodePos(); //[cm]
-
-		    // Retrieve calibration values
-		    Int_t col = c->GetPadCol(), row = c->GetPadRow();
-		    // drift velocity
-		    Double_t vd  = fCalVdriftDetValue * fCalVdriftROC->GetValue(col,row);
-		    // t0
-		    Double_t t0  = fCalT0DetValue     + fCalT0ROC->GetValue(col,row);
-		    t0 /= fSamplingFrequency;
-		    // ExB correction
-		    Double_t exb = fCalExBDetValue;//AliTRDCommonParam::Instance()->GetOmegaTau(vd);
-
-		    Float_t x = c->GetXloc(t0, vd); // x = td*vd, td = (fPadTime + .5)/fFreq - t0 - 0.189; // [us]
-
-		    // Pad dimensions
-		    Double_t rs = fPadPlane->GetRowSize(row);
-		    Double_t cs = fPadPlane->GetColSize(col);
-
-		    // cluster error with diffusion corrections
-		    Double_t s2  = cs*fCalPRFROC->GetValue(col, row);
-		    s2 *= s2;
-		    Float_t dl, dt;
-		    AliTRDCommonParam::Instance()->GetDiffCoeff(dl, dt, vd);
-
-		    Double_t y0 = fPadPlane->GetColPos(col) + .5*cs;
-		    Double_t loc[] = {
-			kX0shift-x,                    // Invert the X-position,
-			c->GetYloc(y0, s2, cs) - x*exb,// apply ExB correction
-			fPadPlane->GetRowPos(row) - .5*rs - fZShiftIdeal // move the Z-position relative to the middle of the chamber
-		    };
-
-		    // Go to tracking coordinates
-		    Double_t trk[3];
-		    fMatrix->LocalToMaster(loc, trk);
-                    */
-
 		    Float_t lorentz_angle_corr_y = ChamberExB->GetValue(i_det)*TRD_drift_time;
 		    TRD_loc_Y -= Sign_magnetic_field*lorentz_angle_corr_y;
 
@@ -1052,12 +905,6 @@ void Ali_AS_analysis_TRD_digits::UserExec(Option_t *)
 		    TM_TRD_rotation_sector[i_sector].LocalToMaster(glb_ref,glb_ref_align_sec);
                     TM_TRD_rotation_det[i_det].LocalToMaster(glb_ref_align_sec,glb_ref_align);
 
-		    //cout << "old z: " << glb_ref[2] << ", new z: " <<  glb_ref_align[2] << ", delta z: " << TV3_TRD_translation[i_det].Z() << endl;
-
-		    //glb_ref_align[0] += 1.0;
-		    //glb_ref_align[1] += 1.0;
-                    //glb_ref_align[2] += 1.0;
-
 		    // Determine global pointing vector of TRD plane (vector perpendicular to plane in global system)
 		    Double_t             loc_vec_ref[3]           = {TRD_time0,0.0,(TRD_row_end + TRD_row_start)/2.0};
 		    Double_t             glb_vec_ref[3]           = {0.0,0.0,0.0};
@@ -1068,12 +915,6 @@ void Ali_AS_analysis_TRD_digits::UserExec(Option_t *)
 		    Double_t glb_vec_ref_align[3];
                     TM_TRD_rotation_sector[i_sector].LocalToMaster(glb_vec_ref,glb_vec_ref_align_sec);
 		    TM_TRD_rotation_det[i_det].LocalToMaster(glb_vec_ref_align_sec,glb_vec_ref_align);
-
-		    //for(Int_t i = 0; i < 3; i++)
-		    //{
-		    //    glb_ref_align[i] = glb_ref[i];
-		    //    glb_vec_ref_align[i] = glb_vec_ref[i];
-		    //}
 
 		    TVector3 TV3_TRD_hit_middle, TV3_TRD_hit_det_angle_middle;
 		    TV3_TRD_hit_middle.SetXYZ(glb_ref_align[0],glb_ref_align[1],glb_ref_align[2]);
@@ -1138,12 +979,6 @@ void Ali_AS_analysis_TRD_digits::UserExec(Option_t *)
 	Double_t TOF_signal   = track ->GetTOFsignal(); // time-of-flight?
         Double_t Track_length = track ->GetIntegratedLength();
 	UShort_t N_TPC_cls    = track ->GetTPCNcls();
-
-	//AliKalmanTrack* trd_track = track ->GetTRDtrack();
-
-	h2D_TPC_dEdx_vs_momentum ->Fill(Track_p,TPC_signal);
-
-	//if(Track_pT > 0.5) printf("TOF_signal: %f, eta: %f \n",TOF_signal,Track_eta);
 
 
         Int_t pT_bin;
@@ -1216,7 +1051,7 @@ void Ali_AS_analysis_TRD_digits::UserExec(Option_t *)
 	//-------------------
 
 	TLorentzVector TL_vec;
-	TL_vec.SetPtEtaPhiM(Track_pT,Track_eta,Track_phi,mass_array[2]);
+	TL_vec.SetPtEtaPhiM(Track_pT,Track_eta,Track_phi,0.1349766);
 	AS_Track  = AS_Event ->createTrack();
 	AS_Track  ->clearTRD_digit_list();
 	AS_Track  ->set_TLV_part(TL_vec);
@@ -1267,7 +1102,6 @@ void Ali_AS_analysis_TRD_digits::UserExec(Option_t *)
 
                     if(isl == 0 && TPC_signal > 50.0 && TPC_signal < 70.0)
                     {
-                        h_ADC_tracklet[0] ->Fill(TRD_ADC_time_slice/TPC_signal);
                         //printf("iTracks: %d, dE/dx: %4.2f, layer: %d, ADC/dEdx: %4.2f \n",iTracks,TPC_signal,iPl,TRD_ADC_time_slice/TPC_signal);
                     }
 
@@ -1367,56 +1201,6 @@ void Ali_AS_analysis_TRD_digits::UserExec(Option_t *)
 
 
 
-#if 0
-            //--------------------------------------------------------------------------------
-            // Only for test purposes so far
-	    // Loop over all TRD hits in the event and match them with the TPC track
-	    // WARNING: All time bins are matched!
-	    for(Int_t i_TRD_hit = 0; i_TRD_hit < TV3_TRD_hits.size(); i_TRD_hit++) // All ADC hits, including time bins
-	    {
-		Double_t dx = helix_point_search[0] - TV3_TRD_hits[i_TRD_hit].X();
-		Double_t dy = helix_point_search[1] - TV3_TRD_hits[i_TRD_hit].Y();
-		Double_t dz = helix_point_search[2] - TV3_TRD_hits[i_TRD_hit].Z();
-		Double_t dist_to_TRD_pad = TMath::Sqrt(dx*dx + dy*dy + dz*dz);
-
-		if(dist_to_TRD_pad > 65.0) continue;
-
-		Float_t pathA, dcaAB;
-		FindDCAHelixPoint(TV3_TRD_hits[i_TRD_hit],aliHelix,path_initA-25.0,path_initA+25.0,pathA,dcaAB);
-		Double_t helix_point[3];
-		aliHelix.Evaluate(pathA,helix_point);
-		h_dca[pT_bin] ->Fill(dcaAB);
-		for(Int_t i_xyz = 0; i_xyz < 3; i_xyz++)
-		{
-		    h_dca_xyz[i_xyz][pT_bin] ->Fill(helix_point[i_xyz]-TV3_TRD_hits[i_TRD_hit][i_xyz]);
-		    if(i_xyz == 0
-		       && fabs(helix_point[1]-TV3_TRD_hits[i_TRD_hit][1]) < 3.0
-		       && fabs(helix_point[2]-TV3_TRD_hits[i_TRD_hit][2]) < 7.0
-		      )
-		    {
-			h_dca_xyz[3][pT_bin] ->Fill(helix_point[i_xyz]-TV3_TRD_hits[i_TRD_hit][i_xyz]);
-		    }
-		    if(i_xyz == 1
-		       && fabs(helix_point[0]-TV3_TRD_hits[i_TRD_hit][0]) < 3.0
-		       && fabs(helix_point[2]-TV3_TRD_hits[i_TRD_hit][2]) < 7.0
-		      )
-		    {
-			h_dca_xyz[4][pT_bin] ->Fill(helix_point[i_xyz]-TV3_TRD_hits[i_TRD_hit][i_xyz]);
-		    }
-		    if(i_xyz == 2
-		       && fabs(helix_point[0]-TV3_TRD_hits[i_TRD_hit][0]) < 3.0
-		       && fabs(helix_point[1]-TV3_TRD_hits[i_TRD_hit][1]) < 3.0
-		      )
-		    {
-			h_dca_xyz[5][pT_bin] ->Fill(helix_point[i_xyz]-TV3_TRD_hits[i_TRD_hit][i_xyz]);
-		    }
-		}
-	    }
-            //--------------------------------------------------------------------------------
-#endif
-
-
-
 	    //--------------------------------------------------------------------------------
 	    // Loop over all TRD middle hits in the event and match them with the TPC track
 	    Int_t TRD_layer_match[6] = {0,0,0,0,0,0};
@@ -1438,41 +1222,8 @@ void Ali_AS_analysis_TRD_digits::UserExec(Option_t *)
                 Double_t dca_xyz[3];
 		Double_t helix_point_dca[3];
 		aliHelix.Evaluate(pathA,helix_point_dca);
-		h_dca[pT_bin] ->Fill(dcaAB);
-		for(Int_t i_xyz = 0; i_xyz < 3; i_xyz++)
-		{
-                    dca_xyz[i_xyz] = helix_point_dca[i_xyz]-TV3_TRD_hits_middle[i_TRD_hit][i_xyz];
-		    h_dca_xyz[i_xyz][pT_bin] ->Fill(helix_point_dca[i_xyz]-TV3_TRD_hits_middle[i_TRD_hit][i_xyz]);
-		    if(i_xyz == 0
-		       && fabs(helix_point_dca[1]-TV3_TRD_hits_middle[i_TRD_hit][1]) < 3.0
-		       && fabs(helix_point_dca[2]-TV3_TRD_hits_middle[i_TRD_hit][2]) < 7.0
-		      )
-		    {
-			h_dca_xyz[3][pT_bin] ->Fill(helix_point_dca[i_xyz]-TV3_TRD_hits_middle[i_TRD_hit][i_xyz]);
-		    }
-		    if(i_xyz == 1
-		       && fabs(helix_point_dca[0]-TV3_TRD_hits_middle[i_TRD_hit][0]) < 3.0
-		       && fabs(helix_point_dca[2]-TV3_TRD_hits_middle[i_TRD_hit][2]) < 7.0
-		      )
-		    {
-			h_dca_xyz[4][pT_bin] ->Fill(helix_point_dca[i_xyz]-TV3_TRD_hits_middle[i_TRD_hit][i_xyz]);
-		    }
-		    if(i_xyz == 2
-		       && fabs(helix_point_dca[0]-TV3_TRD_hits_middle[i_TRD_hit][0]) < 3.0
-		       && fabs(helix_point_dca[1]-TV3_TRD_hits_middle[i_TRD_hit][1]) < 3.0
-		      )
-		    {
-			h_dca_xyz[5][pT_bin] ->Fill(helix_point_dca[i_xyz]-TV3_TRD_hits_middle[i_TRD_hit][i_xyz]);
-		    }
-		}
 
-
-		//Double_t dca_yz[2];
-		//Bool_t b_prop_to_dca =  track->PropagateToDCA(PrimVertex,magF,3.0,dca_yz);
-		//Double_t dca_yz_total = TMath::Sqrt(dca_yz[0]*dca_yz[0] + dca_yz[1]*dca_yz[1]);
-
-		//cout << "pathA: " << pathA << ", dcaAB, " << dcaAB << endl;
-		Double_t helix_point[3];
+                Double_t helix_point[3];
 		aliHelix.Evaluate(pathA,helix_point);
 
 		Double_t helix_point_B[3];
@@ -1533,6 +1284,7 @@ void Ali_AS_analysis_TRD_digits::UserExec(Option_t *)
 			    ADC_Digit_values_array_tc[i_time] = vec_TRD_hits_ADC_values_time[i_TRD_hit][i_time];
 			}
 		    }
+
                     func_tail_cancellation(ADC_Digit_values_array_tc,1);
 		    for(Int_t i_time = 0; i_time < vec_TRD_hits_ADC_values_time[i_TRD_hit].size(); i_time++)
 		    {
@@ -1575,40 +1327,6 @@ void Ali_AS_analysis_TRD_digits::UserExec(Option_t *)
 		    FindDCAHelixPoint(vec_TRD_hits_points_time[i_TRD_hit][time_max_bin],aliHelix,path_initA-25.0,path_initA+25.0,pathA_max,dcaAB_max);
 
 		    //cout << "ADC_value_max: " << ADC_value_max << ", time_max_bin: " << time_max_bin << ", dcaAB_max: " << dcaAB_max << endl;
-
-#if 0
-		    if(ADC_value_max > 30.0)
-		    {
-			Double_t helix_point[3];
-			aliHelix.Evaluate(pathA_max,helix_point);
-			h_dca[pT_bin] ->Fill(dcaAB_max);
-			for(Int_t i_xyz = 0; i_xyz < 3; i_xyz++)
-			{
-			    h_dca_xyz[i_xyz][pT_bin] ->Fill(helix_point[i_xyz]-vec_TRD_hits_points_time[i_TRD_hit][time_max_bin][i_xyz]);
-			    if(i_xyz == 0
-			       && fabs(helix_point[1]-vec_TRD_hits_points_time[i_TRD_hit][time_max_bin][1]) < 3.0
-			       && fabs(helix_point[2]-vec_TRD_hits_points_time[i_TRD_hit][time_max_bin][2]) < 7.0
-			      )
-			    {
-				h_dca_xyz[3][pT_bin] ->Fill(helix_point[i_xyz]-vec_TRD_hits_points_time[i_TRD_hit][time_max_bin][i_xyz]);
-			    }
-			    if(i_xyz == 1
-			       && fabs(helix_point[0]-vec_TRD_hits_points_time[i_TRD_hit][time_max_bin][0]) < 3.0
-			       && fabs(helix_point[2]-vec_TRD_hits_points_time[i_TRD_hit][time_max_bin][2]) < 7.0
-			      )
-			    {
-				h_dca_xyz[4][pT_bin] ->Fill(helix_point[i_xyz]-vec_TRD_hits_points_time[i_TRD_hit][time_max_bin][i_xyz]);
-			    }
-			    if(i_xyz == 2
-			       && fabs(helix_point[0]-vec_TRD_hits_points_time[i_TRD_hit][time_max_bin][0]) < 3.0
-			       && fabs(helix_point[1]-vec_TRD_hits_points_time[i_TRD_hit][time_max_bin][1]) < 3.0
-			      )
-			    {
-				h_dca_xyz[5][pT_bin] ->Fill(helix_point[i_xyz]-vec_TRD_hits_points_time[i_TRD_hit][time_max_bin][i_xyz]);
-			    }
-			}
-		    }
-#endif
 		    //-------------------------------------------------------------------
 
 		    N_good_match++;
@@ -1623,10 +1341,6 @@ void Ali_AS_analysis_TRD_digits::UserExec(Option_t *)
 
 	}  // N Good tracks >= ...
 
-#if 0
-	cout << "Track accepted, N_good_tracks: " << N_good_tracks << ", zpos: " << zpos << ", pT: " << Track_pT
-	    << ", radius: " << radius << ", radius_inner: " << radius_inner << endl;
-#endif
 	N_good_tracks++;
 
     } // End of TPC track loop
@@ -1637,16 +1351,6 @@ void Ali_AS_analysis_TRD_digits::UserExec(Option_t *)
 
     N_good_events++;
 
-    //-----------------------------------------------------------------
-    //cout << "" << endl;
-    //cout << "" << endl;
-    //cout << "----------------------------------------------------------------------------------------" << endl;
-    //cout << "Event number: " << fEventNoInFile << endl;
-    //-----------------------------------------------------------------
-
-    //PostData(1,fListOfHistos);
-    //PostData(0,Tree_AS_Event);
-
 }
 
 
@@ -1655,24 +1359,6 @@ void Ali_AS_analysis_TRD_digits::UserExec(Option_t *)
 void Ali_AS_analysis_TRD_digits::Terminate(Option_t *)
 {
     cout << "In terminate" << endl;
-    // Draw result to the screen
-    // Called once at the end of the query
-
-    //  fOutputList = dynamic_cast<TList*> (GetOutputData(1));
-    //  if (!fOutputList) {
-    //    printf("ERROR: Output list not available\n");
-    //    return;
-    //  }
-    //
-    //  fHistPt = dynamic_cast<TH1F*> (fOutputList->At(0));
-    //  if (!fHistPt) {
-    //    printf("ERROR: fHistPt not available\n");
-    //    return;
-    //  }
-    //
-    //TCanvas *c1 = new TCanvas("Ali_AS_analysis_TRD_digits","Pt",10,10,510,510);
-    //c1->cd(1)->SetLogy();
-    //fHistPt->DrawCopy("E");
 }
 
 
