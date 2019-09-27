@@ -517,6 +517,7 @@ void TBase_TRD_Calib::Init_tree(TString SEList)
 {
     cout << "Initialize tree" << endl;
     TString pinputdir = "/misc/alidata120/alice_u/schmah/TRD_offline_calib/Data/";
+    //TString pinputdir = "/home/ceres/berdnikova/TRD-Run3-Calibration/";
 
     AS_Event = new Ali_AS_Event();
     AS_Track = new Ali_AS_Track();

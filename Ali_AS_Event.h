@@ -23,7 +23,7 @@ private:
 public:
     Ali_AS_TRD_digit() :
 	//hit_ids(), ADC_time_values(), ADC_time_values_corrected(), ADC_time_values_corrected_tc(), dca_to_track(-1), dca_x(-1), dca_y(-1), dca_z(-1), ImpactAngle(-1)
-        hit_ids(), ADC_time_values(), arr_pos(), /*arr_pos_uncalib(),*/dca_to_track(-1), dca_x(-1), dca_y(-1), dca_z(-1), ImpactAngle(-1)
+        hit_ids(), ADC_time_values(), arr_pos(), dca_to_track(-1), dca_x(-1), dca_y(-1), dca_z(-1), ImpactAngle(-1)
     {
     }
 	~Ali_AS_TRD_digit() {}
