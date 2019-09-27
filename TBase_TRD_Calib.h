@@ -48,6 +48,8 @@ private:
     TPolyLine3D* TPL3D_helix;
     vector<TPolyLine3D*> vec_TPL3D_helix_neighbor;
 
+    TGLViewer *TGL_viewer;
+
 
 
     // TRD 3D graphics
@@ -497,6 +499,7 @@ void TBase_TRD_Calib::Draw_TRD()
     }
 
     top->DrawClone("ogl");
+    TGL_viewer = (TGLViewer *)gPad->GetViewer3D();
 
 #if 0
     x_BeamLine    ->DrawClone("ogl");
