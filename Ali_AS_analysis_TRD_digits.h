@@ -20,7 +20,8 @@ private:
     // Digit data
     UShort_t hit_ids[2]; // contains the full information of the TRD hit position (sector, stack, layer, row, column), definition see below
     Short_t ADC_time_values[24]; // raw ADC values for all 24 time bins of a single pad
-    Short_t arr_pos[3][24]; //
+    Short_t arr_pos[3][24];
+    //Short_t arr_pos_uncalib[3][24]
     //Short_t ADC_time_values_corrected_tc[24]; // raw ADC values for all 24 time bins of a single pad
     Short_t  dca_to_track; // distance of closest approach of digit TRD hit to TPC track
     Short_t  dca_x;
@@ -31,7 +32,7 @@ private:
 public:
     Ali_AS_TRD_digit() :
 	//hit_ids(), ADC_time_values(), ADC_time_values_corrected(), ADC_time_values_corrected_tc(), dca_to_track(-1), dca_x(-1), dca_y(-1), dca_z(-1), ImpactAngle(-1)
-        hit_ids(), ADC_time_values(), arr_pos(), dca_to_track(-1), dca_x(-1), dca_y(-1), dca_z(-1), ImpactAngle(-1)
+        hit_ids(), ADC_time_values(), arr_pos(), /*arr_pos_uncalib(),*/dca_to_track(-1), dca_x(-1), dca_y(-1), dca_z(-1), ImpactAngle(-1)
     {
     }
 	~Ali_AS_TRD_digit() {}
@@ -39,7 +40,25 @@ public:
 	// setters
 	void sethit_ids(UShort_t x, UShort_t y)                     { hit_ids[0] = x; hit_ids[1] = y; }
 	void setADC_time_value(Int_t time_bin, Short_t ADC_value)  { ADC_time_values[time_bin] = ADC_value; }
-        void set_pos(Int_t time_bin, Float_t x_pos, Float_t y_pos, Float_t z_pos)  { arr_pos[0][time_bin] = (Short_t)(100.0*x_pos); arr_pos[1][time_bin] = (Short_t)(100.0*y_pos); arr_pos[2][time_bin] = (Short_t)(100.0*z_pos); }
+        void set_pos(Int_t time_bin, Float_t x_pos, Float_t y_pos, Float_t z_pos) //{arr_pos[0][time_bin] = (Short_t)(100.0*x_pos); arr_pos[1][time_bin] = (Short_t)(100.0*y_pos); arr_pos[2][time_bin] = (Short_t)(100.0*z_pos);}
+
+        {
+            TVector3 vec_200cm(x_pos,y_pos,z_pos);
+            vec_200cm *= 200.0/vec_200cm.Mag();
+
+            arr_pos[0][time_bin] = (Short_t)(100.0*(x_pos-vec_200cm.X())); arr_pos[1][time_bin] = (Short_t)(100.0*(y_pos-vec_200cm.Y())); arr_pos[2][time_bin] = (Short_t)(100.0*(z_pos-vec_200cm.Z()));
+
+            //cout << "x_pos: " << x_pos << endl;
+            //cout << "y_pos: " << y_pos << endl;
+            //cout << "z_pos: " << z_pos << endl;
+            //cout << "x_pos-200: " << arr_pos[0][time_bin] << endl;
+            //cout << "y_pos-200: " << arr_pos[1][time_bin] << endl;
+            //cout << "z_pos-200: " << arr_pos[2][time_bin] << endl;
+        }
+
+        //void set_pos_uncalib(Int_t time_bin, Float_t x_pos_uncalib, Float_t y_pos_uncalib, Float_t z_pos_uncalib)  { arr_pos_uncalib[0][time_bin] = (Short_t)(100.0*x_pos_uncalib); arr_pos[1][time_bin] = (Short_t)(100.0*y_pos); arr_pos_uncalib[2][time_bin] = (Short_t)(100.0*z_pos_uncalib); }
+
+
         //void setADC_time_value_corrected_tc(Int_t time_bin, Short_t ADC_value)  { ADC_time_values_corrected_tc[time_bin] = ADC_value; }
         void setdca_to_track(Float_t f, Float_t f_x, Float_t f_y, Float_t f_z) { dca_to_track = (Short_t)(100.0*f); dca_x = (Short_t)(100.0*f_x); dca_y = (Short_t)(100.0*f_y); dca_z = (Short_t)(100.0*f_z);}
 	void setImpactAngle(Float_t f)                              { ImpactAngle = (Short_t)(100.0*f); }
@@ -55,7 +74,18 @@ public:
 	// getters
         UInt_t   gethit_ids(Int_t i)                const           { return hit_ids[i]; }
 	Short_t  getADC_time_value(Int_t time_bin)  const           { return ADC_time_values[time_bin]; }
-        Float_t  get_pos(Int_t time_bin, Int_t index)  const { return ((Float_t)arr_pos[index][time_bin])/100.0; }
+        Float_t  get_pos(Int_t time_bin, Int_t index)  const //{ return ((Float_t)arr_pos[index][time_bin])/100.0; }
+        {
+            TVector3 vec_200cm((Float_t)arr_pos[0][time_bin]/100.0,(Float_t)arr_pos[1][time_bin]/100.0,(Float_t)arr_pos[2][time_bin]/100.0);
+            
+            //now vec_200cm is again in cm
+
+            //vec_200cm *= 200.0/vec_200cm.Mag();     //when we get positions XYZ-200cm
+            vec_200cm *= 1.0/vec_200cm.Mag();         //for the moment
+            return (Float_t)(arr_pos[index][time_bin]/100.0 + vec_200cm(index));
+        }
+
+        //Float_t  get_pos_uncalib(Int_t time_bin, Int_t index)  const { return ((Float_t)arr_pos_uncalib[index][time_bin])/100.0; }
         //Short_t  getADC_time_value_corrected_tc(Int_t time_bin)  const { return ADC_time_values_corrected_tc[time_bin]; }
 	Float_t  getdca_to_track()                  const           { return ((Float_t)dca_to_track)/100.0; }
 	Float_t  getdca_x()                         const           { return ((Float_t)dca_x)/100.0; }
