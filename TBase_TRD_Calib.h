@@ -312,12 +312,12 @@ TPolyLine3D* TBase_TRD_Calib::get_straight_line_fit(Int_t i_track)
     TGraph2D * gr = new TGraph2D();
 
     // Fill the 2D graph
-    double p0[4] = {10,20,1,2};
+    Double_t p0[4] = {10,20,1,2};
 
     // generate graph with the 3d points
-    for (Int_t N=0; N<6; N++) {
-
-        gr->SetPoint(N,vec_TV3_digit_pos_cluster[N][0][0],vec_TV3_digit_pos_cluster[N][0][1],vec_TV3_digit_pos_cluster[N][0][2]);
+    for(Int_t i_layer = 0; i_layer < 6; i_layer++)
+    {
+        gr->SetPoint(i_layer,vec_TV3_digit_pos_cluster[i_layer][0][0],vec_TV3_digit_pos_cluster[i_layer][0][1],vec_TV3_digit_pos_cluster[i_layer][0][2]);
         //dt->SetPointError(N,0,0,err);
     }
     // fit the graph now
@@ -331,7 +331,7 @@ TPolyLine3D* TBase_TRD_Calib::get_straight_line_fit(Int_t i_track)
     arglist[0] = 3;
     min->ExecuteCommand("SET PRINT",arglist,1);
 
-    double pStart[4] = {1,1,1,1};
+    Double_t pStart[4] = {1,1,1,1};
     min->SetParameter(0,"x0",pStart[0],0.01,0,0);
     min->SetParameter(1,"Ax",pStart[1],0.01,0,0);
     min->SetParameter(2,"y0",pStart[2],0.01,0,0);
@@ -343,26 +343,44 @@ TPolyLine3D* TBase_TRD_Calib::get_straight_line_fit(Int_t i_track)
 
     //if (minos) min->ExecuteCommand("MINOS",arglist,0);
     int nvpar,nparx;
-    double amin,edm, errdef;
+    Double_t amin,edm, errdef;
     min->GetStats(amin,edm,errdef,nvpar,nparx);
     min->PrintResults(1,amin);
     //gr->Draw("p0");
 
     // get fit parameters
-    double parFit[4];
-    for (int i = 0; i <4; ++i)
+    Double_t parFit[4];
+    for(int i = 0; i <4; ++i)
+    {
         parFit[i] = min->GetParameter(i);
+    }
 
     // draw the fitted line
     int n = 1000;
-    double t0 = 0;
-    double dt = 100;
+    Double_t t0 = -500.0;
+    Double_t dt = 1;
     TPolyLine3D* digits_fit_line = new TPolyLine3D();
-    for (int i = 0; i <n;++i) {
-        double t = t0+ dt*i/n;
-        double x,y,z;
+    TVector3 TV3_line_point;
+    Int_t i_point = 0;
+    for(int i = 0; i <n; ++i)
+    {
+        Double_t t = t0 + dt*i;
+        Double_t x,y,z;
         line(t,parFit,x,y,z);
-        digits_fit_line->SetPoint(i,x,y,z);
+        TV3_line_point.SetXYZ(x,y,z);
+
+        Double_t distance = 1000.0;
+        for(Int_t i_layer = 0; i_layer < 6; i_layer++)
+        {
+            TVector3 TV3_diff = vec_TV3_digit_pos_cluster[i_layer][0] - TV3_line_point;
+            Double_t distance_layer = TV3_diff.Mag();
+            if(distance_layer < distance) distance = distance_layer;
+        }
+        if(TV3_line_point.Perp() > 300.0 && TV3_line_point.Perp() < 380.0 && distance < 10.0)
+        {
+            digits_fit_line->SetPoint(i_point,x,y,z);
+            i_point++;
+        }
     }
     digits_fit_line->SetLineColor(kRed);
     //digits_fit_line->Draw("same");
