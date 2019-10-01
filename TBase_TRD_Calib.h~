@@ -356,7 +356,7 @@ TPolyLine3D* TBase_TRD_Calib::get_straight_line_fit(Int_t i_track)
     // draw the fitted line
     int n = 1000;
     double t0 = 0;
-    double dt = 100;
+    double dt = 10;
     TPolyLine3D* digits_fit_line = new TPolyLine3D();
     for (int i = 0; i <n;++i) {
         double t = t0+ dt*i/n;
