@@ -312,22 +312,13 @@ void TBase_TRD_Calib::make_plots_ADC(Int_t i_track)
 {
     printf("TBase_TRD_Calib::make_plots_ADC(%d) \n",i_track);
     AS_Track               = AS_Event ->getTrack( i_track ); // take the track
-    UShort_t fNumTRDdigits = AS_Track ->getNumTRD_digits();
-    //Int_t N_time_bin = (Int_t)vec_merge_time_bins.size();
+    UShort_t fNumTRDdigits = AS_Track ->getNumTRD_digits();   
     Int_t N_time_bin = 24;
+
     th1f_ADC_vs_time.resize(6);
     ADC_vs_time.resize(6);
-    //new TH1d
-    //new canvas
-    //Ntime bin
 
     //loop over digits
-
-    //cout << "Test 1" << endl;
-
-    //vector<vector<TH1F*>> th1f_ADC_vs_time;
-
-    //UShort_t fNumTRDdigits = AS_Track ->getNumTRD_digits();
 
     Int_t n_digits_per_layer[6] = {0,0,0,0,0,0};
 
@@ -337,14 +328,6 @@ void TBase_TRD_Calib::make_plots_ADC(Int_t i_track)
         AS_Digit              = AS_Track ->getTRD_digit(i_digits);
         Int_t    layer        = AS_Digit ->get_layer();
         n_digits_per_layer[layer]++;
-
-        //cout << "n_digits_per_layer[0]: " << n_digits_per_layer[0] <<endl;
-        //cout << "n_digits_per_layer[1]: " << n_digits_per_layer[1] <<endl;
-        //cout << "n_digits_per_layer[2]: " << n_digits_per_layer[2] <<endl;
-        //cout << "n_digits_per_layer[3]: " << n_digits_per_layer[3] <<endl;
-        //cout << "n_digits_per_layer[4]: " << n_digits_per_layer[4] <<endl;
-        //cout << "n_digits_per_layer[5]: " << n_digits_per_layer[5] <<endl;
-
     }
     
         //cout << "n_digits_per_layer[0]f: " << n_digits_per_layer[0] <<endl;
@@ -372,9 +355,6 @@ void TBase_TRD_Calib::make_plots_ADC(Int_t i_track)
 
         AS_Digit      = AS_Track ->getTRD_digit(i_digits);
         Int_t layer   = AS_Digit ->get_layer();
-        //Float_t ADC = (Float_t)AS_Digit ->getADC_time_value()
-        //Int_t N_time_bin =
-        //for (Int_t i_layer = 0; i_layer< 6; i_layer++)
 
         if (layer != layer_check)
         {
@@ -397,12 +377,9 @@ void TBase_TRD_Calib::make_plots_ADC(Int_t i_track)
             cout << "i_digits" << i_digits <<  endl;
             cout << "i_time_bin" << i_time_bin <<  endl;
             th1f_ADC_vs_time[layer][i_digits_loc]->AddBinContent(i_time_bin, ADC);
-            //th1f_ADC_vs_time[layer][i_digits_loc]->AddBinContent(i_time_bin, 1);
             cout << "th1f: " << th1f_ADC_vs_time[layer][i_digits_loc]->GetBinContent(i_time_bin) <<  endl;
             cout << "i_digits: " << i_digits << endl;
             cout << "i_digits_loc: " << i_digits_loc << endl;
-
-
         }
 
         layer_check = layer;
@@ -410,7 +387,7 @@ void TBase_TRD_Calib::make_plots_ADC(Int_t i_track)
         //cout << "Test 4" << endl;
     }
 
-    cout << "Test 5" << endl;
+    //cout << "Test 5" << endl;
     Int_t N_pads_y = 2;
     Int_t N_pads_x = 0;
     Int_t N_digits_per_layer[6];
@@ -420,21 +397,16 @@ void TBase_TRD_Calib::make_plots_ADC(Int_t i_track)
         N_digits_per_layer[i_layer] = th1f_ADC_vs_time[i_layer].size();
         N_pads_x = ceil(N_digits_per_layer[i_layer]/N_pads_y)+1;
 
-        cout << "Test 6" << endl;
         ADC_vs_time[i_layer] = new TCanvas(Form("ADC_vs_time_%d",i_layer),Form("ADC_vs_time_%d",i_layer),100,200,1500,620);
-        cout << "Test 7" << endl;
+        //cout << "Test 7" << endl;
         ADC_vs_time[i_layer] ->SetTopMargin(0.02);
-        cout << "Test 8" << endl;
         ADC_vs_time[i_layer] ->SetBottomMargin(0.18);
         ADC_vs_time[i_layer] ->SetRightMargin(0.2);
         ADC_vs_time[i_layer] ->SetLeftMargin(0.2);
-        cout << "Test 9" << endl;
-        //ADC_vs_time[i_layer] ->SetLogy(0);
-        //ADC_vs_time[i_layer] ->Divide(N_x_pads,N_y_pads); // x divide, y divide, x margin, y margin
         ADC_vs_time[i_layer] ->Divide(N_pads_x,N_pads_y,0.01,0.01);
-        cout << "N_digits_per_layer[i_layer]: " << N_digits_per_layer[i_layer] << endl;
-        cout << "N_pads_x: " << N_pads_x << endl;
-        cout << "N_pads_y: " << N_pads_y << endl;
+        //cout << "N_digits_per_layer[i_layer]: " << N_digits_per_layer[i_layer] << endl;
+        //cout << "N_pads_x: " << N_pads_x << endl;
+        //cout << "N_pads_y: " << N_pads_y << endl;
 
         for (Int_t i_pad = 0; i_pad < N_digits_per_layer[i_layer]; i_pad++)
         {
@@ -451,11 +423,8 @@ void TBase_TRD_Calib::make_plots_ADC(Int_t i_track)
             cout << "Test 12" << endl;
             cout << "th1f: " << th1f_ADC_vs_time[i_layer][i_pad]->GetBinContent(0) <<  endl;
         }
-
     }
-    //return ADC_vs_time;
 }
-
 
 //----------------------------------------------------------------------------------------
 TPolyLine3D* TBase_TRD_Calib::get_straight_line_fit(Int_t i_track)

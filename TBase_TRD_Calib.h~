@@ -393,7 +393,7 @@ void TBase_TRD_Calib::make_plots_ADC(Int_t i_track)
             Float_t ADC = (Float_t)AS_Digit ->getADC_time_value(i_time_bin) - 10.0;  // baseline correction
             cout << "ADC: " << ADC <<  endl;
 
-            //if(ADC <= 0.0) continue;//{th1f_ADC_vs_time[layer][i_digits_loc]->AddBinContent(i_time_bin, 0);} // Don't use negative ADC values
+            if(ADC <= 0.0) continue;//{th1f_ADC_vs_time[layer][i_digits_loc]->AddBinContent(i_time_bin, 0);} // Don't use negative ADC values
             cout << "i_digits" << i_digits <<  endl;
             cout << "i_time_bin" << i_time_bin <<  endl;
             th1f_ADC_vs_time[layer][i_digits_loc]->AddBinContent(i_time_bin, ADC);
