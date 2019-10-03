@@ -362,7 +362,7 @@ Int_t TGUI_TRD_Calib::Draw3D_track()
 #endif
 
     Base_TRD_Calib ->Draw_line(i_track);
-
+    Base_TRD_Calib ->make_plots_ADC(i_track);
 
     return 1;
 }
