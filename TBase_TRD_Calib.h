@@ -48,6 +48,7 @@ private:
     AliHelix aliHelix;
     TPolyLine3D* TPL3D_helix;
     TPolyLine3D* fit_line;
+    vector <TCanvas*> ADC_vs_time;
 
     vector<TPolyLine3D*> vec_TPL3D_helix_neighbor;
 
@@ -90,6 +91,8 @@ private:
 
     vector< vector<TVector3> > vec_TV3_digit_pos_cluster;    // layer, merged time bin
     vector<TVector3> vec_TV3_digit_pos_cluster_t0; // layer, x, y, z
+    vector<vector<TH1F*>> th1f_ADC_vs_time;
+
 
 
 public:
@@ -112,6 +115,7 @@ public:
     TPolyLine3D* get_helix_polyline(Int_t i_track);
     TPolyLine3D* get_straight_line_fit(Int_t i_track);
     vector< vector<TVector3> >  make_clusters(Int_t i_track);
+    void make_plots_ADC(Int_t i_track);
 
     ClassDef(TBase_TRD_Calib, 1)
 };
@@ -301,6 +305,126 @@ vector< vector<TVector3> >  TBase_TRD_Calib::make_clusters(Int_t i_track)
     return vec_TV3_digit_pos_cluster;
 }
 //----------------------------------------------------------------------------------------
+
+//----------------------------------------------------------------------------------------
+//vector<TCanvas*>  TBase_TRD_Calib::make_plots_ADC(Int_t i_track)
+void TBase_TRD_Calib::make_plots_ADC(Int_t i_track)
+{
+    printf("TBase_TRD_Calib::make_plots_ADC(%d) \n",i_track);
+    AS_Track               = AS_Event ->getTrack( i_track ); // take the track
+    UShort_t fNumTRDdigits = AS_Track ->getNumTRD_digits();   
+    Int_t N_time_bin = 24;
+
+    th1f_ADC_vs_time.resize(6);
+    ADC_vs_time.resize(6);
+
+    //loop over digits
+
+    Int_t n_digits_per_layer[6] = {0,0,0,0,0,0};
+
+    for(UShort_t i_digits = 0; i_digits < fNumTRDdigits; i_digits++)
+    {
+        //cout << "i_digits: " << i_digits << ", of " << fNumTRDdigits << endl;
+        AS_Digit              = AS_Track ->getTRD_digit(i_digits);
+        Int_t    layer        = AS_Digit ->get_layer();
+        n_digits_per_layer[layer]++;
+    }
+    
+        //cout << "n_digits_per_layer[0]f: " << n_digits_per_layer[0] <<endl;
+        //cout << "n_digits_per_layer[1]f: " << n_digits_per_layer[1] <<endl;
+        //cout << "n_digits_per_layer[2]f: " << n_digits_per_layer[2] <<endl;
+        //cout << "n_digits_per_layer[3]f: " << n_digits_per_layer[3] <<endl;
+        //cout << "n_digits_per_layer[4]f: " << n_digits_per_layer[4] <<endl;
+        //cout << "n_digits_per_layer[5]f: " << n_digits_per_layer[5] <<endl;
+
+    for (Int_t i_layer = 0; i_layer< 6; i_layer++)
+    {
+        th1f_ADC_vs_time[i_layer].resize(n_digits_per_layer[i_layer]);
+        for(UShort_t i_digits_per_layer = 0; i_digits_per_layer < n_digits_per_layer[i_layer]; i_digits_per_layer++)
+        {
+            th1f_ADC_vs_time[i_layer][i_digits_per_layer] = new TH1F(Form("th1f_ADC_vs_time_%d_%d",i_layer,i_digits_per_layer),Form("th1f_ADC_vs_time_%d_%d",i_layer,i_digits_per_layer),24,0,23);
+        }
+    }
+
+
+    Int_t layer_check  = 0;
+    Int_t i_digits_loc = 0;
+
+    for(UShort_t i_digits = 0; i_digits < fNumTRDdigits; i_digits++)
+    {
+
+        AS_Digit      = AS_Track ->getTRD_digit(i_digits);
+        Int_t layer   = AS_Digit ->get_layer();
+
+        if (layer != layer_check)
+        {
+            i_digits_loc = 0;
+        }
+
+        //cout << "Test 2" << << endl;
+
+        cout << "i_digits: " << i_digits << endl;
+        cout << "i_digits_loc: " << i_digits_loc << endl;
+
+        for(Int_t i_time_bin = 0; i_time_bin < N_time_bin; i_time_bin++)
+        {
+            //cout << "Test 2.2" << endl;
+
+            Float_t ADC = (Float_t)AS_Digit ->getADC_time_value(i_time_bin) - 10.0;  // baseline correction
+            cout << "ADC: " << ADC <<  endl;
+
+            if(ADC <= 0.0) continue;//{th1f_ADC_vs_time[layer][i_digits_loc]->AddBinContent(i_time_bin, 0);} // Don't use negative ADC values
+            cout << "i_digits" << i_digits <<  endl;
+            cout << "i_time_bin" << i_time_bin <<  endl;
+            th1f_ADC_vs_time[layer][i_digits_loc]->AddBinContent(i_time_bin, ADC);
+            cout << "th1f: " << th1f_ADC_vs_time[layer][i_digits_loc]->GetBinContent(i_time_bin) <<  endl;
+            cout << "i_digits: " << i_digits << endl;
+            cout << "i_digits_loc: " << i_digits_loc << endl;
+        }
+
+        layer_check = layer;
+        i_digits_loc++; // = i_digits;
+        //cout << "Test 4" << endl;
+    }
+
+    //cout << "Test 5" << endl;
+    Int_t N_pads_y = 2;
+    Int_t N_pads_x = 0;
+    Int_t N_digits_per_layer[6];
+
+    for (Int_t i_layer = 0; i_layer < 6; i_layer++)
+    {
+        N_digits_per_layer[i_layer] = th1f_ADC_vs_time[i_layer].size();
+        N_pads_x = ceil(N_digits_per_layer[i_layer]/N_pads_y)+1;
+
+        ADC_vs_time[i_layer] = new TCanvas(Form("ADC_vs_time_%d",i_layer),Form("ADC_vs_time_%d",i_layer),100,200,1500,620);
+        //cout << "Test 7" << endl;
+        ADC_vs_time[i_layer] ->SetTopMargin(0.02);
+        ADC_vs_time[i_layer] ->SetBottomMargin(0.18);
+        ADC_vs_time[i_layer] ->SetRightMargin(0.2);
+        ADC_vs_time[i_layer] ->SetLeftMargin(0.2);
+        ADC_vs_time[i_layer] ->Divide(N_pads_x,N_pads_y,0.01,0.01);
+        //cout << "N_digits_per_layer[i_layer]: " << N_digits_per_layer[i_layer] << endl;
+        //cout << "N_pads_x: " << N_pads_x << endl;
+        //cout << "N_pads_y: " << N_pads_y << endl;
+
+        for (Int_t i_pad = 0; i_pad < N_digits_per_layer[i_layer]; i_pad++)
+        {
+            ADC_vs_time[i_layer]->cd(i_pad+1)->SetTicks(1,1);
+            cout << "Test 11" << endl;
+            ADC_vs_time[i_layer]->cd(i_pad+1)->SetGrid(0,0);
+            ADC_vs_time[i_layer]->cd(i_pad+1)->SetFillColor(10);
+            ADC_vs_time[i_layer]->cd(i_pad+1)->SetRightMargin(0.01);
+            ADC_vs_time[i_layer]->cd(i_pad+1)->SetTopMargin(0.01);
+            //HistName = Form("ADC_vs_time_%d_",i_layer);
+            //HistName += i_pad;
+            ADC_vs_time[i_layer]->cd(i_pad+1);
+            th1f_ADC_vs_time[i_layer][i_pad]->Draw();
+            cout << "Test 12" << endl;
+            cout << "th1f: " << th1f_ADC_vs_time[i_layer][i_pad]->GetBinContent(0) <<  endl;
+        }
+    }
+}
 
 //----------------------------------------------------------------------------------------
 TPolyLine3D* TBase_TRD_Calib::get_straight_line_fit(Int_t i_track)
