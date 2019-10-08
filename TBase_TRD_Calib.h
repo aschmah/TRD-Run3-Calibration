@@ -92,6 +92,7 @@ private:
     vector< vector<TVector3> > vec_TV3_digit_pos_cluster;    // layer, merged time bin
     vector<TVector3> vec_TV3_digit_pos_cluster_t0; // layer, x, y, z
     vector<vector<TH1F*>> th1f_ADC_vs_time;
+    Int_t color_layer[6] = {kRed,kGreen,kBlue,kMagenta,kCyan,kYellow};
 
 
 
@@ -361,25 +362,32 @@ void TBase_TRD_Calib::make_plots_ADC(Int_t i_track)
             i_digits_loc = 0;
         }
 
+        if (layer != layer_check && layer != layer_check+1 && layer_check != 0)
+        {
+            cout << "!!! layers are not organised properly !!! " << endl;
+        }
+
         //cout << "Test 2" << << endl;
 
-        cout << "i_digits: " << i_digits << endl;
-        cout << "i_digits_loc: " << i_digits_loc << endl;
+        //cout << "i_digits: " << i_digits << endl;
+        //cout << "i_digits_loc: " << i_digits_loc << endl;
+        //cout << "layer: " << layer << endl;
+        //cout << "layer check: " << layer_check << endl;
 
         for(Int_t i_time_bin = 0; i_time_bin < N_time_bin; i_time_bin++)
         {
             //cout << "Test 2.2" << endl;
 
             Float_t ADC = (Float_t)AS_Digit ->getADC_time_value(i_time_bin) - 10.0;  // baseline correction
-            cout << "ADC: " << ADC <<  endl;
+            //cout << "ADC: " << ADC <<  endl;
 
             if(ADC <= 0.0) continue;//{th1f_ADC_vs_time[layer][i_digits_loc]->AddBinContent(i_time_bin, 0);} // Don't use negative ADC values
-            cout << "i_digits" << i_digits <<  endl;
-            cout << "i_time_bin" << i_time_bin <<  endl;
+            //cout << "i_digits" << i_digits <<  endl;
+            //cout << "i_time_bin" << i_time_bin <<  endl;
             th1f_ADC_vs_time[layer][i_digits_loc]->AddBinContent(i_time_bin, ADC);
-            cout << "th1f: " << th1f_ADC_vs_time[layer][i_digits_loc]->GetBinContent(i_time_bin) <<  endl;
-            cout << "i_digits: " << i_digits << endl;
-            cout << "i_digits_loc: " << i_digits_loc << endl;
+            //cout << "th1f: " << th1f_ADC_vs_time[layer][i_digits_loc]->GetBinContent(i_time_bin) <<  endl;
+            //cout << "i_digits: " << i_digits << endl;
+            //cout << "i_digits_loc: " << i_digits_loc << endl;
         }
 
         layer_check = layer;
@@ -411,17 +419,23 @@ void TBase_TRD_Calib::make_plots_ADC(Int_t i_track)
         for (Int_t i_pad = 0; i_pad < N_digits_per_layer[i_layer]; i_pad++)
         {
             ADC_vs_time[i_layer]->cd(i_pad+1)->SetTicks(1,1);
-            cout << "Test 11" << endl;
+            //cout << "Test 11" << endl;
             ADC_vs_time[i_layer]->cd(i_pad+1)->SetGrid(0,0);
             ADC_vs_time[i_layer]->cd(i_pad+1)->SetFillColor(10);
             ADC_vs_time[i_layer]->cd(i_pad+1)->SetRightMargin(0.01);
             ADC_vs_time[i_layer]->cd(i_pad+1)->SetTopMargin(0.01);
             //HistName = Form("ADC_vs_time_%d_",i_layer);
             //HistName += i_pad;
+
+
             ADC_vs_time[i_layer]->cd(i_pad+1);
+            th1f_ADC_vs_time[i_layer][i_pad]->SetLineColor(color_layer[i_layer]-i_pad);
+            th1f_ADC_vs_time[i_layer][i_pad]->GetXaxis()->SetTitle("Time bin");
+            th1f_ADC_vs_time[i_layer][i_pad]->GetYaxis()->SetTitle("ADC counts");
             th1f_ADC_vs_time[i_layer][i_pad]->Draw();
-            cout << "Test 12" << endl;
-            cout << "th1f: " << th1f_ADC_vs_time[i_layer][i_pad]->GetBinContent(0) <<  endl;
+
+            //cout << "Test 12" << endl;
+            //cout << "th1f: " << th1f_ADC_vs_time[i_layer][i_pad]->GetBinContent(0) <<  endl;
         }
     }
 }
