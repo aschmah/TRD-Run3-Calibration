@@ -52,7 +52,7 @@ private:
     TCanvas* c_3D        = NULL;
     TCanvas* c_3D_track  = NULL;
 
-    Int_t color_layer[6] = {kBlack,kGreen,kBlue,kMagenta,kCyan,kYellow};
+    Int_t color_layer[6] = {kRed,kGreen,kBlue,kMagenta,kCyan,kYellow};
     vector<TPolyMarker3D*> vec_TPM3D_single_track_digit_layer;
     vector<TPolyMarker3D*> vec_TPM3D_single_track_digit;
     TPolyMarker3D* TPM3D_single;
@@ -341,6 +341,14 @@ Int_t TGUI_TRD_Calib::Draw3D_track()
 
     for(Int_t i_layer = 0; i_layer < 6; i_layer++)
     {
+        //for (Int_t i_digit_per_layer = 0; i_digit_per_layer< vec_TPM3D_single_track_digit_layer[i_layer]->GetN(); i_digit_per_layer++)
+        //{
+        //    vec_TPM3D_single_track_digit_layer[i_layer][i_digit_per_layer].SetMarkerColor(color_layer[i_layer]-i_digit_per_layer);
+        //}
+
+        cout << "i_layer : " << i_layer << endl;
+        cout << "vec_TPM3D_single_track_digit_layer[i_layer]->Size() : " << vec_TPM3D_single_track_digit_layer[i_layer]->Size() << endl;
+
         vec_TPM3D_single_track_digit_layer[i_layer] ->SetMarkerColor(color_layer[i_layer]);
         vec_TPM3D_single_track_digit_layer[i_layer] ->SetMarkerSize(1.0);
         vec_TPM3D_single_track_digit_layer[i_layer] ->SetMarkerStyle(20);
@@ -362,7 +370,7 @@ Int_t TGUI_TRD_Calib::Draw3D_track()
 #endif
 
     Base_TRD_Calib ->Draw_line(i_track);
-
+    Base_TRD_Calib ->make_plots_ADC(i_track);
 
     return 1;
 }
