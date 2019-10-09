@@ -48,6 +48,7 @@ private:
     AliHelix aliHelix;
     TPolyLine3D* TPL3D_helix;
     TPolyLine3D* fit_line;
+    // TVector3 vec_datapoints;
     vector <TCanvas*> ADC_vs_time;
 
     vector<TPolyLine3D*> vec_TPL3D_helix_neighbor;
@@ -453,11 +454,23 @@ TPolyLine3D* TBase_TRD_Calib::get_straight_line_fit(Int_t i_track)
     Double_t p0[4] = {10,20,1,2};
 
     // generate graph with the 3d points
+
+    Int_t i_layer_notempty = 0;
+
     for(Int_t i_layer = 0; i_layer < 6; i_layer++)
     {
-        gr->SetPoint(i_layer,vec_TV3_digit_pos_cluster[i_layer][0][0],vec_TV3_digit_pos_cluster[i_layer][0][1],vec_TV3_digit_pos_cluster[i_layer][0][2]);
+
+        if (vec_TV3_digit_pos_cluster[i_layer][0][0] != 0 && vec_TV3_digit_pos_cluster[i_layer][0][1] != 0 && vec_TV3_digit_pos_cluster[i_layer][0][2] != 0) {
+        gr->SetPoint(i_layer_notempty,vec_TV3_digit_pos_cluster[i_layer][0][0],vec_TV3_digit_pos_cluster[i_layer][0][1],vec_TV3_digit_pos_cluster[i_layer][0][2]);
         //dt->SetPointError(N,0,0,err);
+        Double_t* point = gr->GetX();
+        cout << "layer: " <<  i_layer  << endl;
+        cout << "layer not empty : " <<  i_layer_notempty  << endl;
+        cout << "point: " <<  point[i_layer_notempty]  << endl;
+        i_layer_notempty++;
+        }
     }
+
     // fit the graph now
 
     TVirtualFitter *min = TVirtualFitter::Fitter(0,4);
