@@ -482,7 +482,47 @@ TPolyLine3D* TBase_TRD_Calib::get_straight_line_fit(Int_t i_track)
     arglist[0] = 3;
     min->ExecuteCommand("SET PRINT",arglist,1);
 
-    Double_t pStart[4] = {1,1,1,1};
+    Double_t a0[3] = {0,0,0};
+    Double_t a1[3] = {0,0,0};
+
+    gr -> GetPoint(0,a0[0],a0[1],a0[2]);
+    gr -> GetPoint(gr->GetN(),a1[0],a1[1],a1[2]);
+
+    TVector3 vec_a0;
+    vec_a0.SetXYZ(a0[0],a0[1],a0[2]);
+
+    TVector3 vec_a1;
+    vec_a1.SetXYZ(a1[0],a1[1],a1[2]);
+
+    TVector3 vec_u = vec_a1 - vec_a0;
+
+    TVector3 vec_x0 = vec_a0 - vec_u*(vec_a0.Z()/vec_u.Z());
+
+    TVector3 vec_u_perp;
+    vec_u_perp.SetXYZ(vec_u[0],vec_u[1],1.0);
+
+    TVector3 vec_x1 = vec_x0 + vec_u_perp;
+
+
+
+    //TVector3 a0 =
+
+    //TVector3 u = a1-a0;
+    //x0 = a0  (a0z/uz)*u;
+    //x1 = x0 + u / uz;
+
+
+    Double_t pStart[4]; //= {1,1,1,1};
+    pStart[0] = vec_x0.X();
+    pStart[1] = vec_x1.X() - pStart[0];
+    pStart[2] = vec_x0.Y();
+    pStart[3] = vec_x1.Y() - pStart[2];
+
+    cout << "pStart[0]" << pStart[0] << endl;
+    cout << "pStart[1]" << pStart[1] << endl;
+    cout << "pStart[2]" << pStart[2] << endl;
+    cout << "pStart[3]" << pStart[3] << endl;
+
     min->SetParameter(0,"x0",pStart[0],0.01,0,0);
     min->SetParameter(1,"Ax",pStart[1],0.01,0,0);
     min->SetParameter(2,"y0",pStart[2],0.01,0,0);
