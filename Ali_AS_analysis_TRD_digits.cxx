@@ -526,7 +526,7 @@ void Ali_AS_analysis_TRD_digits::UserExec(Option_t *)
     //-----------------------------------------------------------------
     // IMPORTANT: call NextEvent() for book-keeping
     NextEvent();
-    if(fEventNoInFile > 5) return;
+    //if(fEventNoInFile > 50) return;
     //-----------------------------------------------------------------
 
 
@@ -998,7 +998,6 @@ void Ali_AS_analysis_TRD_digits::UserExec(Option_t *)
         Double_t Track_length = track ->GetIntegratedLength();
 	UShort_t N_TPC_cls    = track ->GetTPCNcls();
 
-
         Int_t pT_bin;
 	for(Int_t i_pT = 0; i_pT < N_pT_bins; i_pT++)
 	{
@@ -1181,7 +1180,6 @@ void Ali_AS_analysis_TRD_digits::UserExec(Option_t *)
 
 
 
-
 	//Helix
         FillHelix(track,magF);
 
@@ -1224,6 +1222,9 @@ void Ali_AS_analysis_TRD_digits::UserExec(Option_t *)
 	    Int_t TRD_layer_match[6] = {0,0,0,0,0,0};
             Double_t Impact_angle_first = -100.0;
             Double_t min_dca = 100000.0;
+
+            //cout << "Test A, fEventNoInFile: " << fEventNoInFile <<  ", N_good_tracks: " << N_good_tracks << ", iTracks: " << iTracks << endl;
+
 	    for(Int_t i_TRD_hit = 0; i_TRD_hit < TV3_TRD_hits_middle.size(); i_TRD_hit++) // ADC (average for all time bins) hit for a single pad
 	    {
 		Double_t dx = helix_point_search[0] - TV3_TRD_hits_middle[i_TRD_hit].X();
@@ -1238,11 +1239,12 @@ void Ali_AS_analysis_TRD_digits::UserExec(Option_t *)
                 if(dcaAB < min_dca) min_dca = dcaAB;
 
                 Double_t dca_xyz[3];
-		Double_t helix_point_dca[3];
-		aliHelix.Evaluate(pathA,helix_point_dca);
-
                 Double_t helix_point[3];
-		aliHelix.Evaluate(pathA,helix_point);
+                aliHelix.Evaluate(pathA,helix_point);
+
+                dca_xyz[0] = helix_point[0] - TV3_TRD_hits_middle[i_TRD_hit].X();
+		dca_xyz[1] = helix_point[1] - TV3_TRD_hits_middle[i_TRD_hit].Y();
+		dca_xyz[2] = helix_point[2] - TV3_TRD_hits_middle[i_TRD_hit].Z();
 
 		Double_t helix_point_B[3];
 		aliHelix.Evaluate(pathA-1.0,helix_point_B);
@@ -1251,6 +1253,7 @@ void Ali_AS_analysis_TRD_digits::UserExec(Option_t *)
 		TV3_track_impact_vec_on_TRD.SetXYZ(helix_point[0]-helix_point_B[0],helix_point[1]-helix_point_B[1],helix_point[2]-helix_point_B[2]);
 
                 Int_t N_good_match = 0;
+                //cout << "Test digit A" << endl;
 		if(dcaAB < TPC_TRD_matching_window) // TRD hit matched with TPC track
 		{
 		    Int_t    TRD_det    = vec_TRD_hits_det_lay_row_col[i_TRD_hit][0];
@@ -1267,7 +1270,7 @@ void Ali_AS_analysis_TRD_digits::UserExec(Option_t *)
 
 		    //Int_t row_calc = (y_TRD%16);
 		    //printf("iTracks: %d, det: %d, lay: %d, sec: %d, stack: %d, row: {%d,%d}, col: %d \n",iTracks,TRD_det,TRD_lay,TRD_sec,TRD_stack,TRD_row,row_calc,TRD_col);
-                   
+
 		    TRD_layer_match[TRD_lay] = 1;
 
 		    Double_t Impact_angle = TV3_TRD_hits_det_angle_middle[i_TRD_hit].Angle(TV3_track_impact_vec_on_TRD); // in rad
@@ -1285,7 +1288,8 @@ void Ali_AS_analysis_TRD_digits::UserExec(Option_t *)
 		    AS_Digit = AS_Track ->createTRD_digit();
 		    AS_Digit ->sethit_ids(x_TRD,y_TRD);
                     AS_Digit ->setdca_to_track(dcaAB,dca_xyz[0],dca_xyz[1],dca_xyz[2]);
-		    AS_Digit ->setImpactAngle(Impact_angle);
+                    AS_Digit ->setImpactAngle(Impact_angle);
+                    //printf("dca: {%4.3f, %4.3f, %4.3f} \n",dca_xyz[0],dca_xyz[1],dca_xyz[2]);
 
                     Double_t Impact_distance_in_drift_angle = TRD_Impact_distance_in_drift/TMath::Cos(Impact_angle); // 3.0 cm drift length + 0.5*0.7 cm amplification region
 
@@ -1303,7 +1307,9 @@ void Ali_AS_analysis_TRD_digits::UserExec(Option_t *)
 			}
 		    }
 
-                    func_tail_cancellation(ADC_Digit_values_array_tc,1);
+                    //cout << "Test digit B" << endl;
+
+                    //func_tail_cancellation(ADC_Digit_values_array_tc,1);
 		    for(Int_t i_time = 0; i_time < vec_TRD_hits_ADC_values_time[i_TRD_hit].size(); i_time++)
 		    {
 			Double_t ADC_value  = vec_TRD_hits_ADC_values_time[i_TRD_hit][i_time];
@@ -1313,7 +1319,7 @@ void Ali_AS_analysis_TRD_digits::UserExec(Option_t *)
 			Double_t pad_gain_factor = KryptoGain ->GetGainCorrectionFactor(TRD_det,TRD_row,TRD_col);
 			Double_t detector_gain = chambergain->GetValue(TRD_det);
 			Double_t ADC_value_corrected    = ((ADC_value - fBaseline + pad_noise)/(detector_gain*pad_gain_factor))/Impact_distance_in_drift_angle;
-			Double_t ADC_value_corrected_tc = ((ADC_Digit_values_array_tc[i_time] - fBaseline + pad_noise)/(detector_gain*pad_gain_factor))/Impact_distance_in_drift_angle;
+			//Double_t ADC_value_corrected_tc = ((ADC_Digit_values_array_tc[i_time] - fBaseline + pad_noise)/(detector_gain*pad_gain_factor))/Impact_distance_in_drift_angle;
 		        //cout << "i_time: " << i_time << ", ADC_value: " << ADC_value << ", fBaseline: " << fBaseline << ", pad_noise: " << pad_noise
 			//    << ", detector_gain: " << detector_gain << ", pad_gain_factor: " << pad_gain_factor <<
 			//    ", Impact_distance_in_drift_angle: " << Impact_distance_in_drift_angle << ", ADC_value_corrected: " << ADC_value_corrected << endl;
@@ -1323,10 +1329,12 @@ void Ali_AS_analysis_TRD_digits::UserExec(Option_t *)
                             time_max_bin  = i_time;
                         }
 
+
                         AS_Digit ->setADC_time_value(i_time,(Short_t)ADC_value);
                         //printf("ADC_value: %hi \n",(Short_t)ADC_value);
                         //AS_Digit ->setADC_time_value_corrected(i_time,(Short_t)ADC_value_corrected);
 
+                        //printf("i_time: %d, i_TRD_hit: %d, pos: {%4.3f, %4.3f, %4.3f} \n",i_time,i_TRD_hit,vec_TRD_hits_points_time_uncalib[i_TRD_hit][i_time].X(), vec_TRD_hits_points_time_uncalib[i_TRD_hit][i_time].Y(), vec_TRD_hits_points_time_uncalib[i_TRD_hit][i_time].Z());
                         AS_Digit ->set_pos(i_time,vec_TRD_hits_points_time_uncalib[i_TRD_hit][i_time].X(), vec_TRD_hits_points_time_uncalib[i_TRD_hit][i_time].Y(), vec_TRD_hits_points_time_uncalib[i_TRD_hit][i_time].Z());
 
                         //cout << "vec_TRD_hits_points_time[i_TRD_hit][i_time].X()" << vec_TRD_hits_points_time[i_TRD_hit][i_time].X() << endl;
@@ -1335,9 +1343,9 @@ void Ali_AS_analysis_TRD_digits::UserExec(Option_t *)
                         //AS_Digit ->setADC_time_value_corrected_tc(i_time,(Short_t)ADC_value_corrected_tc);
 		    }
 
+                    //cout << "Test digit C" << endl;
 		    Float_t pathA_max, dcaAB_max;
 		    FindDCAHelixPoint(vec_TRD_hits_points_time[i_TRD_hit][time_max_bin],aliHelix,path_initA-25.0,path_initA+25.0,pathA_max,dcaAB_max);
-
 		    //cout << "ADC_value_max: " << ADC_value_max << ", time_max_bin: " << time_max_bin << ", dcaAB_max: " << dcaAB_max << endl;
 		    //-------------------------------------------------------------------
 
@@ -1348,6 +1356,7 @@ void Ali_AS_analysis_TRD_digits::UserExec(Option_t *)
 	    } // End of TRD hit loop
 	    AS_Track  ->setimpact_angle_on_TRD(Impact_angle_first);
 
+            //cout << "Test B" << endl;
 	    //cout << "min_dca: " << min_dca << endl;
 	    //--------------------------------------------------------------------------------
 
@@ -1356,7 +1365,7 @@ void Ali_AS_analysis_TRD_digits::UserExec(Option_t *)
 	N_good_tracks++;
 
     } // End of TPC track loop
-
+    cout << "Tracks matched" << endl;
 
 
     Tree_AS_Event ->Fill();

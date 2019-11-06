@@ -32,14 +32,25 @@ public:
 	void sethit_ids(UShort_t x, UShort_t y)                     { hit_ids[0] = x; hit_ids[1] = y; }
 	void setADC_time_value(Int_t time_bin, Short_t ADC_value)  { ADC_time_values[time_bin] = ADC_value; }
         void set_pos(Int_t time_bin, Float_t x_pos, Float_t y_pos, Float_t z_pos) //{arr_pos[0][time_bin] = (Short_t)(100.0*x_pos); arr_pos[1][time_bin] = (Short_t)(100.0*y_pos); arr_pos[2][time_bin] = (Short_t)(100.0*z_pos);}
-
         {
             // Subtract a vector of length 200 cm from digit positions to reduce the range. Usually ~300-360 cm, now 100-160 cm.
             // This is important to not get out of Short_t range: 8 byte: 2^16/2 = 32768. 360*100 > 32768
             TVector3 vec_200cm(x_pos,y_pos,z_pos);
-            vec_200cm *= 200.0/vec_200cm.Mag();
-
-            arr_pos[0][time_bin] = (Short_t)(100.0*(x_pos-vec_200cm.X())); arr_pos[1][time_bin] = (Short_t)(100.0*(y_pos-vec_200cm.Y())); arr_pos[2][time_bin] = (Short_t)(100.0*(z_pos-vec_200cm.Z()));
+            //printf("pos: {%4.3f, %4.3f, %4.3f} \n",x_pos,y_pos,z_pos);
+            if(vec_200cm.Mag() > 0.0)
+            {
+                vec_200cm *= 200.0/vec_200cm.Mag();
+                //printf("vector length: %4.3f \n",vec_200cm.Mag());
+                arr_pos[0][time_bin] = (Short_t)(100.0*(x_pos-vec_200cm.X()));
+                arr_pos[1][time_bin] = (Short_t)(100.0*(y_pos-vec_200cm.Y()));
+                arr_pos[2][time_bin] = (Short_t)(100.0*(z_pos-vec_200cm.Z()));
+            }
+            else
+            {
+                arr_pos[0][time_bin] = 0.0;
+                arr_pos[1][time_bin] = 0.0;
+                arr_pos[2][time_bin] = 0.0;
+            }
 
             //cout << "x_pos: " << x_pos << endl;
             //cout << "y_pos: " << y_pos << endl;
@@ -53,7 +64,13 @@ public:
 
 
         //void setADC_time_value_corrected_tc(Int_t time_bin, Short_t ADC_value)  { ADC_time_values_corrected_tc[time_bin] = ADC_value; }
-        void setdca_to_track(Float_t f, Float_t f_x, Float_t f_y, Float_t f_z) { dca_to_track = (Short_t)(100.0*f); dca_x = (Short_t)(100.0*f_x); dca_y = (Short_t)(100.0*f_y); dca_z = (Short_t)(100.0*f_z);}
+        void setdca_to_track(Float_t f, Float_t f_x, Float_t f_y, Float_t f_z)
+        {
+            dca_to_track = (Short_t)(100.0*f);
+            dca_x = (Short_t)(100.0*f_x);
+            dca_y = (Short_t)(100.0*f_y);
+            dca_z = (Short_t)(100.0*f_z);
+        }
 	void setImpactAngle(Float_t f)                              { ImpactAngle = (Short_t)(100.0*f); }
 
 	// getters
@@ -62,10 +79,14 @@ public:
         Float_t  get_pos(Int_t time_bin, Int_t index)  const //{ return ((Float_t)arr_pos[index][time_bin])/100.0; }
         {
             TVector3 vec_200cm((Float_t)arr_pos[0][time_bin],(Float_t)arr_pos[1][time_bin],(Float_t)arr_pos[2][time_bin]);
-            
+
             // now vec_200cm is again in cm
-            vec_200cm *= 200.0/vec_200cm.Mag();     //when we get positions XYZ-200cm
-            return (Float_t)(arr_pos[index][time_bin]/100.0 + vec_200cm(index));
+            if(vec_200cm.Mag() > 0.0)
+            {
+                vec_200cm *= 200.0/vec_200cm.Mag();     //when we get positions XYZ-200cm
+                return (Float_t)(arr_pos[index][time_bin]/100.0 + vec_200cm(index));
+            }
+            else return 0.0;
         }
 
         //Float_t  get_pos_uncalib(Int_t time_bin, Int_t index)  const { return ((Float_t)arr_pos_uncalib[index][time_bin])/100.0; }

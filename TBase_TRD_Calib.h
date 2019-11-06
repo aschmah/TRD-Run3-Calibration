@@ -136,7 +136,7 @@ TBase_TRD_Calib::TBase_TRD_Calib()
     }
 
 
-    vec_digit_single_info.resize(11); // x,y,z,time,ADC,sector,stack,layer,row,column,dca
+    vec_digit_single_info.resize(14); // x,y,z,time,ADC,sector,stack,layer,row,column,dca,dca_x,dca_y,dca_z
     vec_track_single_info.resize(12); // dca,TPCdEdx,momentum,eta_track,pT_track,TOFsignal,Track_length,TRDsumADC,TRD_signal,nsigma_TPC_e,nsigma_TPC_pi,nsigma_TPC_p
 
     TPM3D_single = new TPolyMarker3D();
@@ -222,7 +222,7 @@ vector< vector<TVector3> >  TBase_TRD_Calib::make_clusters(Int_t i_track)
     // TRD digit information
     UShort_t  fNumTRDdigits = AS_Track ->getNumTRD_digits();
 
-    //printf("i_track: %d, fNumTRDdigits: %d \n",i_track,fNumTRDdigits);
+    printf("i_track: %d, fNumTRDdigits: %d \n",i_track,fNumTRDdigits);
 
     TVector3 TV3_digit_pos;
     vec_TV3_digit_pos_cluster.clear();
@@ -263,6 +263,8 @@ vector< vector<TVector3> >  TBase_TRD_Calib::make_clusters(Int_t i_track)
         Float_t  dca_z        = AS_Digit ->getdca_z();
         Float_t  ImpactAngle  = AS_Digit ->getImpactAngle();
 
+        Float_t dca_phi = TMath::Sqrt(dca_x*dca_x + dca_y*dca_y);
+        if(dca_phi > 3.0)  continue;
 
         for(Int_t i_time_merge = 0; i_time_merge < (N_merged_time_bis - 1); i_time_merge++)
         {
@@ -281,7 +283,7 @@ vector< vector<TVector3> >  TBase_TRD_Calib::make_clusters(Int_t i_track)
                 vec_weight_digits_merged[layer][i_time_merge] += ADC; // keep track of the weights used
 
                 //printf("track: %d/%d, digit: %d/%d \n",i_track,NumTracks,i_digits,fNumTRDdigits);
-                //printf("pos: {%4.3f, %4.3f, %4.3f} \n,",digit_pos[0],digit_pos[1],digit_pos[2]);
+                printf("pos: {%4.3f, %4.3f, %4.3f} \n,",digit_pos[0],digit_pos[1],digit_pos[2]);
             }
         }
     }
@@ -448,7 +450,8 @@ TPolyLine3D* TBase_TRD_Calib::get_straight_line_fit(Int_t i_track)
 
     //fit merged digits with a straight line
 
-    TGraph2D * gr = new TGraph2D();
+    TGraph2D*    gr              = new TGraph2D();
+    TPolyLine3D* digits_fit_line = new TPolyLine3D();
 
     // Fill the 2D graph
     Double_t p0[4] = {10,20,1,2};
@@ -459,16 +462,23 @@ TPolyLine3D* TBase_TRD_Calib::get_straight_line_fit(Int_t i_track)
 
     for(Int_t i_layer = 0; i_layer < 6; i_layer++)
     {
-
-        if (vec_TV3_digit_pos_cluster[i_layer][0][0] != 0 && vec_TV3_digit_pos_cluster[i_layer][0][1] != 0 && vec_TV3_digit_pos_cluster[i_layer][0][2] != 0) {
-        gr->SetPoint(i_layer_notempty,vec_TV3_digit_pos_cluster[i_layer][0][0],vec_TV3_digit_pos_cluster[i_layer][0][1],vec_TV3_digit_pos_cluster[i_layer][0][2]);
-        //dt->SetPointError(N,0,0,err);
-        Double_t* point = gr->GetX();
-        cout << "layer: " <<  i_layer  << endl;
-        cout << "layer not empty : " <<  i_layer_notempty  << endl;
-        cout << "point: " <<  point[i_layer_notempty]  << endl;
-        i_layer_notempty++;
+        printf("i_layer: %d \n",i_layer);
+        if(vec_TV3_digit_pos_cluster[i_layer][0][0] != 0 && vec_TV3_digit_pos_cluster[i_layer][0][1] != 0 && vec_TV3_digit_pos_cluster[i_layer][0][2] != 0)
+        {
+            gr->SetPoint(i_layer_notempty,vec_TV3_digit_pos_cluster[i_layer][0][0],vec_TV3_digit_pos_cluster[i_layer][0][1],vec_TV3_digit_pos_cluster[i_layer][0][2]);
+            //dt->SetPointError(N,0,0,err);
+            Double_t* point = gr->GetX();
+            cout << "layer: " <<  i_layer  << endl;
+            cout << "layer not empty : " <<  i_layer_notempty  << endl;
+            cout << "point: " <<  point[i_layer_notempty]  << endl;
+            i_layer_notempty++;
         }
+    }
+
+    if(i_layer_notempty == 0)
+    {
+        printf("No digits found for this track \n");
+        return digits_fit_line;
     }
 
     // fit the graph now
@@ -486,7 +496,19 @@ TPolyLine3D* TBase_TRD_Calib::get_straight_line_fit(Int_t i_track)
     Double_t a1[3] = {0,0,0};
 
     gr -> GetPoint(0,a0[0],a0[1],a0[2]);
-    gr -> GetPoint(gr->GetN(),a1[0],a1[1],a1[2]);
+    gr -> GetPoint(i_layer_notempty-1,a1[0],a1[1],a1[2]);
+
+    printf("point start: {%4.3f, %4.3f, %4.3f} \n",a0[0],a0[1],a0[2]);
+    printf("point end: {%4.3f, %4.3f, %4.3f} \n",a1[0],a1[1],a1[2]);
+
+#if 0
+    TPolyLine3D* digits_fit_line_init = new TPolyLine3D();
+    digits_fit_line_init ->SetNextPoint(a0[0],a0[1],a0[2]);
+    digits_fit_line_init ->SetNextPoint(a1[0],a1[1],a1[2]);
+    digits_fit_line_init ->SetLineColor(kMagenta);
+    digits_fit_line_init ->SetLineWidth(3);
+    digits_fit_line_init ->DrawClone("ogl");
+#endif
 
     TVector3 vec_a0;
     vec_a0.SetXYZ(a0[0],a0[1],a0[2]);
@@ -544,13 +566,14 @@ TPolyLine3D* TBase_TRD_Calib::get_straight_line_fit(Int_t i_track)
     for(int i = 0; i <4; ++i)
     {
         parFit[i] = min->GetParameter(i);
+        parFit[i] = pStart[i];
     }
+
 
     // draw the fitted line
     int n = 1000;
     Double_t t0 = -500.0;
     Double_t dt = 1;
-    TPolyLine3D* digits_fit_line = new TPolyLine3D();
     TVector3 TV3_line_point;
     Int_t i_point = 0;
     for(int i = 0; i <n; ++i)
@@ -559,6 +582,7 @@ TPolyLine3D* TBase_TRD_Calib::get_straight_line_fit(Int_t i_track)
         Double_t x,y,z;
         line(t,parFit,x,y,z);
         TV3_line_point.SetXYZ(x,y,z);
+        printf("point: {%4.3f, %4.3f, %4.3f} \n",x,y,z);
 
         Double_t distance = 1000.0;
         for(Int_t i_layer = 0; i_layer < 6; i_layer++)
@@ -570,6 +594,7 @@ TPolyLine3D* TBase_TRD_Calib::get_straight_line_fit(Int_t i_track)
         if(TV3_line_point.Perp() > 300.0 && TV3_line_point.Perp() < 380.0 && distance < 10.0)
         {
             digits_fit_line->SetPoint(i_point,x,y,z);
+            //printf("point line: {%4.3f, %4.3f, %4.3f} \n",x,y,z);
             i_point++;
         }
     }
@@ -976,7 +1001,11 @@ Int_t TBase_TRD_Calib::Loop_event(Long64_t event)
                 vec_digit_single_info[8]  = row;
                 vec_digit_single_info[9]  = column;
                 vec_digit_single_info[10] = dca_to_track;
+                vec_digit_single_info[11] = dca_x;
+                vec_digit_single_info[12] = dca_y;
+                vec_digit_single_info[13] = dca_z;
 
+                //printf("dca_full: %4.3f, dca: {%4.3f, %4.3f, %4.3f} \n",dca_to_track,dca_x,dca_y,dca_z);
                 vec_digit_info.push_back(vec_digit_single_info);
 
                 N_Digits ++;

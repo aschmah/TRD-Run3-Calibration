@@ -323,15 +323,30 @@ Int_t TGUI_TRD_Calib::Draw3D_track()
         Int_t row       = (Int_t)vec_digit_track_info[i_track][i_digit][8];
         Int_t column    = (Int_t)vec_digit_track_info[i_track][i_digit][9];
         Float_t dca     = vec_digit_track_info[i_track][i_digit][10];
+        Float_t dca_x   = vec_digit_track_info[i_track][i_digit][11];
+        Float_t dca_y   = vec_digit_track_info[i_track][i_digit][12];
+        Float_t dca_z   = vec_digit_track_info[i_track][i_digit][13];
 
-        Double_t digit_size = raw_ADC/50.0;
+        Float_t dca_phi = TMath::Sqrt(dca_x*dca_x + dca_y*dca_y);
+        //printf("dca_full: %4.3f, dca: {%4.3f, %4.3f, %4.3f}, dca_phi: %4.3f \n",dca,dca_x,dca_y,dca_z,dca_phi);
+
+        Double_t digit_size = 1.0;
+
+        //if(raw_ADC < 20.0) continue;
+        if(dca_phi > 3.0) continue;
+
+        if(raw_ADC < 50.0) digit_size = 1.0;
+        if(raw_ADC >= 50.0) digit_size = 10.0;
+        //if(raw_ADC >= 50.0 && raw_ADC < 100.0) digit_size = 2.0;
+        //if(raw_ADC >= 100.0 && raw_ADC < 150.0) digit_size = 3.0;
+        //if(raw_ADC >= 150.0) digit_size = 4.0;
 
         //if(!(row == 14 && column == 120)) continue;
         TPM3D_single ->SetNextPoint(x_pos,y_pos,z_pos);
         vec_TPM3D_single_track_digit_layer[layer]   ->SetNextPoint(x_pos,y_pos,z_pos);
         vec_TPM3D_single_track_digit.push_back((TPolyMarker3D*)TPM3D_single ->Clone());
         Int_t N_digits = (Int_t)vec_TPM3D_single_track_digit.size();
-        vec_TPM3D_single_track_digit[N_digits - 1] ->SetMarkerSize(1.0);
+        vec_TPM3D_single_track_digit[N_digits - 1] ->SetMarkerSize(digit_size);
         vec_TPM3D_single_track_digit[N_digits - 1] ->SetMarkerColor(kGreen+2);
         vec_TPM3D_single_track_digit[N_digits - 1] ->SetMarkerStyle(20);
 
