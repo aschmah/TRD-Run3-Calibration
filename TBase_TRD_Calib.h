@@ -521,7 +521,8 @@ TPolyLine3D* TBase_TRD_Calib::get_straight_line_fit(Int_t i_track)
     TVector3 vec_x0 = vec_a0 - vec_u*(vec_a0.Z()/vec_u.Z());
 
     TVector3 vec_u_perp;
-    vec_u_perp.SetXYZ(vec_u[0],vec_u[1],1.0);
+    vec_u_perp.SetXYZ(vec_u[0],vec_u[1],vec_u[2]);
+    vec_u_perp *= 1.0/vec_u[2];
 
     TVector3 vec_x1 = vec_x0 + vec_u_perp;
 

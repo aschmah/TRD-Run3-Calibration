@@ -295,7 +295,7 @@ void SumDistance2(Int_t &, Double_t *, Double_t & sum, Double_t * par, Int_t ) {
 #endif
    }
    if (first) 
-      std::cout << "Total sum2 = " << sum << std::endl;
+      //std::cout << "Total sum2 = " << sum << std::endl;
    first = false;
 }
 
