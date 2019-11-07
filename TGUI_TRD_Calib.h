@@ -265,13 +265,19 @@ Int_t TGUI_TRD_Calib::Draw3D_track()
     Base_TRD_Calib ->Draw_track(i_track);
     Base_TRD_Calib ->Draw_neighbor_tracks(i_track);
 
-
     vector<Int_t> vec_merge_time_bins;
+#if 0
     vec_merge_time_bins.resize(4);
     vec_merge_time_bins[0] = 0;
     vec_merge_time_bins[1] = 5;
     vec_merge_time_bins[2] = 12;
     vec_merge_time_bins[3] = 23;
+#endif
+    vec_merge_time_bins.resize(24);
+    for(Int_t i_time = 0; i_time < 24; i_time++)
+    {
+        vec_merge_time_bins[i_time] = i_time;
+    }
 
     Base_TRD_Calib ->set_merged_time_bins(vec_merge_time_bins);
     vector< vector<TVector3> > vec_TV3_digit_pos_cluster = Base_TRD_Calib ->make_clusters(i_track); // layer, merged time bin
@@ -385,6 +391,7 @@ Int_t TGUI_TRD_Calib::Draw3D_track()
 #endif
 
     Base_TRD_Calib ->Draw_line(i_track);
+    Base_TRD_Calib ->Draw_tracklets_line(i_track);
     Base_TRD_Calib ->make_plots_ADC(i_track);
 
     return 1;
