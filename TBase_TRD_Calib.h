@@ -250,7 +250,7 @@ vector< vector<TVector3> >  TBase_TRD_Calib::make_clusters(Int_t i_track)
     {
         vec_weight_digits_merged[i_layer].resize(N_merged_time_bis);
         vec_pos_merge[i_layer].resize(N_merged_time_bis);
-        for(Int_t i_time_merge = 0; i_time_merge < (N_merged_time_bis - 1); i_time_merge++)
+        for(Int_t i_time_merge = 0; i_time_merge < (N_merged_time_bis); i_time_merge++)
         {
             vec_pos_merge[i_layer][i_time_merge].resize(3); // x,y,z
         }
@@ -276,7 +276,7 @@ vector< vector<TVector3> >  TBase_TRD_Calib::make_clusters(Int_t i_track)
         Float_t dca_phi = TMath::Sqrt(dca_x*dca_x + dca_y*dca_y);
         if(dca_phi > 3.0)  continue;
 
-        for(Int_t i_time_merge = 0; i_time_merge < (N_merged_time_bis - 1); i_time_merge++)
+        for(Int_t i_time_merge = 0; i_time_merge < (N_merged_time_bis); i_time_merge++)
         {
             Int_t i_time_start = vec_merge_time_bins[i_time_merge];
             Int_t i_time_stop  = vec_merge_time_bins[i_time_merge + 1];
@@ -302,7 +302,7 @@ vector< vector<TVector3> >  TBase_TRD_Calib::make_clusters(Int_t i_track)
     for(Int_t i_layer = 0; i_layer < 6; i_layer++)
     {
         printf("i_layer: %d \n",i_layer);
-        for(Int_t i_time_merge = 0; i_time_merge < (N_merged_time_bis - 1); i_time_merge++)
+        for(Int_t i_time_merge = 0; i_time_merge < (N_merged_time_bis); i_time_merge++)
         {
             printf("   i_time_merge: %d \n",i_time_merge);
             if(vec_weight_digits_merged[i_layer][i_time_merge] > 0.0)
@@ -495,7 +495,8 @@ TPolyLine3D* TBase_TRD_Calib::get_straight_line_fit(Int_t i_track)
 
     TVirtualFitter *min = TVirtualFitter::Fitter(0,4);
     min->SetObjectFit(gr);
-    min->SetFCN(SumDistance2);
+    //min->SetFCN(SumDistance2);
+    min->SetFCN(SumDistance2_X);
 
 
     Double_t arglist[10];
@@ -520,22 +521,42 @@ TPolyLine3D* TBase_TRD_Calib::get_straight_line_fit(Int_t i_track)
     digits_fit_line_init ->DrawClone("ogl");
 #endif
 
+
     TVector3 vec_a0;
     vec_a0.SetXYZ(a0[0],a0[1],a0[2]);
-
     TVector3 vec_a1;
     vec_a1.SetXYZ(a1[0],a1[1],a1[2]);
-
     TVector3 vec_u = vec_a1 - vec_a0;
-
-    TVector3 vec_x0 = vec_a0 - vec_u*(vec_a0.Z()/vec_u.Z());
-
     TVector3 vec_u_perp;
+    Double_t pStart[4]; //= {1,1,1,1};
+#if 0
+    //---------------------------------
+    // z-plane
+    TVector3 vec_x0 = vec_a0 - vec_u*(vec_a0.Z()/vec_u.Z());
     vec_u_perp.SetXYZ(vec_u[0],vec_u[1],vec_u[2]);
     vec_u_perp *= 1.0/vec_u[2];
-
     TVector3 vec_x1 = vec_x0 + vec_u_perp;
+    pStart[0] = vec_x0.X();
+    pStart[1] = vec_x1.X() - pStart[0];
+    pStart[2] = vec_x0.Y();
+    pStart[3] = vec_x1.Y() - pStart[2];
+    //---------------------------------
+#endif
 
+
+#if 1
+    //---------------------------------
+    // x-plane
+    TVector3 vec_x0 = vec_a0 - vec_u*(vec_a0.X()/vec_u.X());
+    vec_u_perp.SetXYZ(vec_u[0],vec_u[1],vec_u[2]);
+    vec_u_perp *= 1.0/vec_u[0];
+    TVector3 vec_x1 = vec_x0 + vec_u_perp;
+    pStart[0] = vec_x0.Z();
+    pStart[1] = vec_x1.Z() - pStart[0];
+    pStart[2] = vec_x0.Y();
+    pStart[3] = vec_x1.Y() - pStart[2];
+    //---------------------------------
+#endif
 
 
     //TVector3 a0 =
@@ -545,11 +566,7 @@ TPolyLine3D* TBase_TRD_Calib::get_straight_line_fit(Int_t i_track)
     //x1 = x0 + u / uz;
 
 
-    Double_t pStart[4]; //= {1,1,1,1};
-    pStart[0] = vec_x0.X();
-    pStart[1] = vec_x1.X() - pStart[0];
-    pStart[2] = vec_x0.Y();
-    pStart[3] = vec_x1.Y() - pStart[2];
+   
 
     cout << "pStart[0]" << pStart[0] << endl;
     cout << "pStart[1]" << pStart[1] << endl;
@@ -591,7 +608,8 @@ TPolyLine3D* TBase_TRD_Calib::get_straight_line_fit(Int_t i_track)
     {
         Double_t t = t0 + dt*i;
         Double_t x,y,z;
-        line(t,parFit,x,y,z);
+        //line(t,parFit,x,y,z);
+        line_X(t,parFit,x,y,z);
         TV3_line_point.SetXYZ(x,y,z);
         printf("point: {%4.3f, %4.3f, %4.3f} \n",x,y,z);
 
@@ -689,8 +707,9 @@ vector<TPolyLine3D*> TBase_TRD_Calib::get_tracklets_fit(Int_t i_track)
                 tracklets_gr->SetPoint(i_time_merge,vec_TV3_digit_pos_cluster[i_layer][i_time_merge][0],vec_TV3_digit_pos_cluster[i_layer][i_time_merge][1],vec_TV3_digit_pos_cluster[i_layer][i_time_merge][2]);
                 //dt->SetPointError(N,0,0,err);
                 //Double_t* point = gr->GetX();
-                cout << "layer: " <<  i_layer  << endl;
-                cout << "layer not empty : " <<  i_layer_notempty  << endl;
+                //cout << "layer: " <<  i_layer  << endl;
+                //cout << "layer not empty : " <<  i_layer_notempty  << endl;
+                printf("layer: %d, i_time_merge: %d, point: {%4.3f, %4.3f, %4.3f} \n",i_layer,i_time_merge,vec_TV3_digit_pos_cluster[i_layer][i_time_merge][0],vec_TV3_digit_pos_cluster[i_layer][i_time_merge][1],vec_TV3_digit_pos_cluster[i_layer][i_time_merge][2]);
                 //cout << "point: " <<  point[i_layer_notempty]  << endl;
                 //i_layer_notempty++;
             }
@@ -702,7 +721,7 @@ vector<TPolyLine3D*> TBase_TRD_Calib::get_tracklets_fit(Int_t i_track)
 
             TVirtualFitter *min = TVirtualFitter::Fitter(0,4);
             min->SetObjectFit(tracklets_gr);
-            min->SetFCN(SumDistance2);
+            min->SetFCN(SumDistance2_X);
 
             arglist[0] = 3;
             min->ExecuteCommand("SET PRINT",arglist,1);
@@ -725,9 +744,9 @@ vector<TPolyLine3D*> TBase_TRD_Calib::get_tracklets_fit(Int_t i_track)
             vec_a0.SetXYZ(a0[0],a0[1],a0[2]);
             vec_a1.SetXYZ(a1[0],a1[1],a1[2]);
             vec_u = vec_a1 - vec_a0;
-            vec_x0 = vec_a0 - vec_u*(vec_a0.Z()/vec_u.Z());
+            vec_x0 = vec_a0 - vec_u*(vec_a0.X()/vec_u.X());
             vec_u_perp.SetXYZ(vec_u[0],vec_u[1],vec_u[2]);
-            vec_u_perp *= 1.0/vec_u[2];
+            vec_u_perp *= 1.0/vec_u[0];
             vec_x1 = vec_x0 + vec_u_perp;
 
             //TVector3 a0 =
@@ -736,8 +755,8 @@ vector<TPolyLine3D*> TBase_TRD_Calib::get_tracklets_fit(Int_t i_track)
             //x0 = a0  (a0z/uz)*u;
             //x1 = x0 + u / uz;
 
-            pStart[0] = vec_x0.X();
-            pStart[1] = vec_x1.X() - pStart[0];
+            pStart[0] = vec_x0.Z();
+            pStart[1] = vec_x1.Z() - pStart[0];
             pStart[2] = vec_x0.Y();
             pStart[3] = vec_x1.Y() - pStart[2];
 
@@ -774,15 +793,15 @@ vector<TPolyLine3D*> TBase_TRD_Calib::get_tracklets_fit(Int_t i_track)
             n = 1000;
             t0 = -500.0;
             dt = 1;
-            
+
             i_point = 0;
             for(int i = 0; i <n; ++i)
             {
                 Double_t t = t0 + dt*i;
                 Double_t x,y,z;
-                line(t,parFit,x,y,z);
+                line_X(t,parFit,x,y,z);
                 TV3_line_point.SetXYZ(x,y,z);
-                printf("point: {%4.3f, %4.3f, %4.3f} \n",x,y,z);
+                //printf("point: {%4.3f, %4.3f, %4.3f} \n",x,y,z);
 
                 Double_t distance = 1000.0;
                 for(Int_t i_time_bin = 0; i_time_bin < 24; i_time_bin++)
