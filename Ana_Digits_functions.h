@@ -364,3 +364,63 @@ void SumDistance2_X(Int_t &, Double_t *, Double_t & sum, Double_t * par, Int_t )
 //----------------------------------------------------------------------------------------
 
 
+
+// define the parameteric line equation
+void line_F(Double_t t, Double_t *p, Double_t &x, Double_t &y, Double_t &z) {
+   // a parameteric line is define from 6 parameters but 4 are independent
+   // x0,y0,z0,z1,y1,z1 which are the coordinates of two points on the line
+   // can choose z0 = 0 if line not parallel to x-y plane and z1 = 1; 
+    x = p[0] + p[1]*t;
+    y = p[2] + p[3]*t;
+    z = p[4] + p[5]*t;
+}
+
+// calculate distance line-point 
+double distance2_F(Double_t x,double_t y,Double_t z, Double_t *p) {
+   // distance line point is D= | (xp-x0) cross  ux | 
+   // where ux is direction of line and x0 is a point in the line (like t = 0) 
+   //XYZVector xp(x,y,z);
+   //XYZVector x0(p[0], p[2], 0. );
+   //XYZVector x1(p[0] + p[1], p[2] + p[3], 1. );
+    TVector3 xp(x,y,z);
+    TVector3 x0(p[0], p[1], p[2]);
+    TVector3 x1(1., p[2] + p[3], p[0] + p[1]);
+
+    TVector3 u = (x1-x0).Unit();
+    Double_t d2 = ((xp-x0).Cross(u)) .Mag2();
+    return d2;
+}
+
+
+// function to be minimized 
+void SumDistance2_F(Int_t &, Double_t *, Double_t & sum, Double_t * par, Int_t ) {
+   // the TGraph must be a global variable
+
+   bool first = true; 
+   TGraph2D * gr = dynamic_cast<TGraph2D*>( (TVirtualFitter::GetFitter())->GetObjectFit() );
+   assert(gr != 0);
+   Double_t * x = gr->GetX();
+   Double_t * y = gr->GetY();
+   Double_t * z = gr->GetZ();
+   Int_t npoints = gr->GetN();
+   sum = 0;
+   for (int i  = 0; i < npoints; ++i) { 
+      Double_t d = distance2_X(x[i],y[i],z[i],par);
+      sum += d;
+#ifdef DEBUG
+      if (first) std::cout << "point " << i << "\t" 
+                           << x[i] << "\t" 
+                           << y[i] << "\t" 
+                           << z[i] << "\t" 
+                           << std::sqrt(d) << std::endl; 
+#endif
+   }
+   if (first) 
+      //std::cout << "Total sum2 = " << sum << std::endl;
+   first = false;
+}
+
+
+//----------------------------------------------------------------------------------------
+
+

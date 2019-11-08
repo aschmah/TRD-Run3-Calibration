@@ -721,7 +721,6 @@ vector<TPolyLine3D*> TBase_TRD_Calib::get_tracklets_fit(Int_t i_track)
 
             TVirtualFitter *min = TVirtualFitter::Fitter(0,4);
             min->SetObjectFit(tracklets_gr);
-            min->SetFCN(SumDistance2_X);
 
             arglist[0] = 3;
             min->ExecuteCommand("SET PRINT",arglist,1);
@@ -741,12 +740,29 @@ vector<TPolyLine3D*> TBase_TRD_Calib::get_tracklets_fit(Int_t i_track)
             digits_fit_line_init ->DrawClone("ogl");
 #endif
 
+            Int_t flag_XZ = 1;
+            if(fabs(a0[0] - a1[0]) > fabs(a0[2] - a1[2]))
+            {
+                flag_XZ = 0; // x is used
+            }
+
             vec_a0.SetXYZ(a0[0],a0[1],a0[2]);
             vec_a1.SetXYZ(a1[0],a1[1],a1[2]);
             vec_u = vec_a1 - vec_a0;
-            vec_x0 = vec_a0 - vec_u*(vec_a0.X()/vec_u.X());
-            vec_u_perp.SetXYZ(vec_u[0],vec_u[1],vec_u[2]);
-            vec_u_perp *= 1.0/vec_u[0];
+            if(flag_XZ == 0)
+            {
+                min->SetFCN(SumDistance2_X);
+                vec_x0 = vec_a0 - vec_u*(vec_a0.X()/vec_u.X());
+                vec_u_perp.SetXYZ(vec_u[0],vec_u[1],vec_u[2]);
+                vec_u_perp *= 1.0/vec_u[0];
+            }
+            else
+            {
+                min->SetFCN(SumDistance2);
+                vec_x0 = vec_a0 - vec_u*(vec_a0.Z()/vec_u.Z());
+                vec_u_perp.SetXYZ(vec_u[0],vec_u[1],vec_u[2]);
+                vec_u_perp *= 1.0/vec_u[2];
+            }
             vec_x1 = vec_x0 + vec_u_perp;
 
             //TVector3 a0 =
@@ -755,10 +771,20 @@ vector<TPolyLine3D*> TBase_TRD_Calib::get_tracklets_fit(Int_t i_track)
             //x0 = a0  (a0z/uz)*u;
             //x1 = x0 + u / uz;
 
-            pStart[0] = vec_x0.Z();
-            pStart[1] = vec_x1.Z() - pStart[0];
-            pStart[2] = vec_x0.Y();
-            pStart[3] = vec_x1.Y() - pStart[2];
+            if(flag_XZ == 0)
+            {
+                pStart[0] = vec_x0.Z();
+                pStart[1] = vec_x1.Z() - pStart[0];
+                pStart[2] = vec_x0.Y();
+                pStart[3] = vec_x1.Y() - pStart[2];
+            }
+            else
+            {
+                pStart[0] = vec_x0.X();
+                pStart[1] = vec_x1.X() - pStart[0];
+                pStart[2] = vec_x0.Y();
+                pStart[3] = vec_x1.Y() - pStart[2];
+            }
 
             cout << "pStart[0]" << pStart[0] << endl;
             cout << "pStart[1]" << pStart[1] << endl;
@@ -782,7 +808,7 @@ vector<TPolyLine3D*> TBase_TRD_Calib::get_tracklets_fit(Int_t i_track)
 
             // get fit parameters
 
-            for(int i = 0; i <4; ++i)
+            for(int i = 0; i < 4; ++i)
             {
                 parFit[i] = min->GetParameter(i);
                 //parFit[i] = pStart[i];
@@ -794,12 +820,19 @@ vector<TPolyLine3D*> TBase_TRD_Calib::get_tracklets_fit(Int_t i_track)
             t0 = -500.0;
             dt = 1;
 
+            Double_t x_A, y_A, z_A;
+            t0 = -(parFit[2]/parFit[3]);
+            if(flag_XZ == 0) line_X(t0,parFit,x_A,y_A,z_A);
+            else line(t0,parFit,x_A,y_A,z_A);
+            printf("start point: {%4.3f, %4.3f, %4.3f} \n",x_A,y_A,z_A);
+
             i_point = 0;
             for(int i = 0; i <n; ++i)
             {
                 Double_t t = t0 + dt*i;
                 Double_t x,y,z;
-                line_X(t,parFit,x,y,z);
+                if(flag_XZ == 0) line_X(t,parFit,x,y,z);
+                else line(t,parFit,x,y,z);
                 TV3_line_point.SetXYZ(x,y,z);
                 //printf("point: {%4.3f, %4.3f, %4.3f} \n",x,y,z);
 
