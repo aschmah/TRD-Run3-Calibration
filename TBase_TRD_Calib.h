@@ -93,6 +93,7 @@ private:
     vector<Int_t> vec_merge_time_bins;
 
     vector< vector<TVector3> > vec_TV3_digit_pos_cluster;    // layer, merged time bin
+    vector<vector<vector<Double_t>>> vec_Dt_digit_pos_cluster;    // layer, merged time bin. xyzADC
     vector<TVector3> vec_TV3_digit_pos_cluster_t0; // layer, x, y, z
     vector<vector<TH1F*>> th1f_ADC_vs_time;
     Int_t color_layer[6] = {kRed,kGreen,kBlue,kMagenta,kCyan,kYellow};
@@ -235,12 +236,29 @@ vector< vector<TVector3> >  TBase_TRD_Calib::make_clusters(Int_t i_track)
     printf("i_track: %d, fNumTRDdigits: %d \n",i_track,fNumTRDdigits);
 
     TVector3 TV3_digit_pos;
+
+    //for old TV3
     vec_TV3_digit_pos_cluster.clear();
     vec_TV3_digit_pos_cluster.resize(6); // 6 layers
     for(Int_t i_layer = 0; i_layer < 6; i_layer++)
     {
         vec_TV3_digit_pos_cluster[i_layer].resize(N_merged_time_bis);
     }
+
+    //for new vector<Double_t>  vector<vector<vector<Double_t>>> vec_Dt_digit_pos_cluster[i_layer][i_merged_time_bin][i_xyzADC]
+    vec_Dt_digit_pos_cluster.resize(6); // 6 layers
+    for(Int_t i_layer = 0; i_layer < 6; i_layer++)
+    {
+        vec_Dt_digit_pos_cluster[i_layer].resize(N_merged_time_bis);
+    }
+    for(Int_t i_layer = 0; i_layer < 6; i_layer++)
+    {
+        for (Int_t i_merged_time_bis = 0; i_merged_time_bis < N_merged_time_bis; i_merged_time_bis++)
+        {
+            vec_Dt_digit_pos_cluster[i_layer][i_merged_time_bis].resize(4);
+        }
+    }
+
 
     vector< vector<Double_t> > vec_weight_digits_merged;
     vector< vector< vector<Double_t> > > vec_pos_merge;
@@ -280,7 +298,7 @@ vector< vector<TVector3> >  TBase_TRD_Calib::make_clusters(Int_t i_track)
         {
             Int_t i_time_start = vec_merge_time_bins[i_time_merge];
             Int_t i_time_stop  = vec_merge_time_bins[i_time_merge + 1];
-
+            
             for(Int_t i_time = i_time_start; i_time < i_time_stop; i_time++)
             {
                 Float_t ADC = (Float_t)AS_Digit ->getADC_time_value(i_time) - 10.0;  // baseline correction
@@ -292,7 +310,8 @@ vector< vector<TVector3> >  TBase_TRD_Calib::make_clusters(Int_t i_track)
                 }
                 vec_weight_digits_merged[layer][i_time_merge] += ADC; // keep track of the weights used
 
-                //printf("track: %d/%d, digit: %d/%d \n",i_track,NumTracks,i_digits,fNumTRDdigits);
+                //printf("layer, timebin, ADC: %d, %d, %4.3f \n",layer,i_time_merge,ADC);
+                //printf("layer, timebin, ADC+: %d, %d, %4.3f \n",layer,i_time_merge,vec_weight_digits_merged[layer][i_time_merge]);
                 printf("pos: {%4.3f, %4.3f, %4.3f} \n,",digit_pos[0],digit_pos[1],digit_pos[2]);
             }
         }
@@ -307,16 +326,25 @@ vector< vector<TVector3> >  TBase_TRD_Calib::make_clusters(Int_t i_track)
             printf("   i_time_merge: %d \n",i_time_merge);
             if(vec_weight_digits_merged[i_layer][i_time_merge] > 0.0)
             {
-                for(Int_t i_xyz = 0; i_xyz < 3; i_xyz++)
+                for(Int_t i_xyzADC = 0; i_xyzADC < 4; i_xyzADC++)
                 {
-                    vec_TV3_digit_pos_cluster[i_layer][i_time_merge][i_xyz] = vec_pos_merge[i_layer][i_time_merge][i_xyz]/vec_weight_digits_merged[i_layer][i_time_merge];
+                    if (i_xyzADC<3)  //coordinates
+                    {
+                        vec_TV3_digit_pos_cluster[i_layer][i_time_merge][i_xyzADC] = vec_pos_merge[i_layer][i_time_merge][i_xyzADC]/vec_weight_digits_merged[i_layer][i_time_merge];
+                        vec_Dt_digit_pos_cluster[i_layer][i_time_merge][i_xyzADC] = vec_pos_merge[i_layer][i_time_merge][i_xyzADC]/vec_weight_digits_merged[i_layer][i_time_merge];
+                    }
+                    if (i_xyzADC == 4)  //ADC value
+                    {
+                        vec_Dt_digit_pos_cluster[i_layer][i_time_merge][i_xyzADC] = vec_weight_digits_merged[i_layer][i_time_merge];
+                    }
                 }
-                printf("       pos: {%4.3f, %4.3f, %4.3f} \n",vec_TV3_digit_pos_cluster[i_layer][i_time_merge][0],vec_TV3_digit_pos_cluster[i_layer][i_time_merge][1],vec_TV3_digit_pos_cluster[i_layer][i_time_merge][2]);
+                printf("       pos+ADC: {%4.3f, %d} \n",vec_weight_digits_merged[i_layer][i_time_merge],vec_weight_digits_merged[i_layer][i_time_merge]);
             }
         }
     }
 
     return vec_TV3_digit_pos_cluster;
+    //return vec_Dt_digit_pos_cluster;  //to be activated
 }
 //----------------------------------------------------------------------------------------
 
@@ -821,7 +849,7 @@ vector<TPolyLine3D*> TBase_TRD_Calib::get_tracklets_fit(Int_t i_track)
             dt = 1;
 
             Double_t x_A, y_A, z_A;
-            t0 = -(parFit[2]/parFit[3]);
+            t0 = -(parFit[2]/parFit[3])-500;
             if(flag_XZ == 0) line_X(t0,parFit,x_A,y_A,z_A);
             else line(t0,parFit,x_A,y_A,z_A);
             printf("start point: {%4.3f, %4.3f, %4.3f} \n",x_A,y_A,z_A);
