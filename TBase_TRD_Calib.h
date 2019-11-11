@@ -93,7 +93,7 @@ private:
     vector<Int_t> vec_merge_time_bins;
 
     vector< vector<TVector3> > vec_TV3_digit_pos_cluster;    // layer, merged time bin
-    vector<vector<vector<Double_t>>> vec_Dt_digit_pos_cluster;    // layer, merged time bin. xyzADC
+    vector< vector< vector<Double_t> > > vec_Dt_digit_pos_cluster;    // layer, merged time bin. xyzADC
     vector<TVector3> vec_TV3_digit_pos_cluster_t0; // layer, x, y, z
     vector<vector<TH1F*>> th1f_ADC_vs_time;
     Int_t color_layer[6] = {kRed,kGreen,kBlue,kMagenta,kCyan,kYellow};
@@ -328,17 +328,18 @@ vector< vector<TVector3> >  TBase_TRD_Calib::make_clusters(Int_t i_track)
             {
                 for(Int_t i_xyzADC = 0; i_xyzADC < 4; i_xyzADC++)
                 {
-                    if (i_xyzADC<3)  //coordinates
+                    if(i_xyzADC < 3)  //coordinates
                     {
                         vec_TV3_digit_pos_cluster[i_layer][i_time_merge][i_xyzADC] = vec_pos_merge[i_layer][i_time_merge][i_xyzADC]/vec_weight_digits_merged[i_layer][i_time_merge];
                         vec_Dt_digit_pos_cluster[i_layer][i_time_merge][i_xyzADC] = vec_pos_merge[i_layer][i_time_merge][i_xyzADC]/vec_weight_digits_merged[i_layer][i_time_merge];
                     }
-                    if (i_xyzADC == 4)  //ADC value
+                    if(i_xyzADC == 3)  //ADC value
                     {
                         vec_Dt_digit_pos_cluster[i_layer][i_time_merge][i_xyzADC] = vec_weight_digits_merged[i_layer][i_time_merge];
                     }
+                    printf("i_xyzADC: %d, value: %4.3f \n",i_xyzADC,vec_Dt_digit_pos_cluster[i_layer][i_time_merge][i_xyzADC]);
                 }
-                printf("       pos+ADC: {%4.3f, %d} \n",vec_weight_digits_merged[i_layer][i_time_merge],vec_weight_digits_merged[i_layer][i_time_merge]);
+                //printf("       pos+ADC: {%4.3f} \n",vec_weight_digits_merged[i_layer][i_time_merge]);
             }
         }
     }
