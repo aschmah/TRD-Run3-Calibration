@@ -93,7 +93,7 @@ private:
     vector<Int_t> vec_merge_time_bins;
 
     vector< vector<TVector3> > vec_TV3_digit_pos_cluster;    // layer, merged time bin
-    vector< vector< vector<Double_t> > > vec_Dt_digit_pos_cluster;    // layer, merged time bin. xyzADC
+    //vector< vector< vector<Double_t> > > vec_Dt_digit_pos_cluster;    // layer, merged time bin. xyzADC
     vector<TVector3> vec_TV3_digit_pos_cluster_t0; // layer, x, y, z
     vector<vector<TH1F*>> th1f_ADC_vs_time;
     Int_t color_layer[6] = {kRed,kGreen,kBlue,kMagenta,kCyan,kYellow};
@@ -502,9 +502,9 @@ TPolyLine3D* TBase_TRD_Calib::get_straight_line_fit(Int_t i_track)
     for(Int_t i_layer = 0; i_layer < 6; i_layer++)
     {
         printf("i_layer: %d \n",i_layer);
-        if(vec_TV3_digit_pos_cluster[i_layer][0][0] != 0 && vec_TV3_digit_pos_cluster[i_layer][0][1] != 0 && vec_TV3_digit_pos_cluster[i_layer][0][2] != 0)
+        if(vec_Dt_digit_pos_cluster[i_layer][0][0] != 0 && vec_Dt_digit_pos_cluster[i_layer][0][1] != 0 && vec_Dt_digit_pos_cluster[i_layer][0][2] != 0)
         {
-            gr->SetPoint(i_layer_notempty,vec_TV3_digit_pos_cluster[i_layer][0][0],vec_TV3_digit_pos_cluster[i_layer][0][1],vec_TV3_digit_pos_cluster[i_layer][0][2]);
+            gr->SetPoint(i_layer_notempty,vec_Dt_digit_pos_cluster[i_layer][0][0],vec_Dt_digit_pos_cluster[i_layer][0][1],vec_Dt_digit_pos_cluster[i_layer][0][2]);
             //dt->SetPointError(N,0,0,err);
             Double_t* point = gr->GetX();
             cout << "layer: " <<  i_layer  << endl;
@@ -645,7 +645,9 @@ TPolyLine3D* TBase_TRD_Calib::get_straight_line_fit(Int_t i_track)
         Double_t distance = 1000.0;
         for(Int_t i_layer = 0; i_layer < 6; i_layer++)
         {
-            TVector3 TV3_diff = vec_TV3_digit_pos_cluster[i_layer][0] - TV3_line_point;
+            TVector3 vec_TV3_digit_pos_cluster;
+            vec_TV3_digit_pos_cluster.SetXYZ(vec_Dt_digit_pos_cluster[i_layer][0][0],vec_Dt_digit_pos_cluster[i_layer][0][1],vec_Dt_digit_pos_cluster[i_layer][0][2]);
+            TVector3 TV3_diff = vec_TV3_digit_pos_cluster - TV3_line_point;
             Double_t distance_layer = TV3_diff.Mag();
             if(distance_layer < distance) distance = distance_layer;
         }
@@ -733,12 +735,12 @@ vector<TPolyLine3D*> TBase_TRD_Calib::get_tracklets_fit(Int_t i_track)
         {
             for (Int_t i_time_merge = 0; i_time_merge < 24; i_time_merge++) // hardcoded - fix later
             {
-                tracklets_gr->SetPoint(i_time_merge,vec_TV3_digit_pos_cluster[i_layer][i_time_merge][0],vec_TV3_digit_pos_cluster[i_layer][i_time_merge][1],vec_TV3_digit_pos_cluster[i_layer][i_time_merge][2]);
+                tracklets_gr->SetPoint(i_time_merge,vec_Dt_digit_pos_cluster[i_layer][i_time_merge][0],vec_Dt_digit_pos_cluster[i_layer][i_time_merge][1],vec_Dt_digit_pos_cluster[i_layer][i_time_merge][2]);
                 //dt->SetPointError(N,0,0,err);
                 //Double_t* point = gr->GetX();
                 //cout << "layer: " <<  i_layer  << endl;
                 //cout << "layer not empty : " <<  i_layer_notempty  << endl;
-                printf("layer: %d, i_time_merge: %d, point: {%4.3f, %4.3f, %4.3f} \n",i_layer,i_time_merge,vec_TV3_digit_pos_cluster[i_layer][i_time_merge][0],vec_TV3_digit_pos_cluster[i_layer][i_time_merge][1],vec_TV3_digit_pos_cluster[i_layer][i_time_merge][2]);
+                printf("layer: %d, i_time_merge: %d, point: {%4.3f, %4.3f, %4.3f} \n",i_layer,i_time_merge,vec_Dt_digit_pos_cluster[i_layer][i_time_merge][0],vec_Dt_digit_pos_cluster[i_layer][i_time_merge][1],vec_Dt_digit_pos_cluster[i_layer][i_time_merge][2]);
                 //cout << "point: " <<  point[i_layer_notempty]  << endl;
                 //i_layer_notempty++;
             }
@@ -780,14 +782,14 @@ vector<TPolyLine3D*> TBase_TRD_Calib::get_tracklets_fit(Int_t i_track)
             vec_u = vec_a1 - vec_a0;
             if(flag_XZ == 0)
             {
-                min->SetFCN(SumDistance2_X);
+                min->SetFCN(SumDistance2_X_tr);
                 vec_x0 = vec_a0 - vec_u*(vec_a0.X()/vec_u.X());
                 vec_u_perp.SetXYZ(vec_u[0],vec_u[1],vec_u[2]);
                 vec_u_perp *= 1.0/vec_u[0];
             }
             else
             {
-                min->SetFCN(SumDistance2);
+                min->SetFCN(SumDistance2_tr);
                 vec_x0 = vec_a0 - vec_u*(vec_a0.Z()/vec_u.Z());
                 vec_u_perp.SetXYZ(vec_u[0],vec_u[1],vec_u[2]);
                 vec_u_perp *= 1.0/vec_u[2];
@@ -868,7 +870,9 @@ vector<TPolyLine3D*> TBase_TRD_Calib::get_tracklets_fit(Int_t i_track)
                 Double_t distance = 1000.0;
                 for(Int_t i_time_bin = 0; i_time_bin < 24; i_time_bin++)
                 {
-                    TVector3 TV3_diff = vec_TV3_digit_pos_cluster[i_layer][0] - TV3_line_point;
+                    TVector3 vec_TV3_digit_pos_cluster;
+                    vec_TV3_digit_pos_cluster.SetXYZ(vec_Dt_digit_pos_cluster[i_layer][0][0],vec_Dt_digit_pos_cluster[i_layer][0][1],vec_Dt_digit_pos_cluster[i_layer][0][2]);
+                    TVector3 TV3_diff = vec_TV3_digit_pos_cluster - TV3_line_point;
                     Double_t distance_layer = TV3_diff.Mag();
                     if(distance_layer < distance) distance = distance_layer;
                 }
