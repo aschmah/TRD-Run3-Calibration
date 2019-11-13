@@ -152,6 +152,7 @@ using namespace std;
 //ClassImp(Ali_AS_Track)
 //ClassImp(Ali_AS_Event)
 
+static vector< vector< vector<Double_t> > > vec_Dt_digit_pos_cluster;    // layer, merged time bin. xyzADC
 
 //static Ali_AS_Event* AS_Event;
 //static Ali_AS_Track* AS_Track;
@@ -282,10 +283,12 @@ void SumDistance2(Int_t &, Double_t *, Double_t & sum, Double_t * par, Int_t ) {
    Double_t * y = gr->GetY();
    Double_t * z = gr->GetZ();
    Int_t npoints = gr->GetN();
+ 
    sum = 0;
    for (int i  = 0; i < npoints; ++i) { 
-      Double_t d = distance2(x[i],y[i],z[i],par);
-      sum += d;
+       Double_t d = distance2(x[i],y[i],z[i],par);
+       //Double_t ADC = vec_Dt_digit_pos_cluster[][][]
+           sum += d;
 #ifdef DEBUG
       if (first) std::cout << "point " << i << "\t" 
                            << x[i] << "\t" 
@@ -423,4 +426,133 @@ void SumDistance2_F(Int_t &, Double_t *, Double_t & sum, Double_t * par, Int_t )
 
 //----------------------------------------------------------------------------------------
 
+//-------------FUNCTION FOR TRACKLET FIT---------------------------------------------------------------------------
 
+// function to be minimized 
+void SumDistance2_tr(Int_t &, Double_t *, Double_t & sum, Double_t * par, Int_t ) {
+   // the TGraph must be a global variable
+
+   bool first = true; 
+
+   sum = 0;
+
+   for (Int_t i_layer = 0; i_layer<6; i_layer++)
+   {
+       Int_t npoints = (Int_t)vec_Dt_digit_pos_cluster[i_layer].size();
+       Double_t  x_val[npoints];
+       Double_t  y_val[npoints];
+       Double_t  z_val[npoints];
+
+       for (int i  = 0; i < npoints; ++i) {
+
+           x_val[i]= vec_Dt_digit_pos_cluster[i_layer][i][0];
+           y_val[i]   = vec_Dt_digit_pos_cluster[i_layer][i][1];
+           z_val[i]   = vec_Dt_digit_pos_cluster[i_layer][i][2];
+           Double_t ADC_val = vec_Dt_digit_pos_cluster[i_layer][i][3];
+
+           Double_t d       = distance2(x_val[i],y_val[i],z_val[i],par);
+
+           sum += d*ADC_val;
+
+#ifdef DEBUG
+           if (first) std::cout << "point " << i << "\t"
+               << x_val[i] << "\t"
+                   << y_val[i] << "\t"
+                   << z_val[i] << "\t"
+                   << std::sqrt(d) << std::endl;
+#endif
+       }
+   }
+
+   if (first) 
+      //std::cout << "Total sum2 = " << sum << std::endl;
+   first = false;
+}
+
+//------------------------------------------------------------------------------------
+// function to be minimized 
+void SumDistance2_X_tr(Int_t &, Double_t *, Double_t & sum, Double_t * par, Int_t ) {
+   // the TGraph must be a global variable
+
+   bool first = true; 
+
+   sum = 0;
+
+   for (Int_t i_layer = 0; i_layer<6; i_layer++)
+   {
+       Int_t npoints = (Int_t)vec_Dt_digit_pos_cluster[i_layer].size();
+       Double_t  x_val[npoints];
+       Double_t  y_val[npoints];
+       Double_t  z_val[npoints];
+
+       for (int i  = 0; i < npoints; ++i) {
+
+           x_val[i]= vec_Dt_digit_pos_cluster[i_layer][i][0];
+           y_val[i]   = vec_Dt_digit_pos_cluster[i_layer][i][1];
+           z_val[i]   = vec_Dt_digit_pos_cluster[i_layer][i][2];
+
+           Double_t ADC_val = vec_Dt_digit_pos_cluster[i_layer][i][3];
+
+           Double_t d       = distance2_X(x_val[i],y_val[i],z_val[i],par);
+
+           sum += d*ADC_val;
+
+#ifdef DEBUG
+           if (first) std::cout << "point " << i << "\t"
+               << x_val[i] << "\t"
+                   << y_val[i] << "\t"
+                   << z_val[i] << "\t"
+                   << std::sqrt(d) << std::endl;
+#endif
+       }
+   }
+
+   if (first) 
+      //std::cout << "Total sum2 = " << sum << std::endl;
+   first = false;
+}
+
+//------------------------------------------------------------------------------------
+// function to be minimized 
+void SumDistance2_F_tr(Int_t &, Double_t *, Double_t & sum, Double_t * par, Int_t ) {
+   // the TGraph must be a global variable
+
+   bool first = true; 
+
+   sum = 0;
+
+   for (Int_t i_layer = 0; i_layer<6; i_layer++)
+   {
+       Int_t npoints = (Int_t)vec_Dt_digit_pos_cluster[i_layer].size();
+       Double_t  x_val[npoints];
+       Double_t  y_val[npoints];
+       Double_t  z_val[npoints];
+
+       for (int i  = 0; i < npoints; ++i) {
+
+           x_val[i]= vec_Dt_digit_pos_cluster[i_layer][i][0];
+           y_val[i]   = vec_Dt_digit_pos_cluster[i_layer][i][1];
+           z_val[i]   = vec_Dt_digit_pos_cluster[i_layer][i][2];
+
+           Double_t ADC_val = vec_Dt_digit_pos_cluster[i_layer][i][3];
+
+           Double_t d       = distance2_F(x_val[i],y_val[i],z_val[i],par);
+
+           sum += d*ADC_val;
+
+#ifdef DEBUG
+           if (first) std::cout << "point " << i << "\t"
+               << x_val[i] << "\t"
+                   << y_val[i] << "\t"
+                   << z_val[i] << "\t"
+                   << std::sqrt(d) << std::endl;
+#endif
+       }
+   }
+
+   if (first) 
+      //std::cout << "Total sum2 = " << sum << std::endl;
+   first = false;
+}
+
+//------------------------------------------------------------------------------------
