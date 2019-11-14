@@ -93,10 +93,10 @@ private:
     vector<Int_t> vec_merge_time_bins;
 
     vector< vector<TVector3> > vec_TV3_digit_pos_cluster;    // layer, merged time bin
-    //vector< vector< vector<Double_t> > > vec_Dt_digit_pos_cluster;    // layer, merged time bin. xyzADC
     vector<TVector3> vec_TV3_digit_pos_cluster_t0; // layer, x, y, z
     vector<vector<TH1F*>> th1f_ADC_vs_time;
-    Int_t color_layer[6] = {kRed,kGreen,kBlue,kMagenta,kCyan,kYellow};
+    Int_t color_layer[6] = {kOrange+2,kGreen,kBlue,kMagenta,kCyan,kYellow};
+    vector<Int_t> vec_layer_in_fit;
 
 
 
@@ -140,6 +140,7 @@ TBase_TRD_Calib::TBase_TRD_Calib()
         vec_merge_time_bins[i_time] = i_time;
     }
 
+    vec_layer_in_fit.resize(6);
 
     vec_digit_single_info.resize(14); // x,y,z,time,ADC,sector,stack,layer,row,column,dca,dca_x,dca_y,dca_z
     vec_track_single_info.resize(12); // dca,TPCdEdx,momentum,eta_track,pT_track,TOFsignal,Track_length,TRDsumADC,TRD_signal,nsigma_TPC_e,nsigma_TPC_pi,nsigma_TPC_p
@@ -154,11 +155,11 @@ TBase_TRD_Calib::TBase_TRD_Calib()
     TPL3D_helix = new TPolyLine3D();
     fit_line    = new TPolyLine3D();
 
-    vec_tracklets_line.resize(6);
-    for (Int_t i_layer = 0; i_layer < 6; i_layer++)
-    {
-        vec_tracklets_line[i_layer] = new TPolyLine3D();
-    }
+    //vec_tracklets_line.resize(6);
+    //for (Int_t i_layer = 0; i_layer < 6; i_layer++)
+    //{
+    //    vec_tracklets_line[i_layer] = new TPolyLine3D();
+    //}
 
     // TRD 3D graphics
     fGeo = new AliTRDgeometry;
@@ -253,9 +254,13 @@ vector< vector<TVector3> >  TBase_TRD_Calib::make_clusters(Int_t i_track)
     }
     for(Int_t i_layer = 0; i_layer < 6; i_layer++)
     {
-        for (Int_t i_merged_time_bis = 0; i_merged_time_bis < N_merged_time_bis; i_merged_time_bis++)
+        for(Int_t i_merged_time_bis = 0; i_merged_time_bis < N_merged_time_bis; i_merged_time_bis++)
         {
             vec_Dt_digit_pos_cluster[i_layer][i_merged_time_bis].resize(4);
+            for(Int_t i_val = 0; i_val < 4; i_val++)
+            {
+                vec_Dt_digit_pos_cluster[i_layer][i_merged_time_bis][i_val] = 0.0;
+            }
         }
     }
 
@@ -331,7 +336,7 @@ vector< vector<TVector3> >  TBase_TRD_Calib::make_clusters(Int_t i_track)
                     if(i_xyzADC < 3)  //coordinates
                     {
                         vec_TV3_digit_pos_cluster[i_layer][i_time_merge][i_xyzADC] = vec_pos_merge[i_layer][i_time_merge][i_xyzADC]/vec_weight_digits_merged[i_layer][i_time_merge];
-                        vec_Dt_digit_pos_cluster[i_layer][i_time_merge][i_xyzADC] = vec_pos_merge[i_layer][i_time_merge][i_xyzADC]/vec_weight_digits_merged[i_layer][i_time_merge];
+                        vec_Dt_digit_pos_cluster[i_layer][i_time_merge][i_xyzADC]  = vec_pos_merge[i_layer][i_time_merge][i_xyzADC]/vec_weight_digits_merged[i_layer][i_time_merge];
                     }
                     if(i_xyzADC == 3)  //ADC value
                     {
@@ -640,7 +645,7 @@ TPolyLine3D* TBase_TRD_Calib::get_straight_line_fit(Int_t i_track)
         //line(t,parFit,x,y,z);
         line_X(t,parFit,x,y,z);
         TV3_line_point.SetXYZ(x,y,z);
-        printf("point: {%4.3f, %4.3f, %4.3f} \n",x,y,z);
+        //printf("point: {%4.3f, %4.3f, %4.3f} \n",x,y,z);
 
         Double_t distance = 1000.0;
         for(Int_t i_layer = 0; i_layer < 6; i_layer++)
@@ -675,10 +680,13 @@ void TBase_TRD_Calib::Draw_line(Int_t i_track)
     fit_line    ->SetLineStyle(0);
     fit_line    ->SetLineColor(kRed);
     fit_line    ->SetLineWidth(2);
-    fit_line    ->DrawClone("ogl");
+    //fit_line    ->DrawClone("ogl");
 }
 //----------------------------------------------------------------------------------------
 
+
+
+//----------------------------------------------------------------------------------------
 vector<TPolyLine3D*> TBase_TRD_Calib::get_tracklets_fit(Int_t i_track)
 {
     printf("TBase_TRD_Calib::get_tracklets_fit((%d) \n",i_track);
@@ -723,182 +731,195 @@ vector<TPolyLine3D*> TBase_TRD_Calib::get_tracklets_fit(Int_t i_track)
     TVector3 TV3_line_point;
     Double_t i_point;
 
-    //loop over layers
     for(Int_t i_layer = 0; i_layer < 6; i_layer++)
     {
+        vec_layer_in_fit[i_layer] = 0;
+    }
 
-        TGraph2D*  tracklets_gr  = new TGraph2D();
+    //loop over layers
+    //for(Int_t i_layer = 0; i_layer < 6; i_layer++)
+    for(Int_t i_layer = 3; i_layer < 4; i_layer++)
+    {
+        global_layer = i_layer;
 
-        printf("i_layer: %d \n",i_layer);
-
-        if(vec_TV3_digit_pos_cluster[i_layer][0][0] != 0 && vec_TV3_digit_pos_cluster[i_layer][0][1] != 0 && vec_TV3_digit_pos_cluster[i_layer][0][2] != 0)
+        for(Int_t i_time_merge = 0; i_time_merge < 24; i_time_merge++) // hardcoded - fix later
         {
-            for (Int_t i_time_merge = 0; i_time_merge < 24; i_time_merge++) // hardcoded - fix later
-            {
-                tracklets_gr->SetPoint(i_time_merge,vec_Dt_digit_pos_cluster[i_layer][i_time_merge][0],vec_Dt_digit_pos_cluster[i_layer][i_time_merge][1],vec_Dt_digit_pos_cluster[i_layer][i_time_merge][2]);
-                //dt->SetPointError(N,0,0,err);
-                //Double_t* point = gr->GetX();
-                //cout << "layer: " <<  i_layer  << endl;
-                //cout << "layer not empty : " <<  i_layer_notempty  << endl;
-                printf("layer: %d, i_time_merge: %d, point: {%4.3f, %4.3f, %4.3f} \n",i_layer,i_time_merge,vec_Dt_digit_pos_cluster[i_layer][i_time_merge][0],vec_Dt_digit_pos_cluster[i_layer][i_time_merge][1],vec_Dt_digit_pos_cluster[i_layer][i_time_merge][2]);
-                //cout << "point: " <<  point[i_layer_notempty]  << endl;
-                //i_layer_notempty++;
-            }
+            printf("layer: %d, i_time_merge: %d, point: {%4.3f, %4.3f, %4.3f} \n",i_layer,i_time_merge,vec_Dt_digit_pos_cluster[i_layer][i_time_merge][0],vec_Dt_digit_pos_cluster[i_layer][i_time_merge][1],vec_Dt_digit_pos_cluster[i_layer][i_time_merge][2]);
+        }
 
-            vec_tracklets_fit_line.resize(i_layer_notempty+1);
-            vec_tracklets_fit_line[i_layer_notempty] = new TPolyLine3D();
+        Int_t i_time_merge_AB[2] = {-1,-1};
+        for(Int_t i_time_merge = 0; i_time_merge < 24; i_time_merge++) // hardcoded - fix later
+        {
+            if(vec_Dt_digit_pos_cluster[i_layer][i_time_merge][0] == 0 && vec_Dt_digit_pos_cluster[i_layer][i_time_merge][1] == 0 && vec_Dt_digit_pos_cluster[i_layer][i_time_merge][2] == 0) continue;
+            else i_time_merge_AB[0] = i_time_merge;
+        }
+        if(i_time_merge_AB[0] == -1) continue; // all values are 0
 
-            // fit the graphs now
+        for(Int_t i_time_merge = 23; i_time_merge >= 0; i_time_merge--) // hardcoded - fix later
+        {
+            if(vec_Dt_digit_pos_cluster[i_layer][i_time_merge][0] == 0 && vec_Dt_digit_pos_cluster[i_layer][i_time_merge][1] == 0 && vec_Dt_digit_pos_cluster[i_layer][i_time_merge][2] == 0) continue;
+            else i_time_merge_AB[1] = i_time_merge;
+        }
 
-            TVirtualFitter *min = TVirtualFitter::Fitter(0,4);
-            min->SetObjectFit(tracklets_gr);
 
-            arglist[0] = 3;
-            min->ExecuteCommand("SET PRINT",arglist,1);
+        vec_tracklets_fit_line.resize(i_layer_notempty+1);
+        vec_tracklets_fit_line[i_layer_notempty] = new TPolyLine3D();
 
-            tracklets_gr -> GetPoint(0,a0[0],a0[1],a0[2]);
-            tracklets_gr -> GetPoint(23,a1[0],a1[1],a1[2]);  //hardcoded
+        // fit the graphs now
 
-            printf("point start: {%4.3f, %4.3f, %4.3f} \n",a0[0],a0[1],a0[2]);
-            printf("point end: {%4.3f, %4.3f, %4.3f} \n",a1[0],a1[1],a1[2]);
+        TVirtualFitter *min = TVirtualFitter::Fitter(0,4);
+        //min->SetObjectFit(tracklets_gr);
+
+        arglist[0] = 3;
+        min->ExecuteCommand("SET PRINT",arglist,1);
+
+        for(Int_t i_xyz = 0; i_xyz < 3; i_xyz++)
+        {
+            a0[i_xyz] = vec_Dt_digit_pos_cluster[i_layer][i_time_merge_AB[0]][i_xyz];
+            a1[i_xyz] = vec_Dt_digit_pos_cluster[i_layer][i_time_merge_AB[1]][i_xyz];
+        }
+
+        printf("point start: {%4.3f, %4.3f, %4.3f} \n",a0[0],a0[1],a0[2]);
+        printf("point end: {%4.3f, %4.3f, %4.3f} \n",a1[0],a1[1],a1[2]);
 
 #if 0
-            TPolyLine3D* digits_fit_line_init = new TPolyLine3D();
-            digits_fit_line_init ->SetNextPoint(a0[0],a0[1],a0[2]);
-            digits_fit_line_init ->SetNextPoint(a1[0],a1[1],a1[2]);
-            digits_fit_line_init ->SetLineColor(kMagenta);
-            digits_fit_line_init ->SetLineWidth(3);
-            digits_fit_line_init ->DrawClone("ogl");
+        TPolyLine3D* digits_fit_line_init = new TPolyLine3D();
+        digits_fit_line_init ->SetNextPoint(a0[0],a0[1],a0[2]);
+        digits_fit_line_init ->SetNextPoint(a1[0],a1[1],a1[2]);
+        digits_fit_line_init ->SetLineColor(kMagenta);
+        digits_fit_line_init ->SetLineWidth(3);
+        digits_fit_line_init ->DrawClone("ogl");
 #endif
 
-            Int_t flag_XZ = 1;
-            if(fabs(a0[0] - a1[0]) > fabs(a0[2] - a1[2]))
-            {
-                flag_XZ = 0; // x is used
-            }
-
-            vec_a0.SetXYZ(a0[0],a0[1],a0[2]);
-            vec_a1.SetXYZ(a1[0],a1[1],a1[2]);
-            vec_u = vec_a1 - vec_a0;
-            if(flag_XZ == 0)
-            {
-                min->SetFCN(SumDistance2_X_tr);
-                vec_x0 = vec_a0 - vec_u*(vec_a0.X()/vec_u.X());
-                vec_u_perp.SetXYZ(vec_u[0],vec_u[1],vec_u[2]);
-                vec_u_perp *= 1.0/vec_u[0];
-            }
-            else
-            {
-                min->SetFCN(SumDistance2_tr);
-                vec_x0 = vec_a0 - vec_u*(vec_a0.Z()/vec_u.Z());
-                vec_u_perp.SetXYZ(vec_u[0],vec_u[1],vec_u[2]);
-                vec_u_perp *= 1.0/vec_u[2];
-            }
-            vec_x1 = vec_x0 + vec_u_perp;
-
-            //TVector3 a0 =
-
-            //TVector3 u = a1-a0;
-            //x0 = a0  (a0z/uz)*u;
-            //x1 = x0 + u / uz;
-
-            if(flag_XZ == 0)
-            {
-                pStart[0] = vec_x0.Z();
-                pStart[1] = vec_x1.Z() - pStart[0];
-                pStart[2] = vec_x0.Y();
-                pStart[3] = vec_x1.Y() - pStart[2];
-            }
-            else
-            {
-                pStart[0] = vec_x0.X();
-                pStart[1] = vec_x1.X() - pStart[0];
-                pStart[2] = vec_x0.Y();
-                pStart[3] = vec_x1.Y() - pStart[2];
-            }
-
-            cout << "pStart[0]" << pStart[0] << endl;
-            cout << "pStart[1]" << pStart[1] << endl;
-            cout << "pStart[2]" << pStart[2] << endl;
-            cout << "pStart[3]" << pStart[3] << endl;
-
-            min->SetParameter(0,"x0",pStart[0],0.01,0,0);
-            min->SetParameter(1,"Ax",pStart[1],0.01,0,0);
-            min->SetParameter(2,"y0",pStart[2],0.01,0,0);
-            min->SetParameter(3,"Ay",pStart[3],0.01,0,0);
-
-            arglist[0] = 1000; // number of function calls
-            arglist[1] = 0.001; // tolerance
-            min->ExecuteCommand("MIGRAD",arglist,2);
-
-            //if (minos) min->ExecuteCommand("MINOS",arglist,0);
-
-            min->GetStats(amin,edm,errdef,nvpar,nparx);
-            min->PrintResults(1,amin);
-            //gr->Draw("p0");
-
-            // get fit parameters
-
-            for(int i = 0; i < 4; ++i)
-            {
-                parFit[i] = min->GetParameter(i);
-                //parFit[i] = pStart[i];
-            }
-
-
-            // draw the fitted line
-            n = 1000;
-            t0 = -500.0;
-            dt = 1;
-
-            Double_t x_A, y_A, z_A;
-            t0 = -(parFit[2]/parFit[3])-500;
-            if(flag_XZ == 0) line_X(t0,parFit,x_A,y_A,z_A);
-            else line(t0,parFit,x_A,y_A,z_A);
-            printf("start point: {%4.3f, %4.3f, %4.3f} \n",x_A,y_A,z_A);
-
-            i_point = 0;
-            for(int i = 0; i <n; ++i)
-            {
-                Double_t t = t0 + dt*i;
-                Double_t x,y,z;
-                if(flag_XZ == 0) line_X(t,parFit,x,y,z);
-                else line(t,parFit,x,y,z);
-                TV3_line_point.SetXYZ(x,y,z);
-                //printf("point: {%4.3f, %4.3f, %4.3f} \n",x,y,z);
-
-                Double_t distance = 1000.0;
-                for(Int_t i_time_bin = 0; i_time_bin < 24; i_time_bin++)
-                {
-                    TVector3 vec_TV3_digit_pos_cluster;
-                    vec_TV3_digit_pos_cluster.SetXYZ(vec_Dt_digit_pos_cluster[i_layer][0][0],vec_Dt_digit_pos_cluster[i_layer][0][1],vec_Dt_digit_pos_cluster[i_layer][0][2]);
-                    TVector3 TV3_diff = vec_TV3_digit_pos_cluster - TV3_line_point;
-                    Double_t distance_layer = TV3_diff.Mag();
-                    if(distance_layer < distance) distance = distance_layer;
-                }
-                if(TV3_line_point.Perp() > 300.0 && TV3_line_point.Perp() < 380.0 && distance < 100.0)  //100 just in case
-                {
-                    vec_tracklets_fit_line[i_layer_notempty]->SetPoint(i_point,x,y,z);
-                    //printf("point line: {%4.3f, %4.3f, %4.3f} \n",x,y,z);
-                    i_point++;
-                }
-            }
-            vec_tracklets_fit_line[i_layer_notempty]->SetLineColor(color_layer[i_layer]);
-            //tracklets_fit_line[i_layer_notempty]->Draw("same");
-
-            i_layer_notempty++;
-
-            delete min;
-            delete tracklets_gr;
-            
+        Int_t flag_XZ = 1;
+        if(fabs(a0[0] - a1[0]) > fabs(a0[2] - a1[2]))
+        {
+            flag_XZ = 0; // x is used
         }
+
+        vec_a0.SetXYZ(a0[0],a0[1],a0[2]);
+        vec_a1.SetXYZ(a1[0],a1[1],a1[2]);
+        vec_u = vec_a1 - vec_a0;
+        if(flag_XZ == 0)
+        {
+            min->SetFCN(SumDistance2_X_tr);
+            vec_x0 = vec_a0 - vec_u*(vec_a0.X()/vec_u.X());
+            vec_u_perp.SetXYZ(vec_u[0],vec_u[1],vec_u[2]);
+            vec_u_perp *= 1.0/vec_u[0];
+        }
+        else
+        {
+            min->SetFCN(SumDistance2_tr);
+            vec_x0 = vec_a0 - vec_u*(vec_a0.Z()/vec_u.Z());
+            vec_u_perp.SetXYZ(vec_u[0],vec_u[1],vec_u[2]);
+            vec_u_perp *= 1.0/vec_u[2];
+        }
+        vec_x1 = vec_x0 + vec_u_perp;
+
+        //TVector3 a0 =
+
+        //TVector3 u = a1-a0;
+        //x0 = a0  (a0z/uz)*u;
+        //x1 = x0 + u / uz;
+
+        if(flag_XZ == 0)
+        {
+            pStart[0] = vec_x0.Z();
+            pStart[1] = vec_x1.Z() - pStart[0];
+            pStart[2] = vec_x0.Y();
+            pStart[3] = vec_x1.Y() - pStart[2];
+        }
+        else
+        {
+            pStart[0] = vec_x0.X();
+            pStart[1] = vec_x1.X() - pStart[0];
+            pStart[2] = vec_x0.Y();
+            pStart[3] = vec_x1.Y() - pStart[2];
+        }
+
+        cout << "pStart[0]" << pStart[0] << endl;
+        cout << "pStart[1]" << pStart[1] << endl;
+        cout << "pStart[2]" << pStart[2] << endl;
+        cout << "pStart[3]" << pStart[3] << endl;
+
+        min->SetParameter(0,"x0",pStart[0],0.01,0,0);
+        min->SetParameter(1,"Ax",pStart[1],0.01,0,0);
+        min->SetParameter(2,"y0",pStart[2],0.01,0,0);
+        min->SetParameter(3,"Ay",pStart[3],0.01,0,0);
+
+        arglist[0] = 1000; // number of function calls
+        arglist[1] = 0.001; // tolerance
+        min->ExecuteCommand("MIGRAD",arglist,2);
+
+        //if (minos) min->ExecuteCommand("MINOS",arglist,0);
+
+        min->GetStats(amin,edm,errdef,nvpar,nparx);
+        min->PrintResults(1,amin);
+        //gr->Draw("p0");
+
+        // get fit parameters
+
+        for(int i = 0; i < 4; ++i)
+        {
+            parFit[i] = min->GetParameter(i);
+            //parFit[i] = pStart[i];
+        }
+
+
+        // draw the fitted line
+        n = 1000;
+        t0 = -500.0;
+        dt = 1;
+
+        Double_t x_A, y_A, z_A;
+        t0 = ((a0[1]-parFit[2])/parFit[3])-500;
+        if(flag_XZ == 0) line_X(t0,parFit,x_A,y_A,z_A);
+        else line(t0,parFit,x_A,y_A,z_A);
+        printf("start point: {%4.3f, %4.3f, %4.3f} \n",x_A,y_A,z_A);
+
+        i_point = 0;
+        for(int i = 0; i <n; ++i)
+        {
+            Double_t t = t0 + dt*i;
+            Double_t x,y,z;
+            if(flag_XZ == 0) line_X(t,parFit,x,y,z);
+            else line(t,parFit,x,y,z);
+            TV3_line_point.SetXYZ(x,y,z);
+            printf("point: {%4.3f, %4.3f, %4.3f} \n",x,y,z);
+
+            Double_t distance = 1000.0;
+            for(Int_t i_time_bin = 0; i_time_bin < 24; i_time_bin++)
+            {
+                TVector3 vec_TV3_digit_pos_cluster;
+                vec_TV3_digit_pos_cluster.SetXYZ(vec_Dt_digit_pos_cluster[i_layer][i_time_bin][0],vec_Dt_digit_pos_cluster[i_layer][i_time_bin][1],vec_Dt_digit_pos_cluster[i_layer][i_time_bin][2]);
+                TVector3 TV3_diff = vec_TV3_digit_pos_cluster - TV3_line_point;
+                Double_t distance_layer = TV3_diff.Mag();
+                if(distance_layer < distance) distance = distance_layer;
+            }
+            //printf("perp: %4.3f, distance: %4.3f \n",TV3_line_point.Perp(),distance);
+            if(TV3_line_point.Perp() > 270.0 && TV3_line_point.Perp() < 380.0 && distance < 100.0)  //100 just in case
+            {
+                vec_tracklets_fit_line[i_layer_notempty]->SetPoint(i_point,x,y,z);
+                printf("i_layer: %d, i: %d, point line: {%4.3f, %4.3f, %4.3f} \n",i_layer,i,x,y,z);
+                i_point++;
+            }
+        }
+        vec_tracklets_fit_line[i_layer_notempty]->SetLineColor(color_layer[i_layer]);
+        //tracklets_fit_line[i_layer_notempty]->Draw("same");
+
+        vec_layer_in_fit[i_layer_notempty] = i_layer;
+        i_layer_notempty++;
+
+        delete min;
+
     }
 
     return vec_tracklets_fit_line;
 
 }
-
 //----------------------------------------------------------------------------------------
+
+
 
 //----------------------------------------------------------------------------------------
 void TBase_TRD_Calib::Draw_tracklets_line(Int_t i_track)
@@ -907,11 +928,12 @@ void TBase_TRD_Calib::Draw_tracklets_line(Int_t i_track)
 
     Int_t n_layer_notempty = vec_tracklets_line.size();
 
-    for (Int_t i_layer_notempty = 0; i_layer_notempty < n_layer_notempty; i_layer_notempty++)
+    for(Int_t i_layer_notempty = 0; i_layer_notempty < n_layer_notempty; i_layer_notempty++)
     {
-        vec_tracklets_line[i_layer_notempty] ->SetLineStyle(0);
-        vec_tracklets_line[i_layer_notempty] ->SetLineColor(color_layer[i_layer_notempty]);
-        vec_tracklets_line[i_layer_notempty] ->SetLineWidth(2);
+        printf("i_layer_notemtpy: %d, layer: %d \n",i_layer_notempty,vec_layer_in_fit[i_layer_notempty]);
+        vec_tracklets_line[i_layer_notempty] ->SetLineStyle(1);
+        vec_tracklets_line[i_layer_notempty] ->SetLineColor(color_layer[vec_layer_in_fit[i_layer_notempty]]);
+        vec_tracklets_line[i_layer_notempty] ->SetLineWidth(3);
         vec_tracklets_line[i_layer_notempty] ->DrawClone("ogl");
     }
 }
@@ -953,8 +975,8 @@ void TBase_TRD_Calib::Draw_track(Int_t i_track)
     TPL3D_helix = get_helix_polyline(i_track);
 
     TPL3D_helix    ->SetLineStyle(0);
-    TPL3D_helix    ->SetLineColor(kBlue);
-    TPL3D_helix    ->SetLineWidth(2);
+    TPL3D_helix    ->SetLineColor(kRed);
+    TPL3D_helix    ->SetLineWidth(5);
     TPL3D_helix    ->DrawClone("ogl");
 }
 //----------------------------------------------------------------------------------------

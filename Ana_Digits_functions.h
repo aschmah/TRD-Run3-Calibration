@@ -153,6 +153,7 @@ using namespace std;
 //ClassImp(Ali_AS_Event)
 
 static vector< vector< vector<Double_t> > > vec_Dt_digit_pos_cluster;    // layer, merged time bin. xyzADC
+static Int_t global_layer;
 
 //static Ali_AS_Event* AS_Event;
 //static Ali_AS_Track* AS_Track;
@@ -428,94 +429,39 @@ void SumDistance2_F(Int_t &, Double_t *, Double_t & sum, Double_t * par, Int_t )
 
 //-------------FUNCTION FOR TRACKLET FIT---------------------------------------------------------------------------
 
-// function to be minimized 
-void SumDistance2_tr(Int_t &, Double_t *, Double_t & sum, Double_t * par, Int_t ) {
-   // the TGraph must be a global variable
+// function to be minimized
+void SumDistance2_tr(Int_t &, Double_t *, Double_t & sum, Double_t * par, Int_t )
+{
+    sum = 0;
 
-   bool first = true; 
-
-   sum = 0;
-
-   for (Int_t i_layer = 0; i_layer<6; i_layer++)
-   {
-       Int_t npoints = (Int_t)vec_Dt_digit_pos_cluster[i_layer].size();
-       Double_t  x_val[npoints];
-       Double_t  y_val[npoints];
-       Double_t  z_val[npoints];
-
-       for (int i  = 0; i < npoints; ++i) {
-
-           x_val[i]= vec_Dt_digit_pos_cluster[i_layer][i][0];
-           y_val[i]   = vec_Dt_digit_pos_cluster[i_layer][i][1];
-           z_val[i]   = vec_Dt_digit_pos_cluster[i_layer][i][2];
-           Double_t ADC_val = vec_Dt_digit_pos_cluster[i_layer][i][3];
-
-           Double_t d       = distance2(x_val[i],y_val[i],z_val[i],par);
-
-           sum += d*ADC_val;
-
-#ifdef DEBUG
-           if (first) std::cout << "point " << i << "\t"
-               << x_val[i] << "\t"
-                   << y_val[i] << "\t"
-                   << z_val[i] << "\t"
-                   << std::sqrt(d) << std::endl;
-#endif
-       }
-   }
-
-   if (first) 
-      //std::cout << "Total sum2 = " << sum << std::endl;
-   first = false;
+    for(Int_t i = 0; i < (Int_t)vec_Dt_digit_pos_cluster[global_layer].size(); ++i)
+    {
+        if(vec_Dt_digit_pos_cluster[global_layer][i][3] == 0.0) continue;
+        Double_t ADC_val = vec_Dt_digit_pos_cluster[global_layer][i][3];
+        Double_t d       = distance2(vec_Dt_digit_pos_cluster[global_layer][i][0],vec_Dt_digit_pos_cluster[global_layer][i][1],vec_Dt_digit_pos_cluster[global_layer][i][2],par);
+        sum             += d*ADC_val;
+    }
 }
 
 //------------------------------------------------------------------------------------
-// function to be minimized 
-void SumDistance2_X_tr(Int_t &, Double_t *, Double_t & sum, Double_t * par, Int_t ) {
-   // the TGraph must be a global variable
+// function to be minimized
+void SumDistance2_X_tr(Int_t &, Double_t *, Double_t & sum, Double_t * par, Int_t )
+{
+    sum = 0;
 
-   bool first = true; 
-
-   sum = 0;
-
-   for (Int_t i_layer = 0; i_layer<6; i_layer++)
-   {
-       Int_t npoints = (Int_t)vec_Dt_digit_pos_cluster[i_layer].size();
-       Double_t  x_val[npoints];
-       Double_t  y_val[npoints];
-       Double_t  z_val[npoints];
-
-       for (int i  = 0; i < npoints; ++i) {
-
-           x_val[i]= vec_Dt_digit_pos_cluster[i_layer][i][0];
-           y_val[i]   = vec_Dt_digit_pos_cluster[i_layer][i][1];
-           z_val[i]   = vec_Dt_digit_pos_cluster[i_layer][i][2];
-
-           Double_t ADC_val = vec_Dt_digit_pos_cluster[i_layer][i][3];
-
-           Double_t d       = distance2_X(x_val[i],y_val[i],z_val[i],par);
-
-           sum += d*ADC_val;
-
-#ifdef DEBUG
-           if (first) std::cout << "point " << i << "\t"
-               << x_val[i] << "\t"
-                   << y_val[i] << "\t"
-                   << z_val[i] << "\t"
-                   << std::sqrt(d) << std::endl;
-#endif
-       }
-   }
-
-   if (first) 
-      //std::cout << "Total sum2 = " << sum << std::endl;
-   first = false;
+    for(Int_t i = 0; i < (Int_t)vec_Dt_digit_pos_cluster[global_layer].size(); ++i)
+    {
+        if(vec_Dt_digit_pos_cluster[global_layer][i][3] == 0.0) continue;
+        Double_t ADC_val = vec_Dt_digit_pos_cluster[global_layer][i][3];
+        Double_t d       = distance2_X(vec_Dt_digit_pos_cluster[global_layer][i][0],vec_Dt_digit_pos_cluster[global_layer][i][1],vec_Dt_digit_pos_cluster[global_layer][i][2],par);
+        sum             += d*ADC_val;
+    }
 }
 
 //------------------------------------------------------------------------------------
-// function to be minimized 
+// function to be minimized
 void SumDistance2_F_tr(Int_t &, Double_t *, Double_t & sum, Double_t * par, Int_t ) {
-   // the TGraph must be a global variable
+    // the TGraph must be a global variable
 
    bool first = true; 
 
