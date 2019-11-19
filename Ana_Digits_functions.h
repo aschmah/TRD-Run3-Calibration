@@ -436,7 +436,7 @@ void SumDistance2_tr(Int_t &, Double_t *, Double_t & sum, Double_t * par, Int_t 
 
     for(Int_t i = 0; i < (Int_t)vec_Dt_digit_pos_cluster[global_layer].size(); ++i)
     {
-        if(vec_Dt_digit_pos_cluster[global_layer][i][3] == 0.0) continue;
+        if(vec_Dt_digit_pos_cluster[global_layer][i][3] == -999.0) continue;
         Double_t ADC_val = vec_Dt_digit_pos_cluster[global_layer][i][3];
         Double_t d       = distance2(vec_Dt_digit_pos_cluster[global_layer][i][0],vec_Dt_digit_pos_cluster[global_layer][i][1],vec_Dt_digit_pos_cluster[global_layer][i][2],par);
         sum             += d*ADC_val;
@@ -451,7 +451,7 @@ void SumDistance2_X_tr(Int_t &, Double_t *, Double_t & sum, Double_t * par, Int_
 
     for(Int_t i = 0; i < (Int_t)vec_Dt_digit_pos_cluster[global_layer].size(); ++i)
     {
-        if(vec_Dt_digit_pos_cluster[global_layer][i][3] == 0.0) continue;
+        if(vec_Dt_digit_pos_cluster[global_layer][i][3] == -999.0) continue;
         Double_t ADC_val = vec_Dt_digit_pos_cluster[global_layer][i][3];
         Double_t d       = distance2_X(vec_Dt_digit_pos_cluster[global_layer][i][0],vec_Dt_digit_pos_cluster[global_layer][i][1],vec_Dt_digit_pos_cluster[global_layer][i][2],par);
         sum             += d*ADC_val;

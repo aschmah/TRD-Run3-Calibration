@@ -37,6 +37,7 @@ private:
     TGTextButton *Button_save;
     TGTextButton *Button_draw3D;
     TGTextButton *Button_draw3D_track;
+    TGTextButton *Button_Calibrate;
 
     TBase_TRD_Calib *Base_TRD_Calib;
     vector<TPolyMarker3D*> vec_TPM3D_digits;
@@ -63,6 +64,7 @@ public:
     Int_t LoadData();
     Int_t Draw3D();
     Int_t Draw3D_track();
+    Int_t Calibrate();
     ClassDef(TGUI_TRD_Calib, 0)
 };
 //---------------------------------------------------------------------------------
@@ -169,17 +171,44 @@ TGUI_TRD_Calib::TGUI_TRD_Calib() : TGMainFrame(gClient->GetRoot(), 100, 100)
     //--------------
 
 
+    //--------------
+    // A horizontal frame
+    hframe_Main[3]  = new TGHorizontalFrame(Frame_Main,200,100);
+
+    // draw button
+    Button_Calibrate = new TGTextButton(hframe_Main[3], "&Calibrate ",10);
+    Button_Calibrate->Connect("Clicked()", "TGUI_TRD_Calib", this, "Calibrate()");
+    hframe_Main[3]->AddFrame(Button_Calibrate, new TGLayoutHints(kLHintsCenterX,5,5,3,4));
+    Frame_Main ->AddFrame(hframe_Main[3], new TGLayoutHints(kLHintsCenterX,2,2,2,2));
+    //--------------
+
+
 
     Frame_Main ->Resize(450,300); // size of frame
     Frame_Main ->MapSubwindows();
     Frame_Main ->MapWindow();
-    Frame_Main ->Move(1350,850); // position of frame
+    Frame_Main ->Move(550,50); // position of frame
     //-------------------------------------
 
     Base_TRD_Calib = new TBase_TRD_Calib();
     Base_TRD_Calib ->Init_tree("list_tree.txt");
     Base_TRD_Calib ->Loop_event(0);
     vec_TPM3D_digits = Base_TRD_Calib ->get_PM3D_digits();
+    vector<Int_t> vec_merge_time_bins;
+#if 0
+    vec_merge_time_bins.resize(4);
+    vec_merge_time_bins[0] = 0;
+    vec_merge_time_bins[1] = 5;
+    vec_merge_time_bins[2] = 12;
+    vec_merge_time_bins[3] = 23;
+#endif
+    vec_merge_time_bins.resize(24);
+    for(Int_t i_time = 0; i_time < 24; i_time++)
+    {
+        vec_merge_time_bins[i_time] = i_time;
+    }
+
+    Base_TRD_Calib ->set_merged_time_bins(vec_merge_time_bins);
 
     LoadData();
 
@@ -250,6 +279,22 @@ Int_t TGUI_TRD_Calib::Draw3D()
 
 
 //---------------------------------------------------------------------------------
+Int_t TGUI_TRD_Calib::Calibrate()
+{
+    printf("TGUI_TRD_Calib::Calibrate() \n");
+    Pixel_t green;
+    gClient->GetColorByName("green", green);
+    Button_Calibrate->ChangeBackground(green);
+
+    Base_TRD_Calib ->Calibrate();
+
+    return 1;
+}
+//---------------------------------------------------------------------------------
+
+
+
+//---------------------------------------------------------------------------------
 Int_t TGUI_TRD_Calib::Draw3D_track()
 {
     Pixel_t green;
@@ -265,21 +310,6 @@ Int_t TGUI_TRD_Calib::Draw3D_track()
     Base_TRD_Calib ->Draw_track(i_track);
     Base_TRD_Calib ->Draw_neighbor_tracks(i_track);
 
-    vector<Int_t> vec_merge_time_bins;
-#if 0
-    vec_merge_time_bins.resize(4);
-    vec_merge_time_bins[0] = 0;
-    vec_merge_time_bins[1] = 5;
-    vec_merge_time_bins[2] = 12;
-    vec_merge_time_bins[3] = 23;
-#endif
-    vec_merge_time_bins.resize(24);
-    for(Int_t i_time = 0; i_time < 24; i_time++)
-    {
-        vec_merge_time_bins[i_time] = i_time;
-    }
-
-    Base_TRD_Calib ->set_merged_time_bins(vec_merge_time_bins);
     vector< vector<TVector3> > vec_TV3_digit_pos_cluster = Base_TRD_Calib ->make_clusters(i_track); // layer, merged time bin
 
     for(Int_t i_layer = 0; i_layer < 6; i_layer++)
@@ -339,7 +369,7 @@ Int_t TGUI_TRD_Calib::Draw3D_track()
         Double_t digit_size = 1.0;
 
         //if(raw_ADC < 20.0) continue;
-        if(dca_phi > 3.0) continue;
+        if(dca_phi > 30.0) continue; // 3.0
 
         if(raw_ADC < 50.0) digit_size = 1.0;
         if(raw_ADC >= 50.0) digit_size = 10.0;
@@ -390,7 +420,7 @@ Int_t TGUI_TRD_Calib::Draw3D_track()
     }
 #endif
 
-    Base_TRD_Calib ->Draw_line(i_track);
+    //Base_TRD_Calib ->Draw_line(i_track);
     Base_TRD_Calib ->Draw_tracklets_line(i_track);
     Base_TRD_Calib ->make_plots_ADC(i_track);
 
