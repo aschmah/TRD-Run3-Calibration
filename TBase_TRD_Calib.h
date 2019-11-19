@@ -54,6 +54,10 @@ private:
     vector <TCanvas*> ADC_vs_time;
 
     vector<TPolyLine3D*> vec_TPL3D_helix_neighbor;
+    vector<TPolyLine3D*> vec_TPL3D_TRD_center;
+    vector<TVector3> vec_TV3_TRD_center;
+
+    Int_t arr_layer_detector[6];
 
     TGLViewer *TGL_viewer;
 
@@ -144,6 +148,13 @@ TBase_TRD_Calib::TBase_TRD_Calib()
         vec_merge_time_bins[i_time] = i_time;
     }
 
+    vec_TPL3D_TRD_center.resize(540);
+    vec_TV3_TRD_center.resize(540);
+    for(Int_t i_det = 0; i_det < 540; i_det++)
+    {
+        vec_TPL3D_TRD_center[i_det] = new TPolyLine3D();
+    }
+
     vec_layer_in_fit.resize(7);
     vec_tracklets_line = new TPolyLine3D();
 
@@ -230,6 +241,90 @@ TBase_TRD_Calib::TBase_TRD_Calib()
     y_BeamLine    ->SetLineStyle(0);
     y_BeamLine    ->SetLineColor(kRed);
     y_BeamLine    ->SetLineWidth(2);
+
+
+
+    for(Int_t TRD_detector = 0; TRD_detector < 540; TRD_detector++)
+    {
+        Int_t flag_not_installed_TRD = 0;
+        for(Int_t i_not_installed = 0; i_not_installed < 19; i_not_installed++)
+        {
+            if(TRD_detector == Not_installed_TRD_detectors[i_not_installed])
+            {
+                flag_not_installed_TRD = 1;
+                break;
+            }
+        }
+        if(flag_not_installed_TRD) continue;
+
+
+        Int_t TRD_color = kGray+1;
+        Int_t flag_defect_TRD = 0;
+        for(Int_t i_defect = 0; i_defect < 84; i_defect++)
+        {
+            if(TRD_detector == Defect_TRD_detectors[i_defect])
+            {
+                flag_defect_TRD = 1;
+                break;
+            }
+        }
+        if(flag_defect_TRD)
+        {
+            TRD_color = kGreen+1;
+            //continue;
+        }
+
+
+        Int_t                TRD_sector         = fGeo         ->GetSector(TRD_detector);
+        Int_t                TRD_stack          = fGeo         ->GetStack(TRD_detector);
+        Int_t                TRD_layer          = fGeo         ->GetLayer(TRD_detector);
+        Float_t              TRD_time0          = fGeo         ->GetTime0(TRD_layer);
+
+        Float_t              TRD_chamber_length = fGeo->GetChamberLength(TRD_layer,TRD_stack);
+        Float_t              TRD_chamber_width  = fGeo->GetChamberWidth(TRD_layer);
+        Float_t              TRD_chamber_height = 8.4;
+
+        AliTRDpadPlane*      padplane           = fGeo         ->GetPadPlane(TRD_detector);
+        Double_t             TRD_col_end        = padplane     ->GetColEnd();
+        Double_t             TRD_row_end        = padplane     ->GetRowEnd();            // fPadRow[fNrows-1] - fLengthOPad + fPadRowSMOffset;
+        Double_t             TRD_col_start      = padplane     ->GetCol0();
+        Double_t             TRD_row_start      = padplane     ->GetRow0();              // fPadRow[0] + fPadRowSMOffset
+        Double_t             TRD_row_end_ROC    = padplane     ->GetRowEndROC();         // fPadRow[fNrows-1] - fLengthOPad;
+        Double_t             TRD_col_spacing    = padplane     ->GetColSpacing();
+        Double_t             TRD_row_spacing    = padplane     ->GetRowSpacing();
+
+        Double_t Rotation_angle     = ((360.0/18.0)/2.0) + ((Double_t)TRD_sector)*(360.0/18.0);
+
+        TString HistName = "TRD_box_";
+        HistName += TRD_detector;
+        TRD_boxes[TRD_detector] = geom->MakeBox(HistName.Data(),Medium_TRD_box,TRD_chamber_width/2.0,TRD_chamber_height/2.0,TRD_chamber_length/2.0); // dx, dy, dz
+        TRD_boxes[TRD_detector]->SetLineColor(TRD_color);
+        //TRD_boxes[TRD_detector] = geom->MakeBox(HistName.Data(),Medium_TRD_box,TRD_chamber_width/2.0,1.0,TRD_chamber_length/2.0); // dx, dy, dzd
+
+        Double_t             loc[3]           = {TRD_time0,0.0,(TRD_row_end + TRD_row_start)/2.0};
+        //Double_t             loc[3]           = {TRD_time0 - 8.4,0.0,0.0};
+        Double_t             glb[3]           = {0.0,0.0,0.0};
+        fGeo ->RotateBack(TRD_detector,loc,glb);
+
+        Double_t             locB[3]           = {TRD_time0-50.0,0.0,(TRD_row_end + TRD_row_start)/2.0};
+        Double_t             glbB[3]           = {0.0,0.0,0.0};
+        fGeo ->RotateBack(TRD_detector,locB,glbB);
+
+        vec_TPL3D_TRD_center[TRD_detector] ->SetPoint(0,glb[0],glb[1],glb[2]);
+        vec_TPL3D_TRD_center[TRD_detector] ->SetPoint(1,glbB[0],glbB[1],glbB[2]);
+        vec_TPL3D_TRD_center[TRD_detector] ->SetLineColor(kMagenta+1);
+        vec_TPL3D_TRD_center[TRD_detector] ->SetLineWidth(2);
+        vec_TPL3D_TRD_center[TRD_detector] ->SetLineStyle(1);
+
+        vec_TV3_TRD_center[TRD_detector].SetXYZ(glbB[0]-glb[0],glbB[1]-glb[1],glbB[2]-glb[2]);
+
+
+        combitrans[TRD_detector] = new TGeoCombiTrans();
+        combitrans[TRD_detector] ->RotateZ(Rotation_angle + 90.0);
+        combitrans[TRD_detector] ->SetTranslation(glb[0],glb[1],glb[2]);
+        top->AddNodeOverlap(TRD_boxes[TRD_detector],1,combitrans[TRD_detector]);
+
+    }
 }
 //----------------------------------------------------------------------------------------
 
@@ -259,6 +354,7 @@ vector< vector<TVector3> >  TBase_TRD_Calib::make_clusters(Int_t i_track)
     vec_TV3_digit_pos_cluster.resize(6); // 6 layers
     for(Int_t i_layer = 0; i_layer < 6; i_layer++)
     {
+        arr_layer_detector[i_layer] = -1;
         vec_TV3_digit_pos_cluster[i_layer].resize(N_merged_time_bis);
     }
 
@@ -313,8 +409,11 @@ vector< vector<TVector3> >  TBase_TRD_Calib::make_clusters(Int_t i_track)
         Float_t  dca_z        = AS_Digit ->getdca_z();
         Float_t  ImpactAngle  = AS_Digit ->getImpactAngle();
 
+
         Float_t dca_phi = TMath::Sqrt(dca_x*dca_x + dca_y*dca_y);
         if(dca_phi > 3.0)  continue;
+
+        arr_layer_detector[layer] = detector;
 
         for(Int_t i_time_merge = 0; i_time_merge < (N_merged_time_bis); i_time_merge++)
         {
@@ -1106,78 +1205,14 @@ void TBase_TRD_Calib::Draw_neighbor_tracks(Int_t i_track_sel)
 //----------------------------------------------------------------------------------------
 void TBase_TRD_Calib::Draw_TRD()
 {
-    for(Int_t TRD_detector = 0; TRD_detector < 540; TRD_detector++)
-    {
-        Int_t flag_not_installed_TRD = 0;
-        for(Int_t i_not_installed = 0; i_not_installed < 19; i_not_installed++)
-        {
-            if(TRD_detector == Not_installed_TRD_detectors[i_not_installed])
-            {
-                flag_not_installed_TRD = 1;
-                break;
-            }
-        }
-        if(flag_not_installed_TRD) continue;
-
-
-        Int_t TRD_color = kGray+1;
-        Int_t flag_defect_TRD = 0;
-        for(Int_t i_defect = 0; i_defect < 84; i_defect++)
-        {
-            if(TRD_detector == Defect_TRD_detectors[i_defect])
-            {
-                flag_defect_TRD = 1;
-                break;
-            }
-        }
-        if(flag_defect_TRD)
-        {
-            TRD_color = kGreen+1;
-            //continue;
-        }
-
-
-        Int_t                TRD_sector         = fGeo         ->GetSector(TRD_detector);
-        Int_t                TRD_stack          = fGeo         ->GetStack(TRD_detector);
-        Int_t                TRD_layer          = fGeo         ->GetLayer(TRD_detector);
-        Float_t              TRD_time0          = fGeo         ->GetTime0(TRD_layer);
-
-        Float_t              TRD_chamber_length = fGeo->GetChamberLength(TRD_layer,TRD_stack);
-        Float_t              TRD_chamber_width  = fGeo->GetChamberWidth(TRD_layer);
-        Float_t              TRD_chamber_height = 8.4;
-
-        AliTRDpadPlane*      padplane           = fGeo         ->GetPadPlane(TRD_detector);
-        Double_t             TRD_col_end        = padplane     ->GetColEnd();
-        Double_t             TRD_row_end        = padplane     ->GetRowEnd();            // fPadRow[fNrows-1] - fLengthOPad + fPadRowSMOffset;
-        Double_t             TRD_col_start      = padplane     ->GetCol0();
-        Double_t             TRD_row_start      = padplane     ->GetRow0();              // fPadRow[0] + fPadRowSMOffset
-        Double_t             TRD_row_end_ROC    = padplane     ->GetRowEndROC();         // fPadRow[fNrows-1] - fLengthOPad;
-        Double_t             TRD_col_spacing    = padplane     ->GetColSpacing();
-        Double_t             TRD_row_spacing    = padplane     ->GetRowSpacing();
-
-        Double_t Rotation_angle     = ((360.0/18.0)/2.0) + ((Double_t)TRD_sector)*(360.0/18.0);
-
-        TString HistName = "TRD_box_";
-        HistName += TRD_detector;
-        TRD_boxes[TRD_detector] = geom->MakeBox(HistName.Data(),Medium_TRD_box,TRD_chamber_width/2.0,TRD_chamber_height/2.0,TRD_chamber_length/2.0); // dx, dy, dz
-        TRD_boxes[TRD_detector]->SetLineColor(TRD_color);
-        //TRD_boxes[TRD_detector] = geom->MakeBox(HistName.Data(),Medium_TRD_box,TRD_chamber_width/2.0,1.0,TRD_chamber_length/2.0); // dx, dy, dzd
-
-        Double_t             loc[3]           = {TRD_time0,0.0,(TRD_row_end + TRD_row_start)/2.0};
-        //Double_t             loc[3]           = {TRD_time0 - 8.4,0.0,0.0};
-        Double_t             glb[3]           = {0.0,0.0,0.0};
-        fGeo ->RotateBack(TRD_detector,loc,glb);
-
-        combitrans[TRD_detector] = new TGeoCombiTrans();
-        combitrans[TRD_detector] ->RotateZ(Rotation_angle + 90.0);
-        combitrans[TRD_detector] ->SetTranslation(glb[0],glb[1],glb[2]);
-        top->AddNodeOverlap(TRD_boxes[TRD_detector],1,combitrans[TRD_detector]);
-
-    }
-
     top->DrawClone("ogl");
     TGL_viewer = (TGLViewer *)gPad->GetViewer3D();
     TGL_viewer ->SetClearColor(kBlack);
+
+    //for(Int_t i_det = 0; i_det < 3; i_det++)
+    //{
+    //    vec_TPL3D_TRD_center[i_det] ->DrawClone("ogl");
+    //}
 
 #if 0
     x_BeamLine    ->DrawClone("ogl");
@@ -1404,8 +1439,9 @@ void TBase_TRD_Calib::Calibrate()
                     vec_TV3_tracklet_vectors[i_layer].SetXYZ(vec_tracklet_fit_points[i_layer][1][0] - vec_tracklet_fit_points[i_layer][0][0],vec_tracklet_fit_points[i_layer][1][1] - vec_tracklet_fit_points[i_layer][0][1],0.0);
                     if(i_layer < 6) // tracklets
                     {
-                        Double_t angle = vec_TV3_tracklet_vectors[6].Angle(vec_TV3_tracklet_vectors[i_layer]);
-                        //printf("angle: %4.3f \n",angle*TMath::RadToDeg());
+                        Double_t impact_angle = vec_TV3_tracklet_vectors[6].Angle(vec_TV3_TRD_center[arr_layer_detector[i_layer]]);
+                        Double_t Delta_angle  = vec_TV3_tracklet_vectors[6].Angle(vec_TV3_tracklet_vectors[i_layer]);
+                        printf("impact angle: %4.3f, angle: %4.3f \n",impact_angle*TMath::RadToDeg(),Delta_angle*TMath::RadToDeg());
                     }
                 }
             }
