@@ -1450,7 +1450,7 @@ void TBase_TRD_Calib::Calibrate()
                         Double_t impact_angle = vec_TV3_tracklet_vectors[6].Angle(vec_TV3_TRD_center[arr_layer_detector[i_layer]]);
                         Double_t Delta_angle  = vec_TV3_tracklet_vectors[6].Angle(vec_TV3_tracklet_vectors[i_layer]);
                         printf("impact angle: %4.3f, angle: %4.3f \n",impact_angle*TMath::RadToDeg(),Delta_angle*TMath::RadToDeg());
-                        vec_tp_Delta_vs_impact[arr_layer_detector[i_layer]] ->Fill(impact_angle,Delta_angle);
+                        vec_tp_Delta_vs_impact[arr_layer_detector[i_layer]] ->Fill(impact_angle*TMath::RadToDeg(),Delta_angle*TMath::RadToDeg());
 
                     }
                 }
