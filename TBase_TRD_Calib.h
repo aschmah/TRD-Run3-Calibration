@@ -97,12 +97,13 @@ private:
     vector<Int_t> vec_merge_time_bins;
 
     vector< vector<TVector3> > vec_TV3_digit_pos_cluster;    // layer, merged time bin
-    vector<TVector3> vec_TV3_digit_pos_cluster_t0; // layer, x, y, z
-    vector<vector<TH1F*>> th1f_ADC_vs_time;
+    vector< TVector3> vec_TV3_digit_pos_cluster_t0; // layer, x, y, z
+    vector< vector<TH1F*> > th1f_ADC_vs_time;
     Int_t color_layer[7] = {kOrange+2,kGreen,kBlue,kMagenta,kCyan,kYellow,kRed};
     Int_t line_width_layer[7] = {3,3,3,3,3,3,6};
     vector<Int_t> vec_layer_in_fit;
     vector< vector< vector<Double_t> > > vec_tracklet_fit_points;
+    vector<TProfile*> vec_tp_Delta_vs_impact;
 
 
 
@@ -339,7 +340,7 @@ vector< vector<TVector3> >  TBase_TRD_Calib::make_clusters(Int_t i_track)
 
     Int_t N_merged_time_bis = (Int_t)vec_merge_time_bins.size();
 
-    AS_Track      = AS_Event ->getTrack( i_track ); // take the track
+    AS_Track     = AS_Event ->getTrack( i_track ); // take the track
 
     //----------------------------------------------
     // TRD digit information
@@ -1416,6 +1417,13 @@ void TBase_TRD_Calib::Calibrate()
 {
     printf("TBase_TRD_Calib::Calibrate() \n");
 
+    vec_tp_Delta_vs_impact.resize(540);
+
+    for (Int_t i_det = 0; i_det < 540; i_det++)
+    {
+        vec_tp_Delta_vs_impact[i_det] = new TProfile(Form("vec_th1d_Delta_vs_impact_%d",i_det),Form("vec_th1d_Delta_vs_impact_%d",i_det),180,0,180);
+    }
+
     for(Long64_t i_event = 0; i_event < file_entries_total; i_event++)
     {
         printf("i_event: %lld out of %lld \n",i_event,file_entries_total);
@@ -1442,11 +1450,15 @@ void TBase_TRD_Calib::Calibrate()
                         Double_t impact_angle = vec_TV3_tracklet_vectors[6].Angle(vec_TV3_TRD_center[arr_layer_detector[i_layer]]);
                         Double_t Delta_angle  = vec_TV3_tracklet_vectors[6].Angle(vec_TV3_tracklet_vectors[i_layer]);
                         printf("impact angle: %4.3f, angle: %4.3f \n",impact_angle*TMath::RadToDeg(),Delta_angle*TMath::RadToDeg());
+                        vec_tp_Delta_vs_impact[arr_layer_detector[i_layer]] ->Fill(impact_angle,Delta_angle);
+
                     }
                 }
             }
         }
     }
+
+    vec_tp_Delta_vs_impact[5]->Draw();
 
 }
 //----------------------------------------------------------------------------------------
