@@ -247,6 +247,15 @@ Int_t TGUI_TRD_Calib::LoadData()
    vec_track_info       = Base_TRD_Calib ->get_track_info();
    vec_digit_track_info = Base_TRD_Calib ->get_digit_track_info();
 
+#if 0
+   for(Int_t i_track = 0; i_track < (Int_t)vec_digit_track_info.size(); i_track++)
+   {
+       Int_t n_digits_track = (Int_t)vec_digit_track_info[i_track].size();
+
+       printf("TGUI_TRD_Calib::LoadData(), i_track: %d, n_digits_track: %d \n",i_track,n_digits_track);
+   }
+#endif
+
     return 1;
 }
 //---------------------------------------------------------------------------------

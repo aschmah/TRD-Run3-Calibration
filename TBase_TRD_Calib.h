@@ -99,8 +99,8 @@ private:
     vector< vector<TVector3> > vec_TV3_digit_pos_cluster;    // layer, merged time bin
     vector< TVector3> vec_TV3_digit_pos_cluster_t0; // layer, x, y, z
     vector< vector<TH1F*> > th1f_ADC_vs_time;
-    Int_t color_layer[7] = {kOrange+2,kGreen,kBlue,kMagenta,kCyan,kYellow,kRed};
-    Int_t line_width_layer[7] = {3,3,3,3,3,3,6};
+    Int_t color_layer[7] = {kOrange+2,kGreen,kBlue,kMagenta,kCyan,kPink+5,kYellow};
+    Int_t line_width_layer[7] = {3,3,3,3,3,3,10};
     vector<Int_t> vec_layer_in_fit;
     vector< vector< vector<Double_t> > > vec_tracklet_fit_points;
     vector<TProfile*> vec_tp_Delta_vs_impact;
@@ -411,6 +411,10 @@ vector< vector<TVector3> >  TBase_TRD_Calib::make_clusters(Int_t i_track)
         Float_t  ImpactAngle  = AS_Digit ->getImpactAngle();
 
 
+        //printf(" \n");
+        //printf("----------------------------------------------- \n");
+        //printf("i_digits: %d, detector: %d, layer: %d, sector: %d, stack: %d, row: %d, column: %d \n",i_digits,detector,layer,sector,stack,row,column);
+
         Float_t dca_phi = TMath::Sqrt(dca_x*dca_x + dca_y*dca_y);
         if(dca_phi > 3.0)  continue;
 
@@ -424,6 +428,8 @@ vector< vector<TVector3> >  TBase_TRD_Calib::make_clusters(Int_t i_track)
             for(Int_t i_time = i_time_start; i_time < i_time_stop; i_time++)
             {
                 Float_t ADC = (Float_t)AS_Digit ->getADC_time_value(i_time) - 10.0;  // baseline correction
+
+                //printf("i_time_merge: %d, i_time: %d, ADC: %4.3f \n",i_time_merge,i_time,ADC);
                 if(ADC <= 0.0) continue; // Don't use negative ADC values
                 for(Int_t i_xyz = 0; i_xyz < 3; i_xyz++)
                 {
@@ -557,7 +563,7 @@ void TBase_TRD_Calib::make_plots_ADC(Int_t i_track)
             if(ADC <= 0.0) continue;//{th1f_ADC_vs_time[layer][i_digits_loc]->AddBinContent(i_time_bin, 0);} // Don't use negative ADC values
             //cout << "i_digits" << i_digits <<  endl;
             //cout << "i_time_bin" << i_time_bin <<  endl;
-            th1f_ADC_vs_time[layer][i_digits_loc]->AddBinContent(i_time_bin, ADC);
+            th1f_ADC_vs_time[layer][i_digits_loc]->AddBinContent(i_time_bin+1, ADC);
             //cout << "th1f: " << th1f_ADC_vs_time[layer][i_digits_loc]->GetBinContent(i_time_bin) <<  endl;
             //cout << "i_digits: " << i_digits << endl;
             //cout << "i_digits_loc: " << i_digits_loc << endl;
@@ -869,26 +875,30 @@ void TBase_TRD_Calib::get_tracklets_fit(Int_t i_track)
     {
         global_layer = i_layer;
 
-        //for(Int_t i_time_merge = 0; i_time_merge < 24; i_time_merge++) // hardcoded - fix later
-        //{
-        //      printf("layer: %d, i_time_merge: %d, point: {%4.3f, %4.3f, %4.3f} \n",i_layer,i_time_merge,vec_Dt_digit_pos_cluster[i_layer][i_time_merge][0],vec_Dt_digit_pos_cluster[i_layer][i_time_merge][1],vec_Dt_digit_pos_cluster[i_layer][i_time_merge][2]);
-        //}
+#if 0
+        for(Int_t i_time_merge = 0; i_time_merge < (Int_t)vec_Dt_digit_pos_cluster[i_layer].size(); i_time_merge++)
+        {
+              printf("layer: %d, i_time_merge: %d, point: {%4.3f, %4.3f, %4.3f} \n",i_layer,i_time_merge,vec_Dt_digit_pos_cluster[i_layer][i_time_merge][0],vec_Dt_digit_pos_cluster[i_layer][i_time_merge][1],vec_Dt_digit_pos_cluster[i_layer][i_time_merge][2]);
+        }
+#endif
 
         Int_t i_time_merge_AB[2] = {-1,-1};
-        for(Int_t i_time_merge = 0; i_time_merge < (Int_t)vec_Dt_digit_pos_cluster[i_layer].size(); i_time_merge++) // hardcoded - fix later
+        for(Int_t i_time_merge = 0; i_time_merge < (Int_t)vec_Dt_digit_pos_cluster[i_layer].size(); i_time_merge++)
         {
             if(vec_Dt_digit_pos_cluster[i_layer][i_time_merge][0] == -999.0 && vec_Dt_digit_pos_cluster[i_layer][i_time_merge][1] == -999.0 && vec_Dt_digit_pos_cluster[i_layer][i_time_merge][2] == -999.0) continue;
             else i_time_merge_AB[0] = i_time_merge;
         }
         if(i_time_merge_AB[0] == -1) continue; // all values are 0
 
-        for(Int_t i_time_merge = ((Int_t)vec_Dt_digit_pos_cluster[i_layer].size() - 1); i_time_merge >= 0; i_time_merge--) // hardcoded - fix later
+        for(Int_t i_time_merge = ((Int_t)vec_Dt_digit_pos_cluster[i_layer].size() - 1); i_time_merge >= 0; i_time_merge--)
         {
             if(vec_Dt_digit_pos_cluster[i_layer][i_time_merge][0] == -999.0 && vec_Dt_digit_pos_cluster[i_layer][i_time_merge][1] == -999.0 && vec_Dt_digit_pos_cluster[i_layer][i_time_merge][2] == -999.0) continue;
             else i_time_merge_AB[1] = i_time_merge;
         }
 
         if(i_time_merge_AB[0] == i_time_merge_AB[1]) continue; // no fit possible with just one point
+
+        //printf("TBase_TRD_Calib::get_tracklets_fit(%d), i_layer: %d \n",i_track,i_layer);
 
 
         TVirtualFitter *min = TVirtualFitter::Fitter(0,4);
@@ -1068,6 +1078,11 @@ void TBase_TRD_Calib::Draw_tracklets_line(Int_t i_track)
             vec_tracklets_line ->SetLineColor(color_layer[i_layer]);
             vec_tracklets_line ->SetLineWidth(line_width_layer[i_layer]);
             vec_tracklets_line ->DrawClone("ogl");
+            //printf("i_layer: %d \n", i_layer);
+        }
+        else
+        {
+            printf("TBase_TRD_Calib::Draw_tracklets_line(%d), i_layer: %d has no entry \n",i_track,i_layer);
         }
     }
 }
@@ -1299,6 +1314,7 @@ Int_t TBase_TRD_Calib::Loop_event(Long64_t event)
     N_Tracks = NumTracks;
 
     vec_track_info.clear();
+    vec_digit_track_info.clear();
 
     // Loop over all tracks
     for(UShort_t i_track = 0; i_track < NumTracks; ++i_track) // loop over all tracks of the actual event
@@ -1421,10 +1437,11 @@ void TBase_TRD_Calib::Calibrate()
 
     for (Int_t i_det = 0; i_det < 540; i_det++)
     {
-        vec_tp_Delta_vs_impact[i_det] = new TProfile(Form("vec_th1d_Delta_vs_impact_%d",i_det),Form("vec_th1d_Delta_vs_impact_%d",i_det),180,0,180);
+        vec_tp_Delta_vs_impact[i_det] = new TProfile(Form("vec_th1d_Delta_vs_impact_%d",i_det),Form("vec_th1d_Delta_vs_impact_%d",i_det),360,0,360);
     }
 
-    for(Long64_t i_event = 0; i_event < file_entries_total; i_event++)
+    //for(Long64_t i_event = 0; i_event < file_entries_total; i_event++)
+    for(Long64_t i_event = 0; i_event < 200; i_event++)
     {
         printf("i_event: %lld out of %lld \n",i_event,file_entries_total);
         if (!input_SE->GetEntry( i_event )) return 0; // take the event -> information is stored in event
@@ -1439,26 +1456,32 @@ void TBase_TRD_Calib::Calibrate()
 
             vector<TVector3> vec_TV3_tracklet_vectors;
             vec_TV3_tracklet_vectors.resize(7);
-            if(vec_tracklet_fit_points[6][0][0] == -999.0  && vec_tracklet_fit_points[6][1][0] > -999.0) continue; // no global fit available
+
+
+            if(vec_tracklet_fit_points[6][0][0] == -999.0  && vec_tracklet_fit_points[6][1][0] == -999.0) continue; // no global fit available
             for(Int_t i_layer = 6; i_layer >= 0; i_layer--)
             {
                 if(vec_tracklet_fit_points[i_layer][0][0] > -999.0 && vec_tracklet_fit_points[i_layer][1][0] > -999.0)
                 {
-                    vec_TV3_tracklet_vectors[i_layer].SetXYZ(vec_tracklet_fit_points[i_layer][1][0] - vec_tracklet_fit_points[i_layer][0][0],vec_tracklet_fit_points[i_layer][1][1] - vec_tracklet_fit_points[i_layer][0][1],0.0);
+                    Double_t delta_x = vec_tracklet_fit_points[i_layer][1][0] - vec_tracklet_fit_points[i_layer][0][0];
+                    Double_t delta_y = vec_tracklet_fit_points[i_layer][1][1] - vec_tracklet_fit_points[i_layer][0][1];
+
+                    vec_TV3_tracklet_vectors[i_layer].SetXYZ(delta_x,delta_y,0.0);
                     if(i_layer < 6) // tracklets
                     {
+                        Int_t detector = arr_layer_detector[i_layer];
                         Double_t impact_angle = vec_TV3_tracklet_vectors[6].Angle(vec_TV3_TRD_center[arr_layer_detector[i_layer]]);
                         Double_t Delta_angle  = vec_TV3_tracklet_vectors[6].Angle(vec_TV3_tracklet_vectors[i_layer]);
-                        printf("impact angle: %4.3f, angle: %4.3f \n",impact_angle*TMath::RadToDeg(),Delta_angle*TMath::RadToDeg());
-                        vec_tp_Delta_vs_impact[arr_layer_detector[i_layer]] ->Fill(impact_angle*TMath::RadToDeg(),Delta_angle*TMath::RadToDeg());
-
+                        impact_angle = 0.5*TMath::Pi() - impact_angle;
+                        if(delta_x > 0.0) vec_tp_Delta_vs_impact[arr_layer_detector[i_layer]] ->Fill(impact_angle*TMath::RadToDeg(),Delta_angle*TMath::RadToDeg());
+                        //if(detector == 287) printf("detector: %d, track: %d, impact angle: %4.3f, Delta angle: %4.3f \n",detector,i_track,impact_angle*TMath::RadToDeg(),Delta_angle*TMath::RadToDeg());
                     }
                 }
             }
         }
     }
 
-    vec_tp_Delta_vs_impact[5]->Draw();
+    vec_tp_Delta_vs_impact[287]->Draw();
 
 }
 //----------------------------------------------------------------------------------------
