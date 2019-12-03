@@ -245,6 +245,39 @@ void Init_tree(TString SEList)
 //----------------------------------------------------------------------------------------
 */
 
+
+//----------------------------------------------------------------------------------------
+TLatex* plotTopLegend(char* label,Float_t x=-1,Float_t y=-1,Float_t size=0.06,Int_t color=1,Float_t angle=0.0, Int_t font = 42, Int_t NDC = 1, Int_t align = 1)
+{
+    // coordinates in NDC!
+    // plots the string label in position x and y in NDC coordinates
+    // size is the text size
+    // color is the text color
+
+    // Text alignment: https://root.cern.ch/doc/master/classTAttText.html#T1
+    // align = 10*HorizontalAlign + VerticalAlign
+    // horizontal: 1=left adjusted, 2=centered, 3=right adjusted
+    // vertical: 1=bottom adjusted, 2=centered, 3=top adjusted
+
+
+    if((x<0||y<0) && NDC == 1)
+    {   // defaults
+      x=gPad->GetLeftMargin()*1.15;
+      y=(1-gPad->GetTopMargin())*1.04;
+    }
+    TLatex* text=new TLatex(x,y,label);
+    text->SetTextFont(font);
+    text->SetTextSize(size);
+    if(NDC == 1) text->SetNDC();
+    text->SetTextColor(color);
+    text->SetTextAngle(angle);
+    text->SetTextAlign(align);
+    text->Draw();
+    return text;
+}
+//----------------------------------------------------------------------------------------
+
+
 //----------------------------THINGS FOR 3D LINE FIT--------------------------------------
 
 // define the parameteric line equation 

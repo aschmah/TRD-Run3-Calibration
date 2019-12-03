@@ -50,16 +50,22 @@ private:
     TPolyLine3D* fit_line;
     TPolyLine3D* vec_tracklets_line;
 
+    TString HistName;
+    char NoP[50];
+
     // TVector3 vec_datapoints;
     vector <TCanvas*> ADC_vs_time;
 
     vector<TPolyLine3D*> vec_TPL3D_helix_neighbor;
-    vector<TPolyLine3D*> vec_TPL3D_TRD_center;
-    vector<TVector3> vec_TV3_TRD_center;
+    vector< vector<TPolyLine3D*> > vec_TPL3D_TRD_center;
+    vector< vector<TVector3> >     vec_TV3_TRD_center; // 540 chambers, 3 axes
 
     Int_t arr_layer_detector[6];
 
     TGLViewer *TGL_viewer;
+
+    TH1D* h_delta_angle_perp_impact;
+    TH1D* h_detector_hit;
 
 
 
@@ -153,8 +159,16 @@ TBase_TRD_Calib::TBase_TRD_Calib()
     vec_TV3_TRD_center.resize(540);
     for(Int_t i_det = 0; i_det < 540; i_det++)
     {
-        vec_TPL3D_TRD_center[i_det] = new TPolyLine3D();
+        vec_TPL3D_TRD_center[i_det].resize(3);
+        vec_TV3_TRD_center[i_det].resize(3);
+        for(Int_t i_xyz = 0; i_xyz < 3; i_xyz++)
+        {
+            vec_TPL3D_TRD_center[i_det][i_xyz] = new TPolyLine3D();
+        }
     }
+
+    h_delta_angle_perp_impact = new TH1D("h_delta_angle_perp_impact","h_delta_angle_perp_impact",240,-30,30);
+    h_detector_hit            = new TH1D("h_detector_hit","h_detector_hit",540,0,540);
 
     vec_layer_in_fit.resize(7);
     vec_tracklets_line = new TPolyLine3D();
@@ -303,21 +317,48 @@ TBase_TRD_Calib::TBase_TRD_Calib()
         //TRD_boxes[TRD_detector] = geom->MakeBox(HistName.Data(),Medium_TRD_box,TRD_chamber_width/2.0,1.0,TRD_chamber_length/2.0); // dx, dy, dzd
 
         Double_t             loc[3]           = {TRD_time0,0.0,(TRD_row_end + TRD_row_start)/2.0};
-        //Double_t             loc[3]           = {TRD_time0 - 8.4,0.0,0.0};
         Double_t             glb[3]           = {0.0,0.0,0.0};
         fGeo ->RotateBack(TRD_detector,loc,glb);
 
-        Double_t             locB[3]           = {TRD_time0-50.0,0.0,(TRD_row_end + TRD_row_start)/2.0};
-        Double_t             glbB[3]           = {0.0,0.0,0.0};
-        fGeo ->RotateBack(TRD_detector,locB,glbB);
+        Double_t             locZ[3]           = {TRD_time0-50.0,0.0,(TRD_row_end + TRD_row_start)/2.0};
+        Double_t             glbZ[3]           = {0.0,0.0,0.0};
+        fGeo ->RotateBack(TRD_detector,locZ,glbZ);
 
-        vec_TPL3D_TRD_center[TRD_detector] ->SetPoint(0,glb[0],glb[1],glb[2]);
-        vec_TPL3D_TRD_center[TRD_detector] ->SetPoint(1,glbB[0],glbB[1],glbB[2]);
-        vec_TPL3D_TRD_center[TRD_detector] ->SetLineColor(kMagenta+1);
-        vec_TPL3D_TRD_center[TRD_detector] ->SetLineWidth(2);
-        vec_TPL3D_TRD_center[TRD_detector] ->SetLineStyle(1);
+        Double_t             locX[3]           = {TRD_time0,50.0,(TRD_row_end + TRD_row_start)/2.0};
+        Double_t             glbX[3]           = {0.0,0.0,0.0};
+        fGeo ->RotateBack(TRD_detector,locX,glbX);
 
-        vec_TV3_TRD_center[TRD_detector].SetXYZ(glbB[0]-glb[0],glbB[1]-glb[1],glbB[2]-glb[2]);
+        Double_t             locY[3]           = {TRD_time0,0.0,50.0+(TRD_row_end + TRD_row_start)/2.0};
+        Double_t             glbY[3]           = {0.0,0.0,0.0};
+        fGeo ->RotateBack(TRD_detector,locY,glbY);
+
+        vec_TPL3D_TRD_center[TRD_detector][0] ->SetPoint(0,glb[0],glb[1],glb[2]);
+        vec_TPL3D_TRD_center[TRD_detector][0] ->SetPoint(1,glbX[0],glbX[1],glbX[2]);
+        vec_TPL3D_TRD_center[TRD_detector][0] ->SetLineColor(kRed);
+        vec_TPL3D_TRD_center[TRD_detector][0] ->SetLineWidth(2);
+        vec_TPL3D_TRD_center[TRD_detector][0] ->SetLineStyle(1);
+
+        vec_TPL3D_TRD_center[TRD_detector][1] ->SetPoint(0,glb[0],glb[1],glb[2]);
+        vec_TPL3D_TRD_center[TRD_detector][1] ->SetPoint(1,glbY[0],glbY[1],glbY[2]);
+        vec_TPL3D_TRD_center[TRD_detector][1] ->SetLineColor(kGreen);
+        vec_TPL3D_TRD_center[TRD_detector][1] ->SetLineWidth(2);
+        vec_TPL3D_TRD_center[TRD_detector][1] ->SetLineStyle(1);
+
+        vec_TPL3D_TRD_center[TRD_detector][2] ->SetPoint(0,glb[0],glb[1],glb[2]);
+        vec_TPL3D_TRD_center[TRD_detector][2] ->SetPoint(1,glbZ[0],glbZ[1],glbZ[2]);
+        vec_TPL3D_TRD_center[TRD_detector][2] ->SetLineColor(kBlue);
+        vec_TPL3D_TRD_center[TRD_detector][2] ->SetLineWidth(2);
+        vec_TPL3D_TRD_center[TRD_detector][2] ->SetLineStyle(1);
+
+        vec_TV3_TRD_center[TRD_detector][0].SetXYZ(glbX[0]-glb[0],glbX[1]-glb[1],glbX[2]-glb[2]);
+        vec_TV3_TRD_center[TRD_detector][1].SetXYZ(glbY[0]-glb[0],glbY[1]-glb[1],glbY[2]-glb[2]);
+        vec_TV3_TRD_center[TRD_detector][2].SetXYZ(glbZ[0]-glb[0],glbZ[1]-glb[1],glbZ[2]-glb[2]);
+
+        // Normalize
+        for(Int_t i_xyz = 0; i_xyz < 3; i_xyz++)
+        {
+            vec_TV3_TRD_center[TRD_detector][i_xyz] *= 1.0/vec_TV3_TRD_center[TRD_detector][i_xyz].Mag();
+        }
 
 
         combitrans[TRD_detector] = new TGeoCombiTrans();
@@ -1225,10 +1266,12 @@ void TBase_TRD_Calib::Draw_TRD()
     TGL_viewer = (TGLViewer *)gPad->GetViewer3D();
     TGL_viewer ->SetClearColor(kBlack);
 
-    //for(Int_t i_det = 0; i_det < 3; i_det++)
-    //{
-    //    vec_TPL3D_TRD_center[i_det] ->DrawClone("ogl");
-    //}
+    for(Int_t i_det = 0; i_det < 1; i_det++)
+    {
+        vec_TPL3D_TRD_center[i_det][0] ->DrawClone("ogl");
+        vec_TPL3D_TRD_center[i_det][1] ->DrawClone("ogl");
+        vec_TPL3D_TRD_center[i_det][2] ->DrawClone("ogl");
+    }
 
 #if 0
     x_BeamLine    ->DrawClone("ogl");
@@ -1437,11 +1480,11 @@ void TBase_TRD_Calib::Calibrate()
 
     for (Int_t i_det = 0; i_det < 540; i_det++)
     {
-        vec_tp_Delta_vs_impact[i_det] = new TProfile(Form("vec_th1d_Delta_vs_impact_%d",i_det),Form("vec_th1d_Delta_vs_impact_%d",i_det),360,0,360);
+        vec_tp_Delta_vs_impact[i_det] = new TProfile(Form("vec_th1d_Delta_vs_impact_%d",i_det),Form("vec_th1d_Delta_vs_impact_%d",i_det),360,-360,360);
     }
 
     //for(Long64_t i_event = 0; i_event < file_entries_total; i_event++)
-    for(Long64_t i_event = 0; i_event < 200; i_event++)
+    for(Long64_t i_event = 0; i_event < 20000; i_event++)
     {
         printf("i_event: %lld out of %lld \n",i_event,file_entries_total);
         if (!input_SE->GetEntry( i_event )) return 0; // take the event -> information is stored in event
@@ -1450,6 +1493,32 @@ void TBase_TRD_Calib::Calibrate()
 
         for(Int_t i_track = 0; i_track < NumTracks; i_track++)
         {
+            //cout << "i_track: " << i_track << ", of " << NumTracks << endl;
+            AS_Track      = AS_Event ->getTrack( i_track ); // take the track
+            Double_t nsigma_TPC_e   = AS_Track ->getnsigma_e_TPC();
+            Double_t nsigma_TPC_pi  = AS_Track ->getnsigma_pi_TPC();
+            Double_t nsigma_TPC_p   = AS_Track ->getnsigma_p_TPC();
+            Double_t nsigma_TOF_e   = AS_Track ->getnsigma_e_TOF();
+            Double_t nsigma_TOF_pi  = AS_Track ->getnsigma_pi_TOF();
+            Double_t TRD_signal     = AS_Track ->getTRDSignal();
+            Double_t TRDsumADC      = AS_Track ->getTRDsumADC();
+            Double_t dca            = AS_Track ->getdca();  // charge * distance of closest approach to the primary vertex
+            TLorentzVector TLV_part = AS_Track ->get_TLV_part();
+            UShort_t NTPCcls        = AS_Track ->getNTPCcls();
+            UShort_t NTRDcls        = AS_Track ->getNTRDcls();
+            UShort_t NITScls        = AS_Track ->getNITScls();
+            Float_t TPCchi2         = AS_Track ->getTPCchi2();
+            Float_t TPCdEdx         = AS_Track ->getTPCdEdx();
+            Float_t TOFsignal       = AS_Track ->getTOFsignal(); // in ps (1E-12 s)
+            Float_t Track_length    = AS_Track ->getTrack_length();
+
+            Float_t momentum        = TLV_part.P();
+            Float_t eta_track       = TLV_part.Eta();
+            Float_t pT_track        = TLV_part.Pt();
+            Float_t theta_track     = TLV_part.Theta();
+
+            if(pT_track < 3.0) continue;
+
             make_clusters(i_track);
             //get_straight_line_fit(i_track);
             get_tracklets_fit(i_track);
@@ -1459,6 +1528,9 @@ void TBase_TRD_Calib::Calibrate()
 
 
             if(vec_tracklet_fit_points[6][0][0] == -999.0  && vec_tracklet_fit_points[6][1][0] == -999.0) continue; // no global fit available
+
+            Double_t impact_angle[6] = {0.0};
+            Double_t delta_x_local_global[6] = {0.0}; // local chamber coordinate system, global fit
             for(Int_t i_layer = 6; i_layer >= 0; i_layer--)
             {
                 if(vec_tracklet_fit_points[i_layer][0][0] > -999.0 && vec_tracklet_fit_points[i_layer][1][0] > -999.0)
@@ -1467,21 +1539,131 @@ void TBase_TRD_Calib::Calibrate()
                     Double_t delta_y = vec_tracklet_fit_points[i_layer][1][1] - vec_tracklet_fit_points[i_layer][0][1];
 
                     vec_TV3_tracklet_vectors[i_layer].SetXYZ(delta_x,delta_y,0.0);
+                    vec_TV3_tracklet_vectors[i_layer] *= 1.0/vec_TV3_tracklet_vectors[i_layer].Mag(); // Normalize
+
+                    // Calculate impact angles of global track to every single layer
+                    if(i_layer == 6)
+                    {
+                        for(Int_t i_layerB = 0; i_layerB < 6; i_layerB++)
+                        {
+                            if(arr_layer_detector[i_layerB] < 0) continue;
+                            delta_x_local_global[i_layerB] = vec_TV3_tracklet_vectors[i_layer].Dot(vec_TV3_TRD_center[arr_layer_detector[i_layerB]][0]);
+                            Double_t sign_direction_impactB = TMath::Sign(1.0,delta_x_local_global[i_layerB]);
+                            impact_angle[i_layerB] = vec_TV3_tracklet_vectors[i_layer].Angle(vec_TV3_TRD_center[arr_layer_detector[i_layerB]][2]);
+                            if(impact_angle[i_layerB] > TMath::Pi()*0.5) impact_angle[i_layerB] -= TMath::Pi();
+                            //printf("i_layerB: %d, impact_angle: %4.3f \n",i_layerB,impact_angle[i_layerB]*TMath::RadToDeg());
+                            impact_angle[i_layerB] = 0.5*TMath::Pi() - sign_direction_impactB*impact_angle[i_layerB];
+                            //if(impact_angle[i_layerB]*TMath::RadToDeg() > 89.0 && impact_angle[i_layerB]*TMath::RadToDeg() < 91.0)
+                            //{
+                            //    printf("  --> i_layerB: %d, impact_angle: %4.3f, vec: {%4.3f, %4.3f} \n",i_layerB,impact_angle[i_layerB]*TMath::RadToDeg(),vec_tracklet_fit_points[i_layerB][0][0],vec_tracklet_fit_points[i_layerB][1][0]);
+                            //}
+                        }
+                    }
+
+
                     if(i_layer < 6) // tracklets
                     {
                         Int_t detector = arr_layer_detector[i_layer];
-                        Double_t impact_angle = vec_TV3_tracklet_vectors[6].Angle(vec_TV3_TRD_center[arr_layer_detector[i_layer]]);
-                        Double_t Delta_angle  = vec_TV3_tracklet_vectors[6].Angle(vec_TV3_tracklet_vectors[i_layer]);
-                        impact_angle = 0.5*TMath::Pi() - impact_angle;
-                        if(delta_x > 0.0) vec_tp_Delta_vs_impact[arr_layer_detector[i_layer]] ->Fill(impact_angle*TMath::RadToDeg(),Delta_angle*TMath::RadToDeg());
-                        //if(detector == 287) printf("detector: %d, track: %d, impact angle: %4.3f, Delta angle: %4.3f \n",detector,i_track,impact_angle*TMath::RadToDeg(),Delta_angle*TMath::RadToDeg());
+                        Double_t delta_x_local_tracklet = vec_TV3_tracklet_vectors[i_layer].Dot(vec_TV3_TRD_center[arr_layer_detector[i_layer]][0]);
+                        Double_t sign_angle = 1.0;
+                        if(delta_x_local_tracklet < delta_x_local_global[i_layer]) sign_angle = -1.0;
+                        Double_t Delta_angle  = sign_angle*vec_TV3_tracklet_vectors[6].Angle(vec_TV3_tracklet_vectors[i_layer]);
+                        if(Delta_angle > TMath::Pi()*0.5)  Delta_angle -= TMath::Pi();
+                        if(Delta_angle < -TMath::Pi()*0.5) Delta_angle += TMath::Pi();
+
+                        h_detector_hit ->Fill(detector);
+                        if(detector == 69) printf("impact_angle: %4.3f, Delta_angle: %4.3f \n",impact_angle[i_layer]*TMath::RadToDeg(),Delta_angle*TMath::RadToDeg());
+
+                        //vec_tp_Delta_vs_impact[arr_layer_detector[i_layer]] ->Fill(impact_angle[i_layer]*TMath::RadToDeg(),Delta_angle*TMath::RadToDeg());
+                        vec_tp_Delta_vs_impact[detector] ->Fill(impact_angle[i_layer]*TMath::RadToDeg(),fabs(Delta_angle*TMath::RadToDeg()));
+                        if(impact_angle[i_layer]*TMath::RadToDeg() > 89.0 && impact_angle[i_layer]*TMath::RadToDeg() < 91.0)
+                        //if(impact_angle[i_layer]*TMath::RadToDeg() > 80 && impact_angle[i_layer]*TMath::RadToDeg() < 83)
+                        {
+                        //    printf("detector: %d, track: %d, impact angle: %4.3f, Delta angle: %4.3f, delta_x_local_tracklet: %4.3f \n",detector,i_track,impact_angle[i_layer]*TMath::RadToDeg(),Delta_angle*TMath::RadToDeg(),delta_x_local_tracklet);
+                            h_delta_angle_perp_impact ->Fill(Delta_angle*TMath::RadToDeg());
+                        }
+                        //printf("detector: %d, track: %d, impact angle: %4.3f, Delta angle: %4.3f \n",detector,i_track,impact_angle*TMath::RadToDeg(),Delta_angle*TMath::RadToDeg());
                     }
                 }
             }
         }
     }
 
-    vec_tp_Delta_vs_impact[287]->Draw();
+    vector<TCanvas*> vec_can_Delta_vs_impact;
+    vec_can_Delta_vs_impact.resize(6); // 6 sector blocks with 3 sectors each (18)
+
+    TH1D* h_dummy_Delta_vs_impact = new TH1D("h_dummy_Delta_vs_impact","h_dummy_Delta_vs_impact",90,50,140);
+    h_dummy_Delta_vs_impact->SetStats(0);
+    h_dummy_Delta_vs_impact->SetTitle("");
+    h_dummy_Delta_vs_impact->GetXaxis()->SetTitleOffset(0.85);
+    h_dummy_Delta_vs_impact->GetYaxis()->SetTitleOffset(0.78);
+    h_dummy_Delta_vs_impact->GetXaxis()->SetLabelOffset(0.0);
+    h_dummy_Delta_vs_impact->GetYaxis()->SetLabelOffset(0.01);
+    h_dummy_Delta_vs_impact->GetXaxis()->SetLabelSize(0.08);
+    h_dummy_Delta_vs_impact->GetYaxis()->SetLabelSize(0.08);
+    h_dummy_Delta_vs_impact->GetXaxis()->SetTitleSize(0.08);
+    h_dummy_Delta_vs_impact->GetYaxis()->SetTitleSize(0.08);
+    h_dummy_Delta_vs_impact->GetXaxis()->SetNdivisions(505,'N');
+    h_dummy_Delta_vs_impact->GetYaxis()->SetNdivisions(505,'N');
+    h_dummy_Delta_vs_impact->GetXaxis()->CenterTitle();
+    h_dummy_Delta_vs_impact->GetYaxis()->CenterTitle();
+    h_dummy_Delta_vs_impact->GetXaxis()->SetTitle("impact angle");
+    h_dummy_Delta_vs_impact->GetYaxis()->SetTitle("#Delta #alpha");
+    h_dummy_Delta_vs_impact->GetXaxis()->SetRangeUser(70,110);
+    h_dummy_Delta_vs_impact->GetYaxis()->SetRangeUser(0,24);
+
+    Int_t arr_color_layer[6] = {kBlack,kRed,kBlue,kGreen,kMagenta,kCyan};
+
+    for(Int_t i_sec_block = 0; i_sec_block < 6; i_sec_block++)
+    {
+        HistName = "vec_can_Delta_vs_impact_";
+        HistName += i_sec_block;
+        vec_can_Delta_vs_impact[i_sec_block] = new TCanvas(HistName.Data(),HistName.Data(),10,10,1600,1000);
+
+        vec_can_Delta_vs_impact[i_sec_block] ->Divide(5,3); // x = stack, y = sector
+
+        for(Int_t i_sec_sub = 0; i_sec_sub < 3; i_sec_sub++)
+        {
+            Int_t i_sector = i_sec_block + 6*i_sec_sub;
+            for(Int_t i_stack = 0; i_stack < 5; i_stack++)
+            {
+                Int_t iPad = i_sec_sub*5 + i_stack + 1;
+                vec_can_Delta_vs_impact[i_sec_block] ->cd(iPad)->SetTicks(1,1);
+                vec_can_Delta_vs_impact[i_sec_block] ->cd(iPad)->SetGrid(0,0);
+                vec_can_Delta_vs_impact[i_sec_block] ->cd(iPad)->SetFillColor(10);
+                vec_can_Delta_vs_impact[i_sec_block] ->cd(iPad)->SetRightMargin(0.01);
+                vec_can_Delta_vs_impact[i_sec_block] ->cd(iPad)->SetTopMargin(0.01);
+                vec_can_Delta_vs_impact[i_sec_block] ->cd(iPad)->SetBottomMargin(0.2);
+                vec_can_Delta_vs_impact[i_sec_block] ->cd(iPad)->SetLeftMargin(0.2);
+                vec_can_Delta_vs_impact[i_sec_block] ->cd(iPad);
+                h_dummy_Delta_vs_impact->Draw("h");
+
+                for(Int_t i_layer = 0; i_layer < 6; i_layer++)
+                {
+                    Int_t i_detector = i_layer + 6*i_stack + 30*i_sector;
+                    printf("detector: %d \n",i_detector);
+                    vec_tp_Delta_vs_impact[i_detector] ->SetLineColor(arr_color_layer[i_layer]);
+                    vec_tp_Delta_vs_impact[i_detector] ->SetLineWidth(2);
+                    vec_tp_Delta_vs_impact[i_detector] ->SetLineStyle(1);
+                    vec_tp_Delta_vs_impact[i_detector] ->Draw("same hl");
+
+                    HistName = "";
+                    sprintf(NoP,"%4.0f",(Double_t)i_detector);
+                    HistName += NoP;
+                    plotTopLegend((char*)HistName.Data(),0.24,0.89-i_layer*0.07,0.045,arr_color_layer[i_layer],0.0,42,1,1); // char* label,Float_t x=-1,Float_t y=-1, Float_t size=0.06,Int_t color=1,Float_t angle=0.0, Int_t font = 42, Int_t NDC = 1, Int_t align = 1
+                }
+            }
+        }
+    }
+
+
+    TCanvas* can_delta_angle_perp_impact = new TCanvas("can_delta_angle_perp_impact","can_delta_angle_perp_impact",500,10,500,500);
+    can_delta_angle_perp_impact ->cd();
+    h_delta_angle_perp_impact  ->Draw();
+
+    TCanvas* can_detector_hit = new TCanvas("can_detector_hit","can_detector_hit",500,500,500,500);
+    can_detector_hit ->cd();
+    h_detector_hit  ->Draw();
 
 }
 //----------------------------------------------------------------------------------------
