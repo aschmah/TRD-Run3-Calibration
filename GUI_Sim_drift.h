@@ -505,7 +505,7 @@ Int_t GUI_Sim_drift::Do_Minimize()
     // 73: 1.48  after fit: 1.269
 
     min->SetParameter(0,"B_field",pStart[0],0.01,0,0);
-    min->SetParameter(1,"E_field",pStart[1],0.01,0,0);
+    min->SetParameter(1,"E_field",pStart[1]*0.6,0.01,0,0);
     min->SetParameter(2,"v_drift",pStart[2],0.01,0,0);
     min->SetParameter(3,"vD_drift",pStart[3],0.01,0,0);
 
@@ -617,7 +617,8 @@ Int_t GUI_Sim_drift::Do_Minimize()
 
             printf("test 2.2  \n");
 
-            min->ExecuteCommand("MINIMIZE",arglist,2);
+            //min->ExecuteCommand("MINIMIZE",arglist,2);
+            min->ExecuteCommand("MIGRAD",arglist,2);
 
             printf("test 2.3  \n");
             // get fit parameters
@@ -1063,7 +1064,7 @@ Int_t GUI_Sim_drift::Draw_data()
         sprintf(NoP,"%4.0f",(Double_t)i_detector);
         HistName += NoP;
         HistName += ", vf_{D} = ";
-        sprintf(NoP,"%4.3f",v_fit);
+        sprintf(NoP,"%4.3f",v_fit*1.35);
         HistName += NoP;
         HistName += ", HVf = ";
         sprintf(NoP,"%4.1f",E_fit*l_drift);

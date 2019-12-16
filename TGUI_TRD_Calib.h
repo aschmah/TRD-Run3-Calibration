@@ -38,9 +38,12 @@ private:
     TGTextButton *Button_draw3D;
     TGTextButton *Button_draw3D_track;
     TGTextButton *Button_Calibrate;
+    TGTextButton *Button_Track_Tracklets;
 
     TBase_TRD_Calib *Base_TRD_Calib;
     vector<TPolyMarker3D*> vec_TPM3D_digits;
+    vector<TPolyLine3D*>   vec_TPL3D_tracklets;
+    vector<TPolyLine3D*>   vec_TPL3D_tracklets_match;
     TPolyMarker3D* TPM3D_cluster;
 
     Long64_t N_Events;
@@ -65,6 +68,7 @@ public:
     Int_t Draw3D();
     Int_t Draw3D_track();
     Int_t Calibrate();
+    Int_t Track_Tracklets();
     ClassDef(TGUI_TRD_Calib, 0)
 };
 //---------------------------------------------------------------------------------
@@ -179,6 +183,13 @@ TGUI_TRD_Calib::TGUI_TRD_Calib() : TGMainFrame(gClient->GetRoot(), 100, 100)
     Button_Calibrate = new TGTextButton(hframe_Main[3], "&Calibrate ",10);
     Button_Calibrate->Connect("Clicked()", "TGUI_TRD_Calib", this, "Calibrate()");
     hframe_Main[3]->AddFrame(Button_Calibrate, new TGLayoutHints(kLHintsCenterX,5,5,3,4));
+
+    // draw button
+    Button_Track_Tracklets = new TGTextButton(hframe_Main[3], "&TrackTracklets ",10);
+    Button_Track_Tracklets->Connect("Clicked()", "TGUI_TRD_Calib", this, "Track_Tracklets()");
+    hframe_Main[3]->AddFrame(Button_Track_Tracklets, new TGLayoutHints(kLHintsCenterX,5,5,3,4));
+
+
     Frame_Main ->AddFrame(hframe_Main[3], new TGLayoutHints(kLHintsCenterX,2,2,2,2));
     //--------------
 
@@ -191,9 +202,11 @@ TGUI_TRD_Calib::TGUI_TRD_Calib() : TGMainFrame(gClient->GetRoot(), 100, 100)
     //-------------------------------------
 
     Base_TRD_Calib = new TBase_TRD_Calib();
-    Base_TRD_Calib ->Init_tree("list_tree.txt");
+    //Base_TRD_Calib ->Init_tree("list_tree.txt");
+    Base_TRD_Calib ->Init_tree("list_tree_pPb_full.txt");
     Base_TRD_Calib ->Loop_event(0);
-    vec_TPM3D_digits = Base_TRD_Calib ->get_PM3D_digits();
+    vec_TPM3D_digits    = Base_TRD_Calib ->get_PM3D_digits();
+    vec_TPL3D_tracklets = Base_TRD_Calib ->get_PL3D_tracklets();
     vector<Int_t> vec_merge_time_bins;
 #if 0
     vec_merge_time_bins.resize(4);
@@ -238,7 +251,8 @@ Int_t TGUI_TRD_Calib::LoadData()
     N_Events = Base_TRD_Calib ->get_N_Events();
     N_Tracks = Base_TRD_Calib ->get_N_Tracks();
     N_Digits = Base_TRD_Calib ->get_N_Digits();
-    vec_TPM3D_digits = Base_TRD_Calib ->get_PM3D_digits();
+    vec_TPM3D_digits    = Base_TRD_Calib ->get_PM3D_digits();
+    vec_TPL3D_tracklets = Base_TRD_Calib ->get_PL3D_tracklets();
 
     arr_Label_NEntry_stat[0] ->SetText(Form("# events: %lld",N_Events));
     arr_Label_NEntry_stat[1] ->SetText(Form("# tracks: %lld",N_Tracks));
@@ -271,15 +285,43 @@ Int_t TGUI_TRD_Calib::Draw3D()
 
     //if(!c_3D) c_3D    = new TCanvas("c_3D","c_3D",10,10,800,800);
 
-    Base_TRD_Calib ->Draw_TRD();
+    TGLViewer* TGL_viewer = Base_TRD_Calib ->Draw_TRD();
+    TGL_viewer ->UpdateScene(kFALSE);
+    TGL_viewer ->SetSmartRefresh(kFALSE);
 
     for(Int_t i_layer = 0; i_layer < 6; i_layer++)
     {
         vec_TPM3D_digits[i_layer] ->SetMarkerColor(color_layer[i_layer]);
-        vec_TPM3D_digits[i_layer] ->SetMarkerSize(5.0);
+        vec_TPM3D_digits[i_layer] ->SetMarkerSize(0.5); // 5.0
         vec_TPM3D_digits[i_layer] ->SetMarkerStyle(20);
         vec_TPM3D_digits[i_layer] ->DrawClone("");
     }
+
+#if 0
+    Int_t N_tracklets_offline = (Int_t)vec_TPL3D_tracklets.size();
+    for(Int_t i_tracklet = 0; i_tracklet < N_tracklets_offline; i_tracklet++)
+    //for(Int_t i_tracklet = 0; i_tracklet < 5; i_tracklet++)
+    {
+        printf("TGUI_TRD_Calib::Draw3D(), i_tracklet: %d, out of %d \n",i_tracklet,N_tracklets_offline);
+        vec_TPL3D_tracklets[i_tracklet] ->SetLineWidth(4);
+        vec_TPL3D_tracklets[i_tracklet] ->SetLineColor(kRed);
+        vec_TPL3D_tracklets[i_tracklet] ->SetLineStyle(1);
+        vec_TPL3D_tracklets[i_tracklet] ->DrawClone("ogl");
+    }
+#endif
+
+#if 0
+    Int_t N_tracklets_offline_match = (Int_t)vec_TPL3D_tracklets_match.size();
+    for(Int_t i_tracklet = 0; i_tracklet < N_tracklets_offline_match; i_tracklet++)
+    //for(Int_t i_tracklet = 0; i_tracklet < 5; i_tracklet++)
+    {
+        printf("TGUI_TRD_Calib::Draw3D(), i_tracklet_match: %d, out of %d \n",i_tracklet,N_tracklets_offline_match);
+        vec_TPL3D_tracklets_match[i_tracklet] ->SetLineWidth(6);
+        vec_TPL3D_tracklets_match[i_tracklet] ->SetLineColor(kWhite);
+        vec_TPL3D_tracklets_match[i_tracklet] ->SetLineStyle(1);
+        vec_TPL3D_tracklets_match[i_tracklet] ->DrawClone("ogl");
+    }
+#endif
 
     return 1;
 }
@@ -296,6 +338,23 @@ Int_t TGUI_TRD_Calib::Calibrate()
     Button_Calibrate->ChangeBackground(green);
 
     Base_TRD_Calib ->Calibrate();
+
+    return 1;
+}
+//---------------------------------------------------------------------------------
+
+
+
+//---------------------------------------------------------------------------------
+Int_t TGUI_TRD_Calib::Track_Tracklets()
+{
+    printf("TGUI_TRD_Calib::Track_Tracklets() \n");
+    Pixel_t green;
+    gClient->GetColorByName("green", green);
+    Button_Track_Tracklets->ChangeBackground(green);
+
+    Base_TRD_Calib ->Track_Tracklets();
+    vec_TPL3D_tracklets_match = Base_TRD_Calib ->get_PL3D_tracklets_match();
 
     return 1;
 }
