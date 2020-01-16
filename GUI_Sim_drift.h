@@ -196,6 +196,7 @@ private:
     TGraph* tg_HV_drift_vs_det;
     TGraph* tg_v_fit_vs_det;
     TGraph* tg_vD_fit_vs_det;
+    TGraph* tg_vfit_vs_vOCDB;
 
     TCanvas* can_vdrift;
 
@@ -474,7 +475,7 @@ Int_t GUI_Sim_drift::LoadData()
 }
 //---------------------------------------------------------------------------------
 
-#if 1
+#if 0
 
 //single chamber - if we need it later
 //---------------------------------------------------------------------------------
@@ -543,7 +544,7 @@ Int_t GUI_Sim_drift::Do_Minimize()
 //---------------------------------------------------------------------------------
 // minimize all chambers
 //---------------------------------------------------------------------------------
-#if 0
+#if 1
 Int_t GUI_Sim_drift::Do_Minimize()
 {
 
@@ -558,6 +559,8 @@ Int_t GUI_Sim_drift::Do_Minimize()
     Double_t HV_drift_in;
     Double_t E_field;
 
+    Int_t i_point = 0; // for TGraph points
+
     printf("test 1 \n");
 
     vec_v_fit.resize(540);
@@ -565,6 +568,7 @@ Int_t GUI_Sim_drift::Do_Minimize()
 
     TGraph* tg_v_fit_vs_det  = new TGraph();
     TGraph* tg_vD_fit_vs_det = new TGraph();
+    TGraph* tg_vfit_vs_vOCDB = new TGraph();
 
     for (Int_t i_detector = 0; i_detector < 540; ++i_detector)
     {
@@ -601,7 +605,7 @@ Int_t GUI_Sim_drift::Do_Minimize()
             //Double_t pStart[4] = {B_field,HV_drift_in/l_drift,v_drift_in-0.1,1.56}; // B-field, E-field, v_drift, vD_drift (1.7 insread of 1.56)
            
             min->SetParameter(0,"B_field",pStart[0],0.01,0,0);
-            min->SetParameter(1,"E_field",pStart[1],0.01,0,0);
+            min->SetParameter(1,"E_field",pStart[1]*0.6,0.01,0,0);
             min->SetParameter(2,"v_drift",pStart[2],0.01,0,0);
             min->SetParameter(3,"vD_drift",pStart[3],0.01,0,0);
 
@@ -644,7 +648,7 @@ Int_t GUI_Sim_drift::Do_Minimize()
             //    parFit[i] = min->GetParameter(i);
             //}
 
-            vec_v_fit[i_detector]  = parFit[2];
+            vec_v_fit[i_detector]  = parFit[2]*1.35;
             vec_vD_fit[i_detector] = parFit[3];
             E_fit                  = parFit[1];
 
@@ -657,11 +661,15 @@ Int_t GUI_Sim_drift::Do_Minimize()
 
             delete min;
             printf("test 4 \n");
-            
-        }
 
-        tg_v_fit_vs_det  ->SetPoint(i_detector,i_detector,vec_v_fit[i_detector]);
-        tg_vD_fit_vs_det ->SetPoint(i_detector,i_detector,vec_vD_fit[i_detector]);
+
+
+            i_point = i_point+1;
+
+            tg_v_fit_vs_det  ->SetPoint(i_point,i_detector,vec_v_fit[i_detector]);
+            tg_vD_fit_vs_det ->SetPoint(i_point,i_detector,vec_vD_fit[i_detector]);
+            tg_vfit_vs_vOCDB ->SetPoint(i_point,v_drift_in,vec_v_fit[i_detector]);
+        }
 
         //tg_vD_fit_vs_det ->SetPoint(i_detector,i_detector,i_detector);
 
@@ -680,12 +688,28 @@ Int_t GUI_Sim_drift::Do_Minimize()
     tg_v_fit_vs_det ->SetMarkerColor(kRed);
     tg_v_fit_vs_det ->SetLineColor(kRed);
     tg_v_fit_vs_det ->SetMarkerSize(1.0);
+    //tg_v_fit_vs_det ->GetXaxis()->SetTitle("drift velocity from OCDB, cm/us");
+    //tg_v_fit_vs_det ->GetYaxis()->SetTitle("drift velocity: data fit results, cm/us");
     tg_v_fit_vs_det ->Draw();
     printf("test 7 \n");
 
     //can_vdrift       ->Modify();
     can_vdrift       ->Update();
     printf("test 8 \n");
+
+    TCanvas* can_vfit_vs_vOCDB = new TCanvas("can_vfit_vs_vOCDB","can_vfit_vs_vOCDB",50,50,600,600);
+    can_vfit_vs_vOCDB ->cd();
+    tg_vfit_vs_vOCDB  ->SetMarkerColor(kOrange+4);
+    tg_vfit_vs_vOCDB  ->SetMarkerStyle(20);
+    //tg_vfit_vs_vOCDB  ->SetLineColor(kRed);
+    tg_vfit_vs_vOCDB  ->SetMarkerSize(0.5);
+    tg_vfit_vs_vOCDB  ->GetXaxis()->SetTitle("drift velocity from OCDB, cm/us");
+    tg_vfit_vs_vOCDB  ->GetYaxis()->SetTitle("drift velocity: data fit results, cm/us");
+    tg_vfit_vs_vOCDB  ->Draw("AP");
+    tg_vfit_vs_vOCDB  ->GetXaxis()->SetLimits(0.0,2.2);
+    tg_vfit_vs_vOCDB  ->GetYaxis()->SetRangeUser(0.0,2.2);
+    //tg_vfit_vs_vOCDB  ->Draw("A*");
+    //can_vfit_vs_vOCDB ->Update();
 
     //Draw_data();
 
