@@ -1,20 +1,25 @@
 
 static Int_t i_detector_global = 0;
 static vector<TProfile*> vec_tp_Delta_vs_impact;
-static const Double_t l_drift = 0.0335; // m
+static const Double_t l_drift = 0.03; // m 0.0335
 static const Double_t B_field = 0.5; // T = kg * s^-2 * A^-1
 static const Double_t delta_t = 0.1; // mus
 static const Int_t    N_time  = 24;
 
 
+// Fudge factors
+static const Double_t fudge_vdrift = 1.0; // 1.35
+static const Double_t fudge_Hdrift = 1.0;  // 0.6
+static const Double_t fudge_LorentzAngle = 1.0;
+
 
 //----------------------------------------------------------------------------------------
-TGraph* calc_Delta_alpha(Double_t B_field_use, Double_t E_field, Double_t v_drift_use, Double_t vD_use)
+TGraph* calc_Delta_alpha(Double_t B_field_use, Double_t E_field, Double_t v_drift_use, Double_t vD_use, Double_t LA_use)
 {
     TGraph* tg_delta_vs_angle_single = new TGraph();
 
     Double_t v_drift = 1.0*v_drift_use*1E06/100.0;
-    Double_t alpha_L = TMath::ATan(v_drift*B_field_use/E_field);
+    Double_t alpha_L = TMath::ATan(v_drift*B_field_use/E_field)*fudge_LorentzAngle*LA_use;
     Double_t v_drift_vD = 1.0*vD_use*1E06/100.0; // m/s
 
     Int_t phi_counter = 0;
@@ -99,8 +104,9 @@ void Chi2_TRD_vDrift(Int_t &, Double_t *, Double_t & sum, Double_t * par, Int_t 
     Double_t E_field_use = par[1];
     Double_t v_drift_use = par[2];
     Double_t vD_use      = par[3];
+    Double_t LA_use      = par[4];
 
-    TGraph* tg_Delta_vs_impact_single = calc_Delta_alpha(B_field_use,E_field_use,v_drift_use,vD_use);
+    TGraph* tg_Delta_vs_impact_single = calc_Delta_alpha(B_field_use,E_field_use,v_drift_use,vD_use,LA_use);
 
     for(Int_t i_bin = 1; i_bin <= vec_tp_Delta_vs_impact[i_detector_global]->GetNbinsX(); i_bin++)
     {
@@ -192,12 +198,17 @@ private:
     TString HistName;
     char NoP[50];
 
+    TGraph* tg_vdrift_vs_det_A;
     TGraph* tg_vdrift_vs_det;
+    TGraph* tg_HV_drift_vs_det_A;
     TGraph* tg_HV_drift_vs_det;
+    TGraph* tg_HV_anode_vs_det_A;
+    TGraph* tg_HV_anode_vs_det;
     TGraph* tg_v_fit_vs_det;
     TGraph* tg_vD_fit_vs_det;
     TGraph* tg_vfit_vs_vOCDB;
 
+    TCanvas* can_vdrift_A;
     TCanvas* can_vdrift;
 
 
@@ -217,10 +228,13 @@ private:
 
     vector< Double_t> vec_v_fit;
     vector< Double_t> vec_vD_fit;
+    vector< Double_t> vec_vOCDB_fit_A;
+    vector< Double_t> vec_vOCDB_fit;
 
     Double_t v_fit  = 1.56;
     Double_t vD_fit = 1.56;
     Double_t E_fit  = 2000.0/0.0335;
+    Double_t LA_factor_fit = 1.0;
 
 
     TRootEmbeddedCanvas *fCanvas_HV_vs_time        = NULL;
@@ -244,6 +258,7 @@ private:
     TGTextButton *Button_exit;
     TGTextButton *Button_load;
     TGTextButton *Button_save;
+    TGTextButton *Button_minimize_Single;
     TGTextButton *Button_minimize;
     TGTextButton *Button_draw_data;
     TGTextButton *Button_draw3D_track;
@@ -280,6 +295,7 @@ public:
     virtual ~GUI_Sim_drift();
     void DoText(const char *text);
     Int_t LoadData();
+    Int_t Do_Minimize_Single();
     Int_t Do_Minimize();
     Int_t Draw_data();
     Int_t Draw3D_track();
@@ -349,6 +365,11 @@ GUI_Sim_drift::GUI_Sim_drift() : TGMainFrame(gClient->GetRoot(), 100, 100)
     Button_minimize->Connect("Clicked()", "GUI_Sim_drift", this, "Do_Minimize()");
     hframe_Main[0]->AddFrame(Button_minimize, new TGLayoutHints(kLHintsCenterX,5,5,3,4));
 
+    // minimize button for a single chamber
+    Button_minimize_Single = new TGTextButton(hframe_Main[0], "&Minimize single ",10);
+    Button_minimize_Single->Connect("Clicked()", "GUI_Sim_drift", this, "Do_Minimize_Single()");
+    hframe_Main[0]->AddFrame(Button_minimize_Single, new TGLayoutHints(kLHintsCenterX,5,5,3,4));
+
 
     // draw 3D button
     Button_draw_data = new TGTextButton(hframe_Main[0], "&Draw data ",10);
@@ -386,9 +407,9 @@ GUI_Sim_drift::GUI_Sim_drift() : TGMainFrame(gClient->GetRoot(), 100, 100)
 
     //------------------------------------------------------------
     // Add a slider
-    Int_t start_pos_slider[5] = {9,15,9,0,0};
-    TString vec_label[5] = {"v","vD","UD","Rx","fboost"};
-    for(Int_t i_param = 0; i_param < 3; i_param++)
+    Int_t start_pos_slider[5] = {15,15,17,9,0};
+    TString vec_label[5] = {"v","vD","UD","LoAn","fboost"};
+    for(Int_t i_param = 0; i_param < 4; i_param++)
     {
         vec_Hframe[i_param] = new TGHorizontalFrame(Frame_Main, 200, 200);
         vec_slider[i_param] = new TGHSlider(vec_Hframe[i_param],250,kSlider1|kScaleDownRight,1);
@@ -459,32 +480,67 @@ Int_t GUI_Sim_drift::LoadData()
         vec_tp_Delta_vs_impact[i_det] = (TProfile*)input_data->Get(Form("vec_th1d_Delta_vs_impact_%d",i_det));
     }
 
-    TFile* input_vdrift = TFile::Open("./Data/vdrift_vs_det_2016_B.root");
+    TFile* input_vdrift_A = TFile::Open("./Data/vdrift_vs_det_265338.root");
+    can_vdrift_A = (TCanvas*)input_vdrift_A->Get("tg_vdrift_vs_det_can");
+    can_vdrift_A->SetName("tg_vdrift_vs_det_can_A");
+    can_vdrift_A ->Draw();
+    tg_vdrift_vs_det_A = (TGraph*)can_vdrift_A->FindObject("tg_vdrift_vs_det");
+    tg_vdrift_vs_det_A ->SetName("tg_vdrift_vs_det_A");
+
+
+    TFile* input_vdrift = TFile::Open("./Data/vdrift_vs_det_265525.root");
     //TCanvas* can_vdrift = (TCanvas*)input_vdrift->Get("tg_vdrift_vs_det_can");
     can_vdrift = (TCanvas*)input_vdrift->Get("tg_vdrift_vs_det_can");
     can_vdrift ->Draw();
+    can_vdrift ->cd();
+    tg_vdrift_vs_det_A ->SetMarkerColor(kRed);
+    tg_vdrift_vs_det_A ->Draw("same P");
     tg_vdrift_vs_det = (TGraph*)can_vdrift->FindObject("tg_vdrift_vs_det");
 
-    TFile* input_HVdrift = TFile::Open("./Data/HV_drift_vs_det_2016_B.root");
+    TFile* input_HVdrift_A = TFile::Open("./Data/HV_drift_vs_det_265338.root");
+    TCanvas* can_HVdrift_A = (TCanvas*)input_HVdrift_A->Get("tg_HV_drift_vs_det_can");
+    can_HVdrift_A ->SetName("tg_HV_drift_vs_det_can_A");
+    tg_HV_drift_vs_det_A = (TGraph*)can_HVdrift_A->FindObject("tg_HV_drift_vs_det");
+    tg_HV_drift_vs_det_A ->SetName("tg_HV_drift_vs_det_A");
+
+    TFile* input_HVdrift = TFile::Open("./Data/HV_drift_vs_det_265525.root");
     TCanvas* can_HVdrift = (TCanvas*)input_HVdrift->Get("tg_HV_drift_vs_det_can");
     can_HVdrift ->Draw();
+    can_HVdrift ->cd();
+    tg_HV_drift_vs_det_A ->SetMarkerColor(kRed);
+    tg_HV_drift_vs_det_A ->Draw("same P");
     tg_HV_drift_vs_det = (TGraph*)can_HVdrift->FindObject("tg_HV_drift_vs_det");
+
+
+    TFile* input_HVanode_A = TFile::Open("./Data/HV_anode_vs_det_265338.root");
+    TCanvas* can_HVanode_A = (TCanvas*)input_HVanode_A->Get("tg_HV_anode_vs_det_can");
+    can_HVanode_A ->SetName("tg_HV_anode_vs_det_can_A");
+    tg_HV_anode_vs_det_A = (TGraph*)can_HVanode_A->FindObject("tg_HV_anode_vs_det");
+    tg_HV_anode_vs_det_A ->SetName("tg_HV_anode_vs_det_A");
+
+    TFile* input_HVanode = TFile::Open("./Data/HV_anode_vs_det_265525.root");
+    TCanvas* can_HVanode = (TCanvas*)input_HVanode->Get("tg_HV_anode_vs_det_can");
+    can_HVanode ->Draw();
+    can_HVanode ->cd();
+    tg_HV_anode_vs_det_A ->SetMarkerColor(kRed);
+    tg_HV_anode_vs_det_A ->Draw("same P");
+    tg_HV_anode_vs_det = (TGraph*)can_HVanode->FindObject("tg_HV_anode_vs_det");
     //---------------------------------------------------------
 
     return 1;
 }
 //---------------------------------------------------------------------------------
 
-#if 0
+#if 1
 
 //single chamber - if we need it later
 //---------------------------------------------------------------------------------
-Int_t GUI_Sim_drift::Do_Minimize()
+Int_t GUI_Sim_drift::Do_Minimize_Single()
 {
 
     Pixel_t green;
     gClient->GetColorByName("green", green);
-    Button_minimize->ChangeBackground(green);
+    Button_minimize_Single->ChangeBackground(green);
 
     Int_t i_detector = arr_NEntry_det->GetNumberEntry()->GetNumber();
 
@@ -493,34 +549,40 @@ Int_t GUI_Sim_drift::Do_Minimize()
     tg_vdrift_vs_det ->GetPoint(i_detector,det,v_drift_in);
     Double_t HV_drift_in = -1.0;
     tg_HV_drift_vs_det ->GetPoint(i_detector,det,HV_drift_in);
+    Double_t HV_anode_in = -1.0;
+    tg_HV_anode_vs_det ->GetPoint(i_detector,det,HV_anode_in);
     Double_t E_field = 1.0*(HV_drift_in/l_drift); // V/cm = kg * m * s^-3 * A^-1
+
+    printf("---------------------> i_detector = %d, E_field: %4.3f, HV_drift_in: %4.3f, HV_anode_in: %4.3f \n",i_detector,E_field,HV_drift_in,HV_anode_in);
 
     //-------------------------------------------------
     // Minimization
     i_detector_global = i_detector;
-    TVirtualFitter *min = TVirtualFitter::Fitter(0,4);
+    TVirtualFitter *min = TVirtualFitter::Fitter(0,5);
     min->SetFCN(Chi2_TRD_vDrift);
-    Double_t pStart[4] = {B_field,HV_drift_in/l_drift,v_drift_in,1.56}; // B-field, E-field, v_drift, vD_drift (1.7 instead of 1.56)
+    Double_t pStart[5] = {B_field,HV_drift_in/l_drift,v_drift_in,1.56,1.0}; // B-field, E-field, v_drift, vD_drift (1.7 instead of 1.56)
     //Double_t pStart[4] = {B_field,HV_drift_in/l_drift,1.48,1.56}; // B-field, E-field, v_drift, vD_drift (1.7 instead of 1.56)
    
     // 73: 1.48  after fit: 1.269
 
     min->SetParameter(0,"B_field",pStart[0],0.01,0,0);
-    min->SetParameter(1,"E_field",pStart[1]*0.6,0.01,0,0);
+    min->SetParameter(1,"E_field",pStart[1]*fudge_Hdrift,0.01,0,0);
     min->SetParameter(2,"v_drift",pStart[2],0.01,0,0);
     min->SetParameter(3,"vD_drift",pStart[3],0.01,0,0);
+    min->SetParameter(4,"LA_factor",pStart[4],0.01,0,0);
 
     min->FixParameter(0);
     min->FixParameter(1);
     min->FixParameter(3);
+    //min->FixParameter(4);
 
     Double_t arglist[2];
     arglist[0] = 1000; // number of function calls
     arglist[1] = 0.001; // tolerance
     min->ExecuteCommand("MIGRAD",arglist,2);
     // get fit parameters
-    Double_t parFit[4];
-    for(int i = 0; i < 4; ++i)
+    Double_t parFit[5];
+    for(int i = 0; i < 5; ++i)
     {
         parFit[i] = min->GetParameter(i);
     }
@@ -528,8 +590,9 @@ Int_t GUI_Sim_drift::Do_Minimize()
     v_fit  = parFit[2];
     vD_fit = parFit[3];
     E_fit  = parFit[1];
+    LA_factor_fit = parFit[4];
 
-    printf("v_drift: %4.3f, vD_drift: %4.3f, E_field: %4.3f \n",parFit[2],parFit[3],parFit[1]);
+    printf("v_drift: %4.3f, vD_drift: %4.3f, E_field: %4.3f, LA_factor: %4.3f \n",parFit[2],parFit[3],parFit[1],parFit[4]);
     //-------------------------------------------------
 
     Draw_data();
@@ -555,8 +618,10 @@ Int_t GUI_Sim_drift::Do_Minimize()
     //Int_t i_detector = arr_NEntry_det->GetNumberEntry()->GetNumber();
 
     Double_t det;
+    Double_t v_drift_in_A;
     Double_t v_drift_in;
     Double_t HV_drift_in;
+    Double_t HV_anode_in;
     Double_t E_field;
 
     Int_t i_point = 0; // for TGraph points
@@ -565,27 +630,35 @@ Int_t GUI_Sim_drift::Do_Minimize()
 
     vec_v_fit.resize(540);
     vec_vD_fit.resize(540);
+    vec_vOCDB_fit_A.resize(540);
+    vec_vOCDB_fit.resize(540);
 
     TGraph* tg_v_fit_vs_det  = new TGraph();
     TGraph* tg_vD_fit_vs_det = new TGraph();
     TGraph* tg_vfit_vs_vOCDB = new TGraph();
 
-    for (Int_t i_detector = 0; i_detector < 540; ++i_detector)
+    for(Int_t i_detector = 0; i_detector < 540; ++i_detector)
     {
-        det         = -1.0;
-        v_drift_in  = -1.0;
-        HV_drift_in = -1.0;
-        E_field     = -1.0;
+        det           = -1.0;
+        v_drift_in_A  = -1.0;
+        v_drift_in    = -1.0;
+        HV_drift_in   = -1.0;
+        HV_anode_in   = -1.0;
+        E_field       = -1.0;
 
-        tg_vdrift_vs_det ->GetPoint(i_detector,det,v_drift_in);
+        tg_vdrift_vs_det_A ->GetPoint(i_detector,det,v_drift_in_A);
+        tg_vdrift_vs_det   ->GetPoint(i_detector,det,v_drift_in);
         tg_HV_drift_vs_det ->GetPoint(i_detector,det,HV_drift_in);
+        tg_HV_anode_vs_det ->GetPoint(i_detector,det,HV_anode_in);
         E_field = 1.0*(HV_drift_in/l_drift); // V/cm = kg * m * s^-3 * A^-1
 
-        vec_v_fit[i_detector] = 1.56;
+        vec_vOCDB_fit[i_detector] = v_drift_in;
+        vec_vOCDB_fit_A[i_detector] = v_drift_in_A;
+        vec_v_fit[i_detector] = -1.0;
         vec_vD_fit[i_detector] = 1.56;
 
-        printf("test 2 \n");
-        printf("i_detector = %d \n",i_detector);
+        printf("---------------------> i_detector = %d, E_field: %4.3f, HV_drift_in: %4.3f, HV_anode_in: %4.3f \n",i_detector,E_field,HV_drift_in,HV_anode_in);
+
 
 //#if 1
         //-------------------------------------------------
@@ -595,41 +668,36 @@ Int_t GUI_Sim_drift::Do_Minimize()
         Int_t N = vec_tp_Delta_vs_impact[i_detector_global]->GetEntries();
         printf("N_points = %d \n",N);
 
-        if (N >= 10 && E_field > 0)
-
+        if(N >= 10 && E_field > 100 && HV_anode_in > 1500)
         {
 
-            TVirtualFitter *min = TVirtualFitter::Fitter(0,4);
+            TVirtualFitter *min = TVirtualFitter::Fitter(0,5);
             min->SetFCN(Chi2_TRD_vDrift);
-            Double_t pStart[4] = {B_field,HV_drift_in/l_drift,v_drift_in,1.56}; // B-field, E-field, v_drift, vD_drift (1.7 insread of 1.56)
+            Double_t pStart[5] = {B_field,HV_drift_in/l_drift,v_drift_in,1.56,1.0}; // B-field, E-field, v_drift, vD_drift (1.7 insread of 1.56)
             //Double_t pStart[4] = {B_field,HV_drift_in/l_drift,v_drift_in-0.1,1.56}; // B-field, E-field, v_drift, vD_drift (1.7 insread of 1.56)
-           
+
             min->SetParameter(0,"B_field",pStart[0],0.01,0,0);
-            min->SetParameter(1,"E_field",pStart[1]*0.6,0.01,0,0);
+            min->SetParameter(1,"E_field",pStart[1]*fudge_Hdrift,0.01,0,0);
             min->SetParameter(2,"v_drift",pStart[2],0.01,0,0);
             min->SetParameter(3,"vD_drift",pStart[3],0.01,0,0);
-
-            printf("test 2.1 \n");
+            min->SetParameter(4,"LA_factor",pStart[4],0.01,0,0);
 
             min->FixParameter(0);
             min->FixParameter(1);
             min->FixParameter(3);
+            //min->FixParameter(4);
 
             Double_t arglist[2];
             arglist[0] = 1000; // number of function calls
             arglist[1] = 0.001; // tolerance
 
-            printf("test 2.2  \n");
-
             //min->ExecuteCommand("MINIMIZE",arglist,2);
             min->ExecuteCommand("MIGRAD",arglist,2);
 
-            printf("test 2.3  \n");
             // get fit parameters
-            Double_t parFit[4];
+            Double_t parFit[5];
 
-            printf("test 2.4  \n");
-            for(int i = 0; i < 4; ++i)
+            for(int i = 0; i < 5; ++i)
             {
                 parFit[i] = min->GetParameter(i);
             }
@@ -648,19 +716,18 @@ Int_t GUI_Sim_drift::Do_Minimize()
             //    parFit[i] = min->GetParameter(i);
             //}
 
-            vec_v_fit[i_detector]  = parFit[2]*1.35;
+            vec_v_fit[i_detector]  = parFit[2]*fudge_vdrift;
             vec_vD_fit[i_detector] = parFit[3];
             E_fit                  = parFit[1];
+            LA_factor_fit = parFit[4];
 
-            printf("v_drift: %4.3f, vD_drift: %4.3f, E_field: %4.3f \n",parFit[2],parFit[3],parFit[1]);
+            printf("v_drift: %4.3f, vD_drift: %4.3f, E_field: %4.3f, LA_factor: %4.3f \n",parFit[2],parFit[3],parFit[1],parFit[4]);
             //-------------------------------------------------
             //#endif
-            printf("test 3 \n");
 
             
 
             delete min;
-            printf("test 4 \n");
 
 
 
@@ -681,7 +748,6 @@ Int_t GUI_Sim_drift::Do_Minimize()
 
     }
 
-    printf("test 6 \n");
 
     can_vdrift       ->cd();
 
@@ -691,11 +757,9 @@ Int_t GUI_Sim_drift::Do_Minimize()
     //tg_v_fit_vs_det ->GetXaxis()->SetTitle("drift velocity from OCDB, cm/us");
     //tg_v_fit_vs_det ->GetYaxis()->SetTitle("drift velocity: data fit results, cm/us");
     tg_v_fit_vs_det ->Draw();
-    printf("test 7 \n");
 
     //can_vdrift       ->Modify();
     can_vdrift       ->Update();
-    printf("test 8 \n");
 
     TCanvas* can_vfit_vs_vOCDB = new TCanvas("can_vfit_vs_vOCDB","can_vfit_vs_vOCDB",50,50,600,600);
     can_vfit_vs_vOCDB ->cd();
@@ -713,6 +777,17 @@ Int_t GUI_Sim_drift::Do_Minimize()
 
     //Draw_data();
 
+    printf(" \n");
+    printf("------------------------------------- \n");
+    for(Int_t i_det = 0; i_det < 540; i_det++)
+    {
+        Double_t delta_v_drift = fabs(vec_vOCDB_fit[i_det] - vec_v_fit[i_det]);
+        printf("i_det: %d, vOCDB: %4.3f, vOCDB_A: %4.3f, vfit: %4.3f \n",i_det,vec_vOCDB_fit[i_det],vec_vOCDB_fit_A[i_det],vec_v_fit[i_det]);
+        if(delta_v_drift > 0.2 && vec_v_fit[i_det] > 0.0) printf("    ------------> delta_v_drift: %4.3f \n",delta_v_drift);
+    }
+    printf("------------------------------------- \n");
+    printf(" \n");
+
     return 1;
 
 }
@@ -728,11 +803,12 @@ Int_t GUI_Sim_drift::Draw_data()
     Double_t v_slider   = 0.1   + 0.1*vec_slider[0]->GetPosition();
     Double_t vD_slider  = 0.06  + 0.1*vec_slider[1]->GetPosition();
     Double_t UD_slider  = 500.0 + 100*vec_slider[2]->GetPosition();
+    Double_t LA_slider  = 0.0   + 0.1*vec_slider[3]->GetPosition();
 
-    Double_t arr_param_val[5] = {v_slider,vD_slider,UD_slider,0.0,0.0};
+    Double_t arr_param_val[5] = {v_slider,vD_slider,UD_slider,LA_slider,0.0};
 
     // Handle slider widgets.
-    for(Int_t i_param = 0; i_param < 3; i_param++)
+    for(Int_t i_param = 0; i_param < 4; i_param++)
     {
         char buf[32];
         //sprintf(buf, "%d", vec_slider[i_param]->GetPosition());
@@ -781,12 +857,14 @@ Int_t GUI_Sim_drift::Draw_data()
 
     Double_t vD_use = 1.56;
     Double_t v_drift_use = v_drift_in;
+    Double_t LA_factor = 1.0;
     if(fCheckBox_sel[0]->GetState() == kButtonDown) // slider
     {
         printf("Use slider data \n");
         v_drift_use = v_slider;
         vD_use      = vD_slider;
         E_field     = 1.0*(UD_slider/l_drift); // V/cm = kg * m * s^-3 * A^-1;
+        LA_factor   = LA_slider;
     }
 
     if(fCheckBox_sel[1]->GetState() == kButtonDown) // fit
@@ -795,6 +873,7 @@ Int_t GUI_Sim_drift::Draw_data()
         v_drift_use = v_fit;
         vD_use      = vD_fit;
         E_field     = E_fit;
+        LA_factor   = 1.0;
     }
 
 
@@ -810,8 +889,8 @@ Int_t GUI_Sim_drift::Draw_data()
         //Double_t v_drift = 1.0*0.612*1E06/100.0*fac_v_drift; // m/s
         //Double_t v_drift = 0.7*1E06/100.0*fac_v_drift; // m/s
         Double_t v_drift = 1.0*v_drift_use*1E06/100.0;
-        Double_t alpha_L = TMath::ATan(v_drift*B_field/E_field);
-        //printf("alpha_L: %4.3f, v_drift: %4.6f, ref: %4.6f \n",alpha_L*TMath::RadToDeg(),v_drift,1.56*1E06/100.0);
+        Double_t alpha_L = TMath::ATan(v_drift*B_field/E_field)*fudge_LorentzAngle*LA_factor;
+        printf("alpha_L: %4.3f, v_drift: %4.6f, ref: %4.6f \n",alpha_L*TMath::RadToDeg(),v_drift,1.56*1E06/100.0);
         tg_delta_vs_angle.resize(v_counter+1);
         Int_t vD_counter = 0;
         //for(Double_t fac_v_drift_vD = 1.1; fac_v_drift_vD >= 0.74; fac_v_drift_vD -= 0.05)
@@ -1058,7 +1137,7 @@ Int_t GUI_Sim_drift::Draw_data()
 
 
 #if 0
-    TGraph* tg_Delta_vs_impact_single = calc_Delta_alpha(B_field,E_field,v_drift_use,vD_use);
+    TGraph* tg_Delta_vs_impact_single = calc_Delta_alpha(B_field,E_field,v_drift_use,vD_use,LA_use);
     tg_Delta_vs_impact_single ->SetLineColor(kGreen+1);
     tg_Delta_vs_impact_single ->SetLineWidth(2);
     tg_Delta_vs_impact_single ->Draw("same");
@@ -1088,7 +1167,7 @@ Int_t GUI_Sim_drift::Draw_data()
         sprintf(NoP,"%4.0f",(Double_t)i_detector);
         HistName += NoP;
         HistName += ", vf_{D} = ";
-        sprintf(NoP,"%4.3f",v_fit*1.35);
+        sprintf(NoP,"%4.3f",v_fit*fudge_vdrift);
         HistName += NoP;
         HistName += ", HVf = ";
         sprintf(NoP,"%4.1f",E_fit*l_drift);
