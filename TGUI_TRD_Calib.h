@@ -37,14 +37,17 @@ private:
     TGTextButton *Button_save;
     TGTextButton *Button_draw3D;
     TGTextButton *Button_draw3D_track;
+    TGTextButton *Button_draw3D_online_tracklets;
     TGTextButton *Button_Calibrate;
     TGTextButton *Button_Track_Tracklets;
+    TGTextButton *Button_draw2D_track;
 
     TBase_TRD_Calib *Base_TRD_Calib;
-    vector<TPolyMarker3D*> vec_TPM3D_digits;
-    vector<TPolyLine3D*>   vec_TPL3D_tracklets;
-    vector<TPolyLine3D*>   vec_TPL3D_tracklets_match;
-    TPolyMarker3D* TPM3D_cluster;
+    vector<TEvePointSet*> vec_TPM3D_digits;
+    vector<TEveLine*>   vec_TPL3D_tracklets;
+    vector<TEveLine*>   vec_TPL3D_tracklets_match;
+    TEvePointSet* TPM3D_cluster;
+    TPolyMarker*  TPM_cluster;
 
     Long64_t N_Events;
     Long64_t N_Tracks;
@@ -56,10 +59,11 @@ private:
     TCanvas* c_3D        = NULL;
     TCanvas* c_3D_track  = NULL;
 
-    Int_t color_layer[6] = {kRed,kGreen,kBlue,kMagenta,kCyan,kYellow};
-    vector<TPolyMarker3D*> vec_TPM3D_single_track_digit_layer;
-    vector<TPolyMarker3D*> vec_TPM3D_single_track_digit;
-    TPolyMarker3D* TPM3D_single;
+    Int_t color_layer[7] = {kGray,kGreen,kBlue,kMagenta,kCyan,kYellow,kOrange};
+    vector<TEvePointSet*> vec_TPM3D_single_track_digit_layer;
+    vector<TEvePointSet*> vec_TPM3D_single_track_digit;
+    vector<TPolyMarker*> vec_TPM_single_track_digit_layer;
+    TEvePointSet* TPM3D_single;
 
 public:
     TGUI_TRD_Calib();
@@ -67,6 +71,8 @@ public:
     Int_t LoadData();
     Int_t Draw3D();
     Int_t Draw3D_track();
+    Int_t Draw_2D_track();
+    Int_t Draw_online_tracklets();
     Int_t Calibrate();
     Int_t Track_Tracklets();
     ClassDef(TGUI_TRD_Calib, 0)
@@ -93,12 +99,15 @@ TGUI_TRD_Calib::TGUI_TRD_Calib() : TGMainFrame(gClient->GetRoot(), 100, 100)
 
     //-------------------------------------
     vec_TPM3D_single_track_digit_layer.resize(6); // layer
+    vec_TPM_single_track_digit_layer.resize(6); // layer
     for(Int_t i_layer = 0; i_layer < 6; i_layer++)
     {
-        vec_TPM3D_single_track_digit_layer[i_layer] = new TPolyMarker3D();
+        vec_TPM3D_single_track_digit_layer[i_layer] = new TEvePointSet();
+        vec_TPM_single_track_digit_layer[i_layer]   = new TPolyMarker();
     }
-    TPM3D_single = new TPolyMarker3D();
-    TPM3D_cluster = new TPolyMarker3D();
+    TPM3D_single  = new TEvePointSet();
+    TPM3D_cluster = new TEvePointSet();
+    TPM_cluster   = new TPolyMarker();
     //-------------------------------------
 
 
@@ -134,6 +143,12 @@ TGUI_TRD_Calib::TGUI_TRD_Calib() : TGMainFrame(gClient->GetRoot(), 100, 100)
     Button_draw3D_track = new TGTextButton(hframe_Main[0], "&Draw 3D track ",10);
     Button_draw3D_track->Connect("Clicked()", "TGUI_TRD_Calib", this, "Draw3D_track()");
     hframe_Main[0]->AddFrame(Button_draw3D_track, new TGLayoutHints(kLHintsCenterX,5,5,3,4));
+
+    // draw 3D button
+    Button_draw3D_online_tracklets = new TGTextButton(hframe_Main[0], "&Draw on. trk. ",10);
+    Button_draw3D_online_tracklets->Connect("Clicked()", "TGUI_TRD_Calib", this, "Draw_online_tracklets()");
+    hframe_Main[0]->AddFrame(Button_draw3D_online_tracklets, new TGLayoutHints(kLHintsCenterX,5,5,3,4));
+
 
     Frame_Main ->AddFrame(hframe_Main[0], new TGLayoutHints(kLHintsCenterX,2,2,2,2));
     //--------------
@@ -188,6 +203,11 @@ TGUI_TRD_Calib::TGUI_TRD_Calib() : TGMainFrame(gClient->GetRoot(), 100, 100)
     Button_Track_Tracklets = new TGTextButton(hframe_Main[3], "&TrackTracklets ",10);
     Button_Track_Tracklets->Connect("Clicked()", "TGUI_TRD_Calib", this, "Track_Tracklets()");
     hframe_Main[3]->AddFrame(Button_Track_Tracklets, new TGLayoutHints(kLHintsCenterX,5,5,3,4));
+
+    // draw button
+    Button_draw2D_track = new TGTextButton(hframe_Main[3], "&Draw 2D ",10);
+    Button_draw2D_track->Connect("Clicked()", "TGUI_TRD_Calib", this, "Draw_2D_track()");
+    hframe_Main[3]->AddFrame(Button_draw2D_track, new TGLayoutHints(kLHintsCenterX,5,5,3,4));
 
 
     Frame_Main ->AddFrame(hframe_Main[3], new TGLayoutHints(kLHintsCenterX,2,2,2,2));
@@ -363,6 +383,109 @@ Int_t TGUI_TRD_Calib::Track_Tracklets()
 
 
 //---------------------------------------------------------------------------------
+Int_t TGUI_TRD_Calib::Draw_2D_track()
+{
+    printf("TGUI_TRD_Calib::Draw_2D_track() \n");
+    Pixel_t green;
+    gClient->GetColorByName("green", green);
+    Button_draw2D_track->ChangeBackground(green);
+
+    Int_t i_track = arr_NEntry_ana_params[1]->GetNumberEntry()->GetNumber();
+
+    vector< vector<TVector3> > vec_TV3_digit_pos_cluster = Base_TRD_Calib ->make_clusters(i_track); // layer, merged time bin
+    for(Int_t i_layer = 0; i_layer < 6; i_layer++)
+    {
+        for(Int_t i_time_merge = 0; i_time_merge < (Int_t)vec_TV3_digit_pos_cluster[i_layer].size(); i_time_merge++)
+        {
+            TPM_cluster ->SetNextPoint(vec_TV3_digit_pos_cluster[i_layer][i_time_merge][0],vec_TV3_digit_pos_cluster[i_layer][i_time_merge][1]);
+        }
+    }
+
+    Base_TRD_Calib ->Draw_2D_track(i_track);
+
+
+    Float_t dca            = vec_track_info[i_track][0];
+    Float_t TPCdEdx        = vec_track_info[i_track][1];
+    Float_t momentum       = vec_track_info[i_track][2];
+    Float_t eta_track      = vec_track_info[i_track][3];
+    Float_t pT_track       = vec_track_info[i_track][4];
+    Float_t TOFsignal      = vec_track_info[i_track][5];
+    Float_t Track_length   = vec_track_info[i_track][6];
+    Float_t TRDsumADC      = vec_track_info[i_track][7];
+    Float_t TRD_signal     = vec_track_info[i_track][8];
+    Float_t nsigma_TPC_e   = vec_track_info[i_track][9];
+    Float_t nsigma_TPC_pi  = vec_track_info[i_track][10];
+    Float_t nsigma_TPC_p   = vec_track_info[i_track][11];
+
+    Int_t n_digits_track = (Int_t)vec_digit_track_info[i_track].size();
+
+    for(Int_t i_digit = 0; i_digit < n_digits_track; i_digit++)
+    {
+        Float_t x_pos   = vec_digit_track_info[i_track][i_digit][0];
+        Float_t y_pos   = vec_digit_track_info[i_track][i_digit][1];
+        Float_t z_pos   = vec_digit_track_info[i_track][i_digit][2];
+        Int_t time_bin  = (Int_t)vec_digit_track_info[i_track][i_digit][3];
+        Float_t raw_ADC = vec_digit_track_info[i_track][i_digit][4];
+        Int_t sector    = (Int_t)vec_digit_track_info[i_track][i_digit][5];
+        Int_t stack     = (Int_t)vec_digit_track_info[i_track][i_digit][6];
+        Int_t layer     = (Int_t)vec_digit_track_info[i_track][i_digit][7];
+        Int_t row       = (Int_t)vec_digit_track_info[i_track][i_digit][8];
+        Int_t column    = (Int_t)vec_digit_track_info[i_track][i_digit][9];
+        Float_t dca     = vec_digit_track_info[i_track][i_digit][10];
+        Float_t dca_x   = vec_digit_track_info[i_track][i_digit][11];
+        Float_t dca_y   = vec_digit_track_info[i_track][i_digit][12];
+        Float_t dca_z   = vec_digit_track_info[i_track][i_digit][13];
+
+        Float_t dca_phi = TMath::Sqrt(dca_x*dca_x + dca_y*dca_y);
+        //printf("dca_full: %4.3f, dca: {%4.3f, %4.3f, %4.3f}, dca_phi: %4.3f \n",dca,dca_x,dca_y,dca_z,dca_phi);
+
+        Double_t digit_size = 1.0;
+
+        if(dca_phi > 30.0) continue; // 3.0
+        if(raw_ADC < 50.0) digit_size = 1.0;
+        if(raw_ADC >= 50.0) digit_size = 10.0;
+
+        vec_TPM_single_track_digit_layer[layer]   ->SetNextPoint(x_pos,y_pos);
+
+        //printf("  ->2D track i_digit: %d, pos: {%4.3f, %4.3f, %4.3f}, row: %d, column: %d, time_bin: %d, sector: %d, stack: %d, layer: %d, raw_ADC: %4.3f \n",i_digit,x_pos,y_pos,z_pos,row,column,time_bin,sector,stack,layer,raw_ADC);
+    }
+
+    for(Int_t i_layer = 0; i_layer < 6; i_layer++)
+    {
+        vec_TPM_single_track_digit_layer[i_layer] ->SetMarkerColor(color_layer[i_layer]);
+        vec_TPM_single_track_digit_layer[i_layer] ->SetMarkerSize(0.5);
+        vec_TPM_single_track_digit_layer[i_layer] ->SetMarkerStyle(24);
+        vec_TPM_single_track_digit_layer[i_layer] ->Draw("");
+    }
+
+    TPM_cluster ->SetMarkerColor(kRed);
+    TPM_cluster ->SetMarkerSize(0.7);
+    TPM_cluster ->SetMarkerStyle(20);
+    TPM_cluster ->Draw("");
+
+    Base_TRD_Calib ->Draw_tracklets_line_2D(i_track);
+
+    return 1;
+}
+//---------------------------------------------------------------------------------
+
+
+
+//---------------------------------------------------------------------------------
+Int_t TGUI_TRD_Calib::Draw_online_tracklets()
+{
+    Pixel_t green;
+    gClient->GetColorByName("green", green);
+    Button_draw3D_online_tracklets->ChangeBackground(green);
+    Base_TRD_Calib ->Draw_online_tracklets();
+
+    return 1;
+}
+//---------------------------------------------------------------------------------
+
+
+
+//---------------------------------------------------------------------------------
 Int_t TGUI_TRD_Calib::Draw3D_track()
 {
     Pixel_t green;
@@ -374,9 +497,10 @@ Int_t TGUI_TRD_Calib::Draw3D_track()
 
     Int_t i_track = arr_NEntry_ana_params[1]->GetNumberEntry()->GetNumber();
 
-    Base_TRD_Calib ->Draw_TRD();
+    //Base_TRD_Calib ->Draw_TRD();
     Base_TRD_Calib ->Draw_track(i_track);
     Base_TRD_Calib ->Draw_neighbor_tracks(i_track);
+
 
     vector< vector<TVector3> > vec_TV3_digit_pos_cluster = Base_TRD_Calib ->make_clusters(i_track); // layer, merged time bin
 
@@ -387,6 +511,8 @@ Int_t TGUI_TRD_Calib::Draw3D_track()
             TPM3D_cluster ->SetNextPoint(vec_TV3_digit_pos_cluster[i_layer][i_time_merge][0],vec_TV3_digit_pos_cluster[i_layer][i_time_merge][1],vec_TV3_digit_pos_cluster[i_layer][i_time_merge][2]);
         }
     }
+
+    gEve->AddElement(TPM3D_cluster);
 
 
     for(Int_t i_layer = 0; i_layer < 6; i_layer++)
@@ -448,7 +574,7 @@ Int_t TGUI_TRD_Calib::Draw3D_track()
         //if(!(row == 14 && column == 120)) continue;
         TPM3D_single ->SetNextPoint(x_pos,y_pos,z_pos);
         vec_TPM3D_single_track_digit_layer[layer]   ->SetNextPoint(x_pos,y_pos,z_pos);
-        vec_TPM3D_single_track_digit.push_back((TPolyMarker3D*)TPM3D_single ->Clone());
+        vec_TPM3D_single_track_digit.push_back((TEvePointSet*)TPM3D_single ->Clone());
         Int_t N_digits = (Int_t)vec_TPM3D_single_track_digit.size();
         vec_TPM3D_single_track_digit[N_digits - 1] ->SetMarkerSize(digit_size);
         vec_TPM3D_single_track_digit[N_digits - 1] ->SetMarkerColor(kGreen+2);
@@ -471,13 +597,15 @@ Int_t TGUI_TRD_Calib::Draw3D_track()
         vec_TPM3D_single_track_digit_layer[i_layer] ->SetMarkerColor(color_layer[i_layer]);
         vec_TPM3D_single_track_digit_layer[i_layer] ->SetMarkerSize(1.0);
         vec_TPM3D_single_track_digit_layer[i_layer] ->SetMarkerStyle(20);
-        vec_TPM3D_single_track_digit_layer[i_layer] ->DrawClone("");
+        //vec_TPM3D_single_track_digit_layer[i_layer] ->DrawClone("");
+        gEve->AddElement(vec_TPM3D_single_track_digit_layer[i_layer]);
     }
 
     TPM3D_cluster ->SetMarkerColor(kRed);
     TPM3D_cluster ->SetMarkerSize(1.5);
     TPM3D_cluster ->SetMarkerStyle(20);
-    TPM3D_cluster ->DrawClone("");
+    gEve->AddElement(TPM3D_cluster);
+    //TPM3D_cluster ->DrawClone("");
 
 
 #if 0
@@ -488,10 +616,12 @@ Int_t TGUI_TRD_Calib::Draw3D_track()
     }
 #endif
 
-    //Base_TRD_Calib ->Draw_line(i_track);
+    Base_TRD_Calib ->Draw_line(i_track);
     Base_TRD_Calib ->Draw_tracklets_line(i_track);
     Base_TRD_Calib ->make_plots_ADC(i_track);
 
+
+    gEve->Redraw3D(kTRUE);
     return 1;
 }
 //---------------------------------------------------------------------------------

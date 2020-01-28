@@ -64,10 +64,10 @@ private:
 
     Float_t digit_pos[3];
 
-    TPolyMarker3D* TPM3D_single;
-    vector<TPolyMarker3D*> vec_TPM3D_digits;
-    vector<TPolyLine3D*> vec_TPL3D_tracklets;
-    vector<TPolyLine3D*> vec_TPL3D_tracklets_match;
+    TEvePointSet* TPM3D_single;
+    vector<TEvePointSet*> vec_TPM3D_digits;
+    vector<TEveLine*> vec_TPL3D_tracklets;
+    vector<TEveLine*> vec_TPL3D_tracklets_match;
     vector<Float_t> vec_digit_single_info;
     vector< vector<Float_t> > vec_digit_info;
     vector< vector< vector<Float_t> > > vec_digit_track_info;
@@ -75,9 +75,12 @@ private:
     vector< vector<Float_t> > vec_track_info;
 
     AliHelix aliHelix;
-    TPolyLine3D* TPL3D_helix;
-    TPolyLine3D* fit_line;
-    TPolyLine3D* vec_tracklets_line;
+    TEveLine* TPL3D_helix;
+    TEveLine* fit_line;
+    TEveLine* vec_tracklets_line = NULL;
+    vector<TPolyLine*> vec_tracklets_line_2D;
+
+    TPolyLine* TPL_helix;
 
     TString HistName;
     char NoP[50];
@@ -85,8 +88,8 @@ private:
     // TVector3 vec_datapoints;
     vector <TCanvas*> ADC_vs_time;
 
-    vector<TPolyLine3D*> vec_TPL3D_helix_neighbor;
-    vector< vector<TPolyLine3D*> > vec_TPL3D_TRD_center;
+    vector<TEveLine*> vec_TPL3D_helix_neighbor;
+    vector< vector<TEveLine*> > vec_TPL3D_TRD_center;
     vector< vector<TVector3> >     vec_TV3_TRD_center; // 540 chambers, 3 axes
 
     Int_t arr_layer_detector[6];
@@ -103,6 +106,10 @@ private:
 
 
     // TRD 3D graphics
+    vector<TEveBox*> vec_eve_TRD_detector_box;
+    vector<TVector3> vec_TV3_local_pos;
+
+
     AliTRDgeometry* fGeo;
     TGeoManager     *geom;
     TGeoMaterial    *vacuum;
@@ -122,9 +129,9 @@ private:
     TGeoCombiTrans* combitrans[540];
     TGeoVolume *TRD_boxes[540];
 
-    TPolyLine3D* z_BeamLine;
-    TPolyLine3D* x_BeamLine;
-    TPolyLine3D* y_BeamLine;
+    TEveLine* z_BeamLine;
+    TEveLine* x_BeamLine;
+    TEveLine* y_BeamLine;
 
     Int_t Not_installed_TRD_detectors[19] = {402,403,404,405,406,407,432,433,434,435,436,437,462,463,464,465,466,467,538};
     Int_t Defect_TRD_detectors[84]        = {2,5,17,24,26,30,31,32,36,40,41,43,49,50,59,62,64,78,88,92,93,107,110,111,113,116,119,131,161,
@@ -138,8 +145,9 @@ private:
     vector< vector<TVector3> > vec_TV3_digit_pos_cluster;    // layer, merged time bin
     vector< TVector3> vec_TV3_digit_pos_cluster_t0; // layer, x, y, z
     vector< vector<TH1F*> > th1f_ADC_vs_time;
-    Int_t color_layer[7] = {kOrange+2,kGreen,kBlue,kMagenta,kCyan,kPink+5,kYellow};
-    Int_t line_width_layer[7] = {3,3,3,3,3,3,10};
+    //Int_t color_layer[7] = {kOrange+2,kGreen,kBlue,kMagenta,kCyan,kPink+5,kYellow};
+    Int_t color_layer[7] = {kGray,kGreen,kBlue,kMagenta,kCyan,kYellow,kOrange};
+    Int_t line_width_layer[7] = {3,3,3,3,3,3,2};
     vector<Int_t> vec_layer_in_fit;
     vector< vector< vector<Double_t> > > vec_tracklet_fit_points;
     vector<TProfile*> vec_tp_Delta_vs_impact;
@@ -156,24 +164,28 @@ public:
     Long64_t get_N_Digits() {return N_Digits;}
     vector< vector<Float_t> > get_track_info() {return vec_track_info;}
     vector< vector< vector<Float_t> > > get_digit_track_info() {return vec_digit_track_info;}
-    vector<TPolyMarker3D*> get_PM3D_digits() {return vec_TPM3D_digits;}
-    vector<TPolyLine3D*> get_PL3D_tracklets() {return vec_TPL3D_tracklets;}
-    vector<TPolyLine3D*> get_PL3D_tracklets_match() {return vec_TPL3D_tracklets_match;}
+    vector<TEvePointSet*> get_PM3D_digits() {return vec_TPM3D_digits;}
+    vector<TEveLine*> get_PL3D_tracklets() {return vec_TPL3D_tracklets;}
+    vector<TEveLine*> get_PL3D_tracklets_match() {return vec_TPL3D_tracklets_match;}
     void Draw_track(Int_t i_track);
+    void Draw_2D_track(Int_t i_track);
     void Draw_line(Int_t i_track);
     void Draw_tracklets_line(Int_t i_track);
+    void Draw_tracklets_line_2D(Int_t i_track);
     void Draw_neighbor_tracks(Int_t i_track);
+    void Draw_online_tracklets();
     TGLViewer* Draw_TRD();
     void set_dca_to_track(Double_t dca_r, Double_t dca_z) {max_dca_r_to_track = dca_r; max_dca_z_to_track = dca_z;}
     void set_merged_time_bins(vector<Int_t> vec_merge_time_bins_in) {vec_merge_time_bins = vec_merge_time_bins_in;}
-    TPolyLine3D* get_helix_polyline(Int_t i_track);
-    TPolyLine3D* get_straight_line_fit(Int_t i_track);
+    TEveLine* get_helix_polyline(Int_t i_track);
+    TPolyLine* get_helix_polyline_2D(Int_t i_track);
+    TEveLine* get_straight_line_fit(Int_t i_track);
     void get_tracklets_fit(Int_t i_track);
     vector< vector<TVector3> >  make_clusters(Int_t i_track);
     vector< vector< vector<Double_t> > > get_tracklet_fit_points() {return vec_tracklet_fit_points;}
     void make_plots_ADC(Int_t i_track);
     void Calibrate();
-    void Track_Tracklets();
+    void Track_Tracklets(); // for online tracklets
 
     ClassDef(TBase_TRD_Calib, 1)
 };
@@ -204,7 +216,7 @@ TBase_TRD_Calib::TBase_TRD_Calib()
         vec_TV3_TRD_center[i_det].resize(3);
         for(Int_t i_xyz = 0; i_xyz < 3; i_xyz++)
         {
-            vec_TPL3D_TRD_center[i_det][i_xyz] = new TPolyLine3D();
+            vec_TPL3D_TRD_center[i_det][i_xyz] = new TEveLine();
         }
     }
 
@@ -212,17 +224,16 @@ TBase_TRD_Calib::TBase_TRD_Calib()
     h_detector_hit            = new TH1D("h_detector_hit","h_detector_hit",540,0,540);
 
     vec_layer_in_fit.resize(7);
-    vec_tracklets_line = new TPolyLine3D();
 
 
     vec_digit_single_info.resize(14); // x,y,z,time,ADC,sector,stack,layer,row,column,dca,dca_x,dca_y,dca_z
     vec_track_single_info.resize(12); // dca,TPCdEdx,momentum,eta_track,pT_track,TOFsignal,Track_length,TRDsumADC,TRD_signal,nsigma_TPC_e,nsigma_TPC_pi,nsigma_TPC_p
 
-    TPM3D_single = new TPolyMarker3D();
+    TPM3D_single = new TEvePointSet();
     vec_TPM3D_digits.resize(6); // layers
     for(Int_t i_layer = 0; i_layer < 6; i_layer++)
     {
-        vec_TPM3D_digits[i_layer] = new TPolyMarker3D();
+        vec_TPM3D_digits[i_layer] = new TEvePointSet();
     }
 
     vec_tracklet_fit_points.resize(7); // layers 0-5, 6 = fit through first time cluster points of all layers
@@ -235,16 +246,152 @@ TBase_TRD_Calib::TBase_TRD_Calib()
         }
     }
 
-    TPL3D_helix = new TPolyLine3D();
-    fit_line    = new TPolyLine3D();
+    TPL3D_helix = new TEveLine();
+    fit_line    = new TEveLine();
+
+    fGeo = new AliTRDgeometry;
+    vec_eve_TRD_detector_box.resize(540);
+    vec_TV3_local_pos.resize(8);
+    TEveManager::Create();
+
+    for(Int_t TRD_detector = 0; TRD_detector < 540; TRD_detector++)
+    {
+        vec_eve_TRD_detector_box[TRD_detector] = new TEveBox;
+
+        Int_t flag_not_installed_TRD = 0;
+        for(Int_t i_not_installed = 0; i_not_installed < 19; i_not_installed++)
+        {
+            if(TRD_detector == Not_installed_TRD_detectors[i_not_installed])
+            {
+                flag_not_installed_TRD = 1;
+                break;
+            }
+        }
+        if(flag_not_installed_TRD) continue;
+
+
+        Int_t TRD_color = kGray+1;
+        Int_t flag_defect_TRD = 0;
+        for(Int_t i_defect = 0; i_defect < 84; i_defect++)
+        {
+            if(TRD_detector == Defect_TRD_detectors[i_defect])
+            {
+                flag_defect_TRD = 1;
+                break;
+            }
+        }
+        if(flag_defect_TRD)
+        {
+            TRD_color = kGreen+1;
+            //continue;
+        }
+
+
+        Int_t                TRD_sector         = fGeo         ->GetSector(TRD_detector);
+        Int_t                TRD_stack          = fGeo         ->GetStack(TRD_detector);
+        Int_t                TRD_layer          = fGeo         ->GetLayer(TRD_detector);
+        Float_t              TRD_time0          = fGeo         ->GetTime0(TRD_layer);
+
+        Float_t              TRD_chamber_length = fGeo->GetChamberLength(TRD_layer,TRD_stack);
+        Float_t              TRD_chamber_width  = fGeo->GetChamberWidth(TRD_layer);
+        Float_t              TRD_chamber_height = 8.4;
+
+        AliTRDpadPlane*      padplane           = fGeo         ->GetPadPlane(TRD_detector);
+        Double_t             TRD_col_end        = padplane     ->GetColEnd();
+        Double_t             TRD_row_end        = padplane     ->GetRowEnd();            // fPadRow[fNrows-1] - fLengthOPad + fPadRowSMOffset;
+        Double_t             TRD_col_start      = padplane     ->GetCol0();
+        Double_t             TRD_row_start      = padplane     ->GetRow0();              // fPadRow[0] + fPadRowSMOffset
+        Double_t             TRD_row_end_ROC    = padplane     ->GetRowEndROC();         // fPadRow[fNrows-1] - fLengthOPad;
+        Double_t             TRD_col_spacing    = padplane     ->GetColSpacing();
+        Double_t             TRD_row_spacing    = padplane     ->GetRowSpacing();
+
+        Double_t Rotation_angle     = ((360.0/18.0)/2.0) + ((Double_t)TRD_sector)*(360.0/18.0);
+
+        HistName = "TRD_box_";
+        HistName += TRD_detector;
+        vec_eve_TRD_detector_box[TRD_detector] ->SetName(HistName.Data());
+
+        Double_t             loc[3]           = {TRD_time0,0.0,(TRD_row_end + TRD_row_start)/2.0};
+        Double_t             glb[3]           = {0.0,0.0,0.0};
+        fGeo ->RotateBack(TRD_detector,loc,glb);
+
+        Double_t             locZ[3]           = {TRD_time0-50.0,0.0,(TRD_row_end + TRD_row_start)/2.0};
+        Double_t             glbZ[3]           = {0.0,0.0,0.0};
+        fGeo ->RotateBack(TRD_detector,locZ,glbZ);
+
+        Double_t             locX[3]           = {TRD_time0,50.0,(TRD_row_end + TRD_row_start)/2.0};
+        Double_t             glbX[3]           = {0.0,0.0,0.0};
+        fGeo ->RotateBack(TRD_detector,locX,glbX);
+
+        Double_t             locY[3]           = {TRD_time0,0.0,50.0+(TRD_row_end + TRD_row_start)/2.0};
+        Double_t             glbY[3]           = {0.0,0.0,0.0};
+        fGeo ->RotateBack(TRD_detector,locY,glbY);
+
+
+        combitrans[TRD_detector] = new TGeoCombiTrans();
+        combitrans[TRD_detector] ->RotateZ(Rotation_angle + 90.0);
+        combitrans[TRD_detector] ->SetTranslation(glb[0],glb[1],glb[2]);
+
+        vec_TV3_local_pos[0].SetXYZ(-TRD_chamber_width/2.0,-TRD_chamber_height/2.0,-TRD_chamber_length/2.0);
+        vec_TV3_local_pos[1].SetXYZ(TRD_chamber_width/2.0,-TRD_chamber_height/2.0,-TRD_chamber_length/2.0);
+        vec_TV3_local_pos[2].SetXYZ(TRD_chamber_width/2.0,TRD_chamber_height/2.0,-TRD_chamber_length/2.0);
+        vec_TV3_local_pos[3].SetXYZ(-TRD_chamber_width/2.0,TRD_chamber_height/2.0,-TRD_chamber_length/2.0);
+        vec_TV3_local_pos[4].SetXYZ(-TRD_chamber_width/2.0,-TRD_chamber_height/2.0,TRD_chamber_length/2.0);
+        vec_TV3_local_pos[5].SetXYZ(TRD_chamber_width/2.0,-TRD_chamber_height/2.0,TRD_chamber_length/2.0);
+        vec_TV3_local_pos[6].SetXYZ(TRD_chamber_width/2.0,TRD_chamber_height/2.0,TRD_chamber_length/2.0);
+        vec_TV3_local_pos[7].SetXYZ(-TRD_chamber_width/2.0,TRD_chamber_height/2.0,TRD_chamber_length/2.0);
+
+        vec_eve_TRD_detector_box[TRD_detector]->SetMainColor(kCyan);
+        vec_eve_TRD_detector_box[TRD_detector]->SetMainTransparency(80);
+        for(Int_t i_vertex = 0; i_vertex < 8; i_vertex++)
+        {
+            Double_t arr_pos_loc[3] = {vec_TV3_local_pos[i_vertex][0],vec_TV3_local_pos[i_vertex][1],vec_TV3_local_pos[i_vertex][2]};
+            Double_t arr_pos_glb[3] = {0.0,0.0,0.0};
+            combitrans[TRD_detector] ->LocalToMaster(arr_pos_loc,arr_pos_glb);
+            /*
+            arr_pos_glb[0] += glb[0];
+            arr_pos_glb[1] += glb[1];
+            arr_pos_glb[2] += glb[2];
+            */
+            if(TRD_detector == 106)
+            {
+                printf("i_vertex: %d, pos: {%4.3f, %4.3f, %4.3f} \n",i_vertex,arr_pos_glb[0],arr_pos_glb[1],arr_pos_glb[2]);
+
+                cout << "TRD_detector: " << TRD_detector << ", Rotation_angle: " << Rotation_angle << ", sector: " << TRD_sector
+                    << ", length: " << TRD_chamber_length << ", width: " << TRD_chamber_width << ", height: " << TRD_chamber_height
+                    << ", layer: " << TRD_layer << ", stack: " << TRD_stack << ", time0: " << TRD_time0
+                    << ", loc = {" << loc[0] << ", " << loc[1] << ", " << loc[2] << "}"
+                    << ", glb = {" << glb[0] << ", " << glb[1] << ", " << glb[2] << "}" << ", TRD_col_end: " << TRD_col_end << endl;
+
+            }
+
+            vec_eve_TRD_detector_box[TRD_detector]->SetVertex(i_vertex,arr_pos_glb[0],arr_pos_glb[1],arr_pos_glb[2]);
+        }
+
+
+        vec_TV3_TRD_center[TRD_detector][0].SetXYZ(glbX[0]-glb[0],glbX[1]-glb[1],glbX[2]-glb[2]);
+        vec_TV3_TRD_center[TRD_detector][1].SetXYZ(glbY[0]-glb[0],glbY[1]-glb[1],glbY[2]-glb[2]);
+        vec_TV3_TRD_center[TRD_detector][2].SetXYZ(glbZ[0]-glb[0],glbZ[1]-glb[1],glbZ[2]-glb[2]);
+
+    }
+
+    for(Int_t TRD_detector = 0; TRD_detector < 540; TRD_detector++)
+    {
+        gEve->AddElement(vec_eve_TRD_detector_box[TRD_detector]);
+    }
+    gEve->Redraw3D(kTRUE);
+
+
+    vec_tracklets_line_2D.resize(7);
 
     //vec_tracklets_line.resize(6);
     //for (Int_t i_layer = 0; i_layer < 6; i_layer++)
     //{
-    //    vec_tracklets_line[i_layer] = new TPolyLine3D();
+    //    vec_tracklets_line[i_layer] = new TEveLine();
     //}
 
     // TRD 3D graphics
+    /*
     fGeo = new AliTRDgeometry;
     geom         = new TGeoManager("geom","My 3D Project");
     vacuum       = new TGeoMaterial("vacuum",0,0,0);
@@ -277,21 +424,21 @@ TBase_TRD_Calib::TBase_TRD_Calib()
     top->AddNodeOverlap(inner_field_tube,1,new TGeoTranslation(0,0,0));
     top->AddNodeOverlap(outer_field_tube,1,new TGeoTranslation(0,0,0));
 
-    z_BeamLine    = new TPolyLine3D(2);
+    z_BeamLine    = new TEveLine(2);
     z_BeamLine    ->SetPoint(0,0,0,-550);
     z_BeamLine    ->SetPoint(1,0,0,550);
     z_BeamLine    ->SetLineStyle(0);
     z_BeamLine    ->SetLineColor(kBlue);
     z_BeamLine    ->SetLineWidth(2);
 
-    x_BeamLine    = new TPolyLine3D(2);
+    x_BeamLine    = new TEveLine(2);
     x_BeamLine    ->SetPoint(0,0,0,0);
     x_BeamLine    ->SetPoint(1,50.0,0,0);
     x_BeamLine    ->SetLineStyle(0);
     x_BeamLine    ->SetLineColor(kGreen);
     x_BeamLine    ->SetLineWidth(2);
 
-    y_BeamLine    = new TPolyLine3D(2);
+    y_BeamLine    = new TEveLine(2);
     y_BeamLine    ->SetPoint(0,0,0,0);
     y_BeamLine    ->SetPoint(1,0,50.0,0);
     y_BeamLine    ->SetLineStyle(0);
@@ -408,6 +555,7 @@ TBase_TRD_Calib::TBase_TRD_Calib()
         top->AddNodeOverlap(TRD_boxes[TRD_detector],1,combitrans[TRD_detector]);
 
     }
+    */
 }
 //----------------------------------------------------------------------------------------
 
@@ -677,7 +825,7 @@ void TBase_TRD_Calib::make_plots_ADC(Int_t i_track)
         //cout << "N_pads_x: " << N_pads_x << endl;
         //cout << "N_pads_y: " << N_pads_y << endl;
 
-        for (Int_t i_pad = 0; i_pad < N_digits_per_layer[i_layer]; i_pad++)
+        for(Int_t i_pad = 0; i_pad < N_digits_per_layer[i_layer]; i_pad++)
         {
             ADC_vs_time[i_layer]->cd(i_pad+1)->SetTicks(1,1);
             //cout << "Test 11" << endl;
@@ -703,14 +851,14 @@ void TBase_TRD_Calib::make_plots_ADC(Int_t i_track)
 }
 
 //----------------------------------------------------------------------------------------
-TPolyLine3D* TBase_TRD_Calib::get_straight_line_fit(Int_t i_track)
+TEveLine* TBase_TRD_Calib::get_straight_line_fit(Int_t i_track)
 {
     printf("TBase_TRD_Calib::get_straight_line_fit((%d) \n",i_track);
 
     //fit merged digits with a straight line
 
     TGraph2D*    tg_cluster_points              = new TGraph2D();
-    TPolyLine3D* digits_fit_line = new TPolyLine3D();
+    TEveLine* digits_fit_line = new TEveLine();
 
     // Fill the 2D graph
     Double_t p0[4] = {10,20,1,2};
@@ -722,9 +870,10 @@ TPolyLine3D* TBase_TRD_Calib::get_straight_line_fit(Int_t i_track)
     for(Int_t i_layer = 0; i_layer < 6; i_layer++)
     {
         //printf("i_layer: %d \n",i_layer);
-        if(vec_Dt_digit_pos_cluster[i_layer][0][0] != 0 && vec_Dt_digit_pos_cluster[i_layer][0][1] != 0 && vec_Dt_digit_pos_cluster[i_layer][0][2] != 0)
+        if(vec_Dt_digit_pos_cluster[i_layer][0][0] != -999.0 && vec_Dt_digit_pos_cluster[i_layer][0][1] != -999.0 && vec_Dt_digit_pos_cluster[i_layer][0][2] != -999.0)
         {
             tg_cluster_points->SetPoint(i_layer_notempty,vec_Dt_digit_pos_cluster[i_layer][0][0],vec_Dt_digit_pos_cluster[i_layer][0][1],vec_Dt_digit_pos_cluster[i_layer][0][2]);
+            //printf("i_layer: %d, point: {%4.3f, %4.3f, %4.3f} \n",i_layer,vec_Dt_digit_pos_cluster[i_layer][0][0],vec_Dt_digit_pos_cluster[i_layer][0][1],vec_Dt_digit_pos_cluster[i_layer][0][2]);
             //dt->SetPointError(N,0,0,err);
             //Double_t* point = tg_cluster_points->GetX();
             //cout << "layer: " <<  i_layer  << endl;
@@ -762,12 +911,12 @@ TPolyLine3D* TBase_TRD_Calib::get_straight_line_fit(Int_t i_track)
     printf("point end: {%4.3f, %4.3f, %4.3f} \n",a1[0],a1[1],a1[2]);
 
 #if 0
-    TPolyLine3D* digits_fit_line_init = new TPolyLine3D();
+    TEveLine* digits_fit_line_init = new TEveLine();
     digits_fit_line_init ->SetNextPoint(a0[0],a0[1],a0[2]);
     digits_fit_line_init ->SetNextPoint(a1[0],a1[1],a1[2]);
     digits_fit_line_init ->SetLineColor(kMagenta);
     digits_fit_line_init ->SetLineWidth(3);
-    digits_fit_line_init ->DrawClone("ogl");
+    //digits_fit_line_init ->DrawClone("ogl");
 #endif
 
 
@@ -873,12 +1022,16 @@ TPolyLine3D* TBase_TRD_Calib::get_straight_line_fit(Int_t i_track)
         }
         if(TV3_line_point.Perp() > 300.0 && TV3_line_point.Perp() < 380.0 && distance < 10.0)
         {
-            digits_fit_line->SetPoint(i_point,x,y,z);
-            //printf("point line: {%4.3f, %4.3f, %4.3f} \n",x,y,z);
+            digits_fit_line->SetNextPoint(x,y,z);
+            printf("point line: {%4.3f, %4.3f, %4.3f} \n",x,y,z);
             i_point++;
         }
     }
-    digits_fit_line->SetLineColor(kRed);
+
+    digits_fit_line ->SetLineStyle(1);
+    digits_fit_line ->SetLineWidth(3);
+    digits_fit_line ->SetLineColor(kGreen);
+    gEve ->AddElement(digits_fit_line);
     //digits_fit_line->Draw("same");
 
     return digits_fit_line;
@@ -892,11 +1045,6 @@ TPolyLine3D* TBase_TRD_Calib::get_straight_line_fit(Int_t i_track)
 void TBase_TRD_Calib::Draw_line(Int_t i_track)
 {
     fit_line = get_straight_line_fit(i_track);
-
-    fit_line    ->SetLineStyle(0);
-    fit_line    ->SetLineColor(kRed);
-    fit_line    ->SetLineWidth(2);
-    //fit_line    ->DrawClone("ogl");
 }
 //----------------------------------------------------------------------------------------
 
@@ -954,8 +1102,29 @@ void TBase_TRD_Calib::get_tracklets_fit(Int_t i_track)
     }
 
     //loop over layers
+
+    Double_t layer_dist_min_max[7][2] =
+    {
+        {280.0,290.0},
+        {290.0,300.0},
+        {300.0,310.0},
+        {310.0,320.0},
+        {320.0,330.0},
+        {330.0,340.0},
+        {290.0,380.0},
+    };
+
+
+    Double_t delta_layer = 12.5;
+
     for(Int_t i_layer = 0; i_layer < 7; i_layer++)
     {
+        if(i_layer < 6)
+        {
+            layer_dist_min_max[i_layer][0] = 295.0 + i_layer*delta_layer;
+            layer_dist_min_max[i_layer][1] = 307.0 + i_layer*delta_layer;
+        }
+
         global_layer = i_layer;
 
 #if 0
@@ -1003,7 +1172,7 @@ void TBase_TRD_Calib::get_tracklets_fit(Int_t i_track)
         //printf("point end: {%4.3f, %4.3f, %4.3f} \n",a1[0],a1[1],a1[2]);
 
 #if 0
-        TPolyLine3D* digits_fit_line_init = new TPolyLine3D();
+        TEveLine* digits_fit_line_init = new TEveLine();
         digits_fit_line_init ->SetNextPoint(a0[0],a0[1],a0[2]);
         digits_fit_line_init ->SetNextPoint(a1[0],a1[1],a1[2]);
         digits_fit_line_init ->SetLineColor(kMagenta);
@@ -1102,7 +1271,7 @@ void TBase_TRD_Calib::get_tracklets_fit(Int_t i_track)
         vec_AB[1].SetXYZ(-999.0,-999.0,-999.0);
         vec_AB_2D[0].SetXYZ(-999.0,-999.0,-999.0);
         vec_AB_2D[1].SetXYZ(-999.0,-999.0,-999.0);
-        for(int i = 0; i <n; ++i)
+        for(int i = 0; i < n; ++i)
         {
             Double_t t = t0 + dt*i;
             Double_t x,y,z;
@@ -1121,7 +1290,8 @@ void TBase_TRD_Calib::get_tracklets_fit(Int_t i_track)
                 if(distance_layer < distance) distance = distance_layer;
             }
             //printf("perp: %4.3f, distance: %4.3f \n",TV3_line_point.Perp(),distance);
-            if(TV3_line_point.Perp() > 270.0 && TV3_line_point.Perp() < 380.0 && distance < 100.0)  // 100 just in case
+            //if(TV3_line_point.Perp() > 270.0 && TV3_line_point.Perp() < 380.0 && distance < 100.0)  // 100 just in case
+            if(TV3_line_point.Perp() > layer_dist_min_max[i_layer][0] && TV3_line_point.Perp() < layer_dist_min_max[i_layer][1] && distance < 100.0)  // 100 just in case
             {
                 if(i_point == 0)
                 {
@@ -1166,22 +1336,22 @@ void TBase_TRD_Calib::get_tracklets_fit(Int_t i_track)
 
 
 //----------------------------------------------------------------------------------------
-void TBase_TRD_Calib::Draw_tracklets_line(Int_t i_track)
+void TBase_TRD_Calib::Draw_tracklets_line_2D(Int_t i_track)
 {
     get_tracklets_fit(i_track);
 
-    for(Int_t i_layer = 0; i_layer < 7; i_layer++)
+    for(Int_t i_layer = 0; i_layer < 7; i_layer++) // 6 layers + global fit
     {
         if(vec_tracklet_fit_points[i_layer][0][0] > -999.0 && vec_tracklet_fit_points[i_layer][1][0] > -999.0)
         {
-            vec_tracklets_line ->SetPoint(0,vec_tracklet_fit_points[i_layer][0][0],vec_tracklet_fit_points[i_layer][0][1],vec_tracklet_fit_points[i_layer][0][2]);
-            vec_tracklets_line ->SetPoint(1,vec_tracklet_fit_points[i_layer][1][0],vec_tracklet_fit_points[i_layer][1][1],vec_tracklet_fit_points[i_layer][1][2]);
-            //printf("i_layer_notemtpy: %d, layer: %d \n",i_layer_notempty,vec_layer_in_fit[i_layer_notempty]);
-            vec_tracklets_line ->SetLineStyle(1);
-            vec_tracklets_line ->SetLineColor(color_layer[i_layer]);
-            vec_tracklets_line ->SetLineWidth(line_width_layer[i_layer]);
-            vec_tracklets_line ->DrawClone("ogl");
-            //printf("i_layer: %d \n", i_layer);
+            vec_tracklets_line_2D[i_layer] = new TPolyLine();
+            vec_tracklets_line_2D[i_layer] ->SetNextPoint(vec_tracklet_fit_points[i_layer][0][0],vec_tracklet_fit_points[i_layer][0][1]);
+            vec_tracklets_line_2D[i_layer] ->SetNextPoint(vec_tracklet_fit_points[i_layer][1][0],vec_tracklet_fit_points[i_layer][1][1]);
+            vec_tracklets_line_2D[i_layer] ->SetLineStyle(1);
+            vec_tracklets_line_2D[i_layer] ->SetLineColor(color_layer[i_layer]);
+            vec_tracklets_line_2D[i_layer] ->SetLineWidth(line_width_layer[i_layer]);
+            vec_tracklets_line_2D[i_layer] ->DrawClone("l");
+            printf("i_layer tracklets line: %d \n", i_layer);
         }
         else
         {
@@ -1191,10 +1361,49 @@ void TBase_TRD_Calib::Draw_tracklets_line(Int_t i_track)
 }
 //----------------------------------------------------------------------------------------
 
+
+
 //----------------------------------------------------------------------------------------
-TPolyLine3D* TBase_TRD_Calib::get_helix_polyline(Int_t i_track)
+void TBase_TRD_Calib::Draw_tracklets_line(Int_t i_track)
 {
-    TPolyLine3D* TPL3D_helix_track = new TPolyLine3D();
+    get_tracklets_fit(i_track);
+
+    for(Int_t i_layer = 0; i_layer < 7; i_layer++) // 6 layers + global fit
+    {
+        if(vec_tracklet_fit_points[i_layer][0][0] > -999.0 && vec_tracklet_fit_points[i_layer][1][0] > -999.0)
+        {
+            if(vec_tracklets_line) delete vec_tracklets_line;
+            vec_tracklets_line = new TEveLine();
+            //vec_tracklets_line ->Clear();
+            HistName = "tracklet_track";
+            HistName += i_track;
+            HistName += "_layer";
+            HistName += i_layer;
+            vec_tracklets_line ->SetName(HistName.Data());
+            vec_tracklets_line ->SetNextPoint(vec_tracklet_fit_points[i_layer][0][0],vec_tracklet_fit_points[i_layer][0][1],vec_tracklet_fit_points[i_layer][0][2]);
+            vec_tracklets_line ->SetNextPoint(vec_tracklet_fit_points[i_layer][1][0],vec_tracklet_fit_points[i_layer][1][1],vec_tracklet_fit_points[i_layer][1][2]);
+            //printf("i_layer_notemtpy: %d, layer: %d \n",i_layer_notempty,vec_layer_in_fit[i_layer_notempty]);
+            vec_tracklets_line ->SetLineStyle(1);
+            vec_tracklets_line ->SetLineColor(color_layer[i_layer]);
+            vec_tracklets_line ->SetLineWidth(line_width_layer[i_layer]);
+            //vec_tracklets_line ->DrawClone("ogl");
+            gEve->AddElement((TEveLine*)vec_tracklets_line->Clone());
+            printf("i_layer tracklets line: %d \n", i_layer);
+        }
+        else
+        {
+            printf("TBase_TRD_Calib::Draw_tracklets_line(%d), i_layer: %d has no entry \n",i_track,i_layer);
+        }
+    }
+}
+//----------------------------------------------------------------------------------------
+
+
+
+//----------------------------------------------------------------------------------------
+TEveLine* TBase_TRD_Calib::get_helix_polyline(Int_t i_track)
+{
+    TEveLine* TPL3D_helix_track = new TEveLine();
     AS_Track      = AS_Event ->getTrack( i_track ); // take the track
     for(Int_t i_param = 0; i_param < 9; i_param++)
     {
@@ -1210,8 +1419,8 @@ TPolyLine3D* TBase_TRD_Calib::get_helix_polyline(Int_t i_track)
         aliHelix.Evaluate(pathA,helix_point);
 
         radius = TMath::Sqrt(TMath::Power(helix_point[0],2.0) + TMath::Power(helix_point[1],2.0));
-        TPL3D_helix_track ->SetPoint(i_step,helix_point[0],helix_point[1],helix_point[2]);
-        //printf("i_step: %d, pos: {%4.3f, %4.3f, %4.3f} \n",i_step,helix_point[0],helix_point[1],helix_point[2]);
+        TPL3D_helix_track ->SetNextPoint(helix_point[0],helix_point[1],helix_point[2]);
+        //printf("i_step: %d, pos: {%4.3f, %4.3f, %4.3f}, radius: %4.3f \n",i_step,helix_point[0],helix_point[1],helix_point[2],radius);
         if(radius > 368.0) break;
     }
 
@@ -1222,14 +1431,97 @@ TPolyLine3D* TBase_TRD_Calib::get_helix_polyline(Int_t i_track)
 
 
 //----------------------------------------------------------------------------------------
+TPolyLine* TBase_TRD_Calib::get_helix_polyline_2D(Int_t i_track)
+{
+    printf("TBase_TRD_Calib::get_helix_polyline_2D \n");
+    TPolyLine* TPL_helix_track = new TPolyLine();
+    AS_Track      = AS_Event ->getTrack( i_track ); // take the track
+    for(Int_t i_param = 0; i_param < 9; i_param++)
+    {
+        aliHelix.fHelix[i_param] = AS_Track ->getHelix_param(i_param);
+    }
+
+    Double_t helix_point[3];
+    Double_t pathA = 0.0;
+    Double_t radius = 0.0;
+    for(Int_t i_step = 0; i_step < 400; i_step++)
+    {
+        pathA = i_step*3.0;
+        aliHelix.Evaluate(pathA,helix_point);
+
+        radius = TMath::Sqrt(TMath::Power(helix_point[0],2.0) + TMath::Power(helix_point[1],2.0));
+        if(radius < 250.0) continue;
+        TPL_helix_track ->SetNextPoint(helix_point[0],helix_point[1]);
+        //printf("i_step: %d, pos: {%4.3f, %4.3f, %4.3f}, radius: %4.3f \n",i_step,helix_point[0],helix_point[1],helix_point[2],radius);
+        if(radius > 368.0) break;
+    }
+    return TPL_helix_track;
+}
+//----------------------------------------------------------------------------------------
+
+
+
+//----------------------------------------------------------------------------------------
 void TBase_TRD_Calib::Draw_track(Int_t i_track)
 {
+    printf("TBase_TRD_Calib::Draw_track \n");
     TPL3D_helix = get_helix_polyline(i_track);
 
-    TPL3D_helix    ->SetLineStyle(0);
-    TPL3D_helix    ->SetLineColor(kRed);
+    TPL3D_helix    ->SetLineStyle(1);
+    //TPL3D_helix    ->SetLineColor(kRed);
     TPL3D_helix    ->SetLineWidth(5);
     TPL3D_helix    ->DrawClone("ogl");
+    TPL3D_helix->SetMainColor(kRed);
+    gEve->AddElement(TPL3D_helix);
+}
+//----------------------------------------------------------------------------------------
+
+
+
+//----------------------------------------------------------------------------------------
+void TBase_TRD_Calib::Draw_2D_track(Int_t i_track)
+{
+    printf("TBase_TRD_Calib::Draw_2D_track \n");
+
+    TPL_helix = get_helix_polyline_2D(i_track);
+
+    Int_t n_points   = TPL_helix->GetN();
+    Double_t *x_vals = TPL_helix->GetX();
+    Double_t *y_vals = TPL_helix->GetY();
+
+    Double_t x_start, y_start, x_stop, y_stop;
+
+    Int_t n_points_use = 0;
+    for(Int_t i_point = 0; i_point < n_points; i_point++)
+    {
+        if(x_vals[i_point] == 0.0 && y_vals[i_point] == 0.0) continue;
+        if(n_points_use == 0)
+        {
+            x_start = x_vals[i_point];
+            x_stop  = x_vals[i_point];
+            y_start = y_vals[i_point];
+            y_stop  = y_vals[i_point];
+        }
+        else
+        {
+            if(x_vals[i_point] < x_start) x_start = x_vals[i_point];
+            if(y_vals[i_point] < y_start) y_start = y_vals[i_point];
+            if(x_vals[i_point] > x_stop)  x_stop = x_vals[i_point];
+            if(y_vals[i_point] > y_stop)  y_stop = y_vals[i_point];
+        }
+        n_points_use++;
+        //printf("i_point: %d, pos: {%4.3f, %4.3f} \n",i_point,x_vals[i_point],y_vals[i_point]);
+    }
+
+    TCanvas* can_2D_track = new TCanvas("can_2D_track","can_2D_track",10,10,600,600);
+    can_2D_track ->cd();
+    TH1F* h_frame = can_2D_track->cd()->DrawFrame(x_start-5.0,y_start-5.0,x_stop+5.0,y_stop+5.0,"h_frame");
+
+    TPL_helix ->SetLineColor(kRed);
+    TPL_helix ->SetLineStyle(1);
+    TPL_helix ->SetLineWidth(2);
+    TPL_helix ->DrawClone("l");
+
 }
 //----------------------------------------------------------------------------------------
 
@@ -1310,10 +1602,10 @@ void TBase_TRD_Calib::Draw_neighbor_tracks(Int_t i_track_sel)
 
     for(Int_t i_track_neighbor = 0; i_track_neighbor < (Int_t)vec_TPL3D_helix_neighbor.size(); i_track_neighbor++)
     {
-        vec_TPL3D_helix_neighbor[i_track_neighbor]  ->SetLineStyle(0);
-        vec_TPL3D_helix_neighbor[i_track_neighbor]  ->SetLineColor(kGreen+2);
-        vec_TPL3D_helix_neighbor[i_track_neighbor]  ->SetLineWidth(2);
-        vec_TPL3D_helix_neighbor[i_track_neighbor]  ->DrawClone("ogl");
+        vec_TPL3D_helix_neighbor[i_track_neighbor]->SetLineStyle(1);
+        vec_TPL3D_helix_neighbor[i_track_neighbor]->SetLineWidth(2);
+        vec_TPL3D_helix_neighbor[i_track_neighbor]->SetMainColor(kGreen);
+        gEve->AddElement(vec_TPL3D_helix_neighbor[i_track_neighbor]);
     }
 
 }
@@ -1415,7 +1707,7 @@ Int_t TBase_TRD_Calib::Loop_event(Long64_t event)
     for(Int_t i_layer = 0; i_layer < 6; i_layer++)
     {
         delete vec_TPM3D_digits[i_layer];
-        vec_TPM3D_digits[i_layer] = new TPolyMarker3D();
+        vec_TPM3D_digits[i_layer] = new TEvePointSet();
     }
 
     vec_TPL3D_tracklets.clear();
@@ -1429,6 +1721,8 @@ Int_t TBase_TRD_Calib::Loop_event(Long64_t event)
     Int_t    N_TRD_tracklets      = AS_Event ->getN_TRD_tracklets();
     Int_t    N_TRD_tracklets_offline = AS_Event ->getNumTracklets();
     Float_t  V0MEq                = AS_Event ->getcent_class_V0MEq();
+
+    printf("N_TRD_tracklets_offline: %d \n",N_TRD_tracklets_offline);
 
     N_Tracks = NumTracks;
 
@@ -1445,8 +1739,8 @@ Int_t TBase_TRD_Calib::Loop_event(Long64_t event)
     for(UShort_t i_tracklet = 0; i_tracklet < N_TRD_tracklets_offline; ++i_tracklet) // loop over all tracklets of the actual event
     {
         AS_Tracklet             = AS_Event    ->getTracklet( i_tracklet ); // take the track
-        TVector3 TV3_offset     = AS_Tracklet ->get_TV3_offset();
-        TVector3 TV3_dir        = AS_Tracklet ->get_TV3_dir();
+        TVector3 TV3_offset     = AS_Tracklet ->get_TV3_offset(); // online tracklets
+        TVector3 TV3_dir        = AS_Tracklet ->get_TV3_dir();    // online tracklets
         Short_t  i_det_tracklet = AS_Tracklet ->get_detector();
 
         vec_TV3_Tracklet_pos[i_det_tracklet].push_back(TV3_offset);
@@ -1465,7 +1759,9 @@ Int_t TBase_TRD_Calib::Loop_event(Long64_t event)
         };
         printf("i_tracklet: %d, out of %d, impact_angle: %4.3f, offset: {%4.3f, %4.3f, %4.3f}, end: {%4.3f, %4.3f, %4.3f} \n",i_tracklet,N_TRD_tracklets_offline,impact_angle*TMath::RadToDeg(),TV3_offset[0],TV3_offset[1],TV3_offset[2],TV3_offset[0] + TV3_dir[0],TV3_offset[1] + TV3_dir[1],TV3_offset[2] + TV3_dir[2]);
 
-        vec_TPL3D_tracklets.push_back(new TPolyLine3D(2,points));
+        vec_TPL3D_tracklets.push_back(new TEveLine());
+        vec_TPL3D_tracklets[(Int_t)vec_TPL3D_tracklets.size()-1] ->SetNextPoint((Float_t)(TV3_offset[0]),(Float_t)(TV3_offset[1]),(Float_t)(TV3_offset[2]));
+        vec_TPL3D_tracklets[(Int_t)vec_TPL3D_tracklets.size()-1] ->SetNextPoint((Float_t)(TV3_offset[0] + scale_factor_length*TV3_dir[0]),(Float_t)(TV3_offset[1] + scale_factor_length*TV3_dir[1]),(Float_t)(TV3_offset[2] + scale_factor_length*TV3_dir[2]));
     }
 
     // Loop over all tracks
@@ -1495,6 +1791,7 @@ Int_t TBase_TRD_Calib::Loop_event(Long64_t event)
         Float_t pT_track        = TLV_part.Pt();
         Float_t theta_track     = TLV_part.Theta();
 
+        printf("i_track: %d, pT: %4.3f \n",i_track,pT_track);
 
         vec_track_single_info[0]  = dca;
         vec_track_single_info[1]  = TPCdEdx;
@@ -1583,6 +1880,7 @@ Int_t TBase_TRD_Calib::Loop_event(Long64_t event)
 //----------------------------------------------------------------------------------------
 void TBase_TRD_Calib::Track_Tracklets()
 {
+    // for online tracklets -> track reconstruction
     printf("TBase_TRD_Calib::Track_Tracklets() \n");
 
     Double_t scale_factor_length = 8.0;
@@ -1596,7 +1894,7 @@ void TBase_TRD_Calib::Track_Tracklets()
             {
                 Int_t i_detector = i_layer + 6*i_stack + 6*5*i_sector;
 
-                if(!(i_detector >= 378 && i_detector <= 382)) continue;
+                //if(!(i_detector >= 378 && i_detector <= 382)) continue;
 
                 Int_t N_matches = 0;
                 for(Int_t i_tracklet = 0; i_tracklet < (Int_t)vec_TV3_Tracklet_pos[i_detector].size(); i_tracklet++)
@@ -1627,7 +1925,9 @@ void TBase_TRD_Calib::Track_Tracklets()
                                     (Float_t)(TV3_pos_B[0] + scale_factor_length*TV3_dir_B[0]),(Float_t)(TV3_pos_B[1] + scale_factor_length*TV3_dir_B[1]),(Float_t)(TV3_pos_B[2] + scale_factor_length*TV3_dir_B[2])
                                 };
 
-                                vec_TPL3D_tracklets_match.push_back(new TPolyLine3D(2,points));
+                                vec_TPL3D_tracklets_match.push_back(new TEveLine());
+                                vec_TPL3D_tracklets_match[(Int_t)vec_TPL3D_tracklets_match.size()-1] ->SetNextPoint((Float_t)(TV3_pos_B[0]),(Float_t)(TV3_pos_B[1]),(Float_t)(TV3_pos_B[2]));
+                                vec_TPL3D_tracklets_match[(Int_t)vec_TPL3D_tracklets_match.size()-1] ->SetNextPoint((Float_t)(TV3_pos_B[0] + scale_factor_length*TV3_dir_B[0]),(Float_t)(TV3_pos_B[1] + scale_factor_length*TV3_dir_B[1]),(Float_t)(TV3_pos_B[2] + scale_factor_length*TV3_dir_B[2]));
                                 printf("Match, detector: %d, detector B: %d, distance: %4.3f, projection: %4.3f, length: %4.3f \n",i_detector,i_detector_B,distance,projection,TV3_dir_B.Mag());
                             }
                         }
@@ -1655,9 +1955,9 @@ void TBase_TRD_Calib::Calibrate()
     }
 
     //for(Long64_t i_event = 0; i_event < file_entries_total; i_event++)
-    for(Long64_t i_event = 0; i_event < 50000; i_event++)
+    for(Long64_t i_event = 0; i_event < 170000; i_event++)
     {
-        printf("i_event: %lld out of %lld \n",i_event,file_entries_total);
+        if(i_event % 100 == 0) printf("i_event: %lld out of %lld \n",i_event,file_entries_total);
         if (!input_SE->GetEntry( i_event )) return 0; // take the event -> information is stored in event
 
         UShort_t NumTracks = AS_Event ->getNumTracks(); // number of tracks in this event
@@ -1682,13 +1982,15 @@ void TBase_TRD_Calib::Calibrate()
             Float_t TPCdEdx         = AS_Track ->getTPCdEdx();
             Float_t TOFsignal       = AS_Track ->getTOFsignal(); // in ps (1E-12 s)
             Float_t Track_length    = AS_Track ->getTrack_length();
+            Float_t Angle_on_TRD    = AS_Track ->getimpact_angle_on_TRD();
 
             Float_t momentum        = TLV_part.P();
             Float_t eta_track       = TLV_part.Eta();
             Float_t pT_track        = TLV_part.Pt();
             Float_t theta_track     = TLV_part.Theta();
 
-            if(pT_track < 3.0) continue;
+            if(pT_track < 4.5) continue;
+            if(dca > 0.0) continue;
 
             make_clusters(i_track);
             //get_straight_line_fit(i_track);
@@ -1699,6 +2001,8 @@ void TBase_TRD_Calib::Calibrate()
 
 
             if(vec_tracklet_fit_points[6][0][0] == -999.0  && vec_tracklet_fit_points[6][1][0] == -999.0) continue; // no global fit available
+
+            printf("Track with pT: %4.3f used for calibration \n",pT_track);
 
             Double_t impact_angle[6] = {0.0};
             Double_t delta_x_local_global[6] = {0.0}; // local chamber coordinate system, global fit
@@ -1715,9 +2019,10 @@ void TBase_TRD_Calib::Calibrate()
 
 
                     vec_TV3_tracklet_vectors[i_layer].SetXYZ(delta_x,delta_y,0.0);
+                    //printf("i_layer: %d, delta_x: %4.3f, delta_y: %4.3f \n",i_layer,delta_x,delta_y);
                     if(vec_TV3_tracklet_vectors[i_layer].Mag() <= 0.0)
                     {
-                        printf("A: {%4.3f, %4.3f}, B: {%4.3f, %4.3f} \n",vec_tracklet_fit_points[i_layer][1][0],vec_tracklet_fit_points[i_layer][1][1],vec_tracklet_fit_points[i_layer][0][0],vec_tracklet_fit_points[i_layer][0][1]);
+                        //printf("A: {%4.3f, %4.3f}, B: {%4.3f, %4.3f} \n",vec_tracklet_fit_points[i_layer][1][0],vec_tracklet_fit_points[i_layer][1][1],vec_tracklet_fit_points[i_layer][0][0],vec_tracklet_fit_points[i_layer][0][1]);
                         continue;
                     }
                     vec_TV3_tracklet_vectors[i_layer] *= 1.0/vec_TV3_tracklet_vectors[i_layer].Mag(); // Normalize
@@ -1740,7 +2045,7 @@ void TBase_TRD_Calib::Calibrate()
                             Double_t sign_direction_impactB = TMath::Sign(1.0,delta_x_local_global[i_layerB]);
                             impact_angle[i_layerB] = vec_TV3_tracklet_vectors[i_layer].Angle(vec_TV3_TRD_center[arr_layer_detector[i_layerB]][2]);
                             if(impact_angle[i_layerB] > TMath::Pi()*0.5) impact_angle[i_layerB] -= TMath::Pi();
-                            //printf("i_layerB: %d, impact_angle: %4.3f \n",i_layerB,impact_angle[i_layerB]*TMath::RadToDeg());
+                            printf("i_layerB: %d, 3D_Angle_on_TRD(TPC track): %4.3f, 2D_impact_angle: %4.3f \n",i_layerB,Angle_on_TRD*TMath::RadToDeg(),impact_angle[i_layerB]*TMath::RadToDeg());
                             impact_angle[i_layerB] = 0.5*TMath::Pi() - sign_direction_impactB*impact_angle[i_layerB];
                             //if(impact_angle[i_layerB]*TMath::RadToDeg() > 89.0 && impact_angle[i_layerB]*TMath::RadToDeg() < 91.0)
                             //{
@@ -1864,6 +2169,24 @@ void TBase_TRD_Calib::Calibrate()
         vec_tp_Delta_vs_impact[i_det] ->Write();
     }
 
+}
+//----------------------------------------------------------------------------------------
+
+
+
+//----------------------------------------------------------------------------------------
+void TBase_TRD_Calib::Draw_online_tracklets()
+{
+    printf("TBase_TRD_Calib::Draw_online_tracklets() \n");
+    for(Int_t i_tracklet = 0; i_tracklet < (Int_t)vec_TPL3D_tracklets.size(); i_tracklet++)
+    {
+        printf("Add tracklet: %d \n",i_tracklet);
+        vec_TPL3D_tracklets[i_tracklet]->SetLineStyle(1);
+        vec_TPL3D_tracklets[i_tracklet]->SetLineWidth(2);
+        vec_TPL3D_tracklets[i_tracklet]->SetMainColor(kOrange);
+        gEve->AddElement(vec_TPL3D_tracklets[i_tracklet]);
+    }
+    gEve->Redraw3D(kTRUE);
 }
 //----------------------------------------------------------------------------------------
 
