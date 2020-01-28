@@ -270,6 +270,38 @@ public:
 };
 
 
+
+class Ali_AS_Tracklet : public TObject
+{
+private:
+    // Tracklet properties
+    Short_t detector;
+    TVector3 TV3_offset;
+    TVector3 TV3_dir;
+
+public:
+    Ali_AS_Tracklet() :
+	detector(0), TV3_offset(), TV3_dir()
+    {
+    }
+        ~Ali_AS_Tracklet()
+        {
+        }
+
+	// setters
+        void set_detector(Short_t s)                     { detector = s;         }
+        void set_TV3_offset(TVector3 tv3)                { TV3_offset = tv3;     }
+        void set_TV3_dir(TVector3 tv3)                   { TV3_dir = tv3;        }
+
+	// getters
+	Short_t get_detector() const                     { return detector;         }
+        TVector3 get_TV3_offset() const                  { return TV3_offset;       }
+        TVector3 get_TV3_dir() const                     { return TV3_dir;          }
+
+        ClassDef(Ali_AS_Tracklet,1);  // A simple track of a particle
+};
+
+
 class Ali_AS_Event : public TObject
 {
 private:
@@ -299,22 +331,27 @@ private:
     TString TriggerWord; // Trigger word
 
     UShort_t      fNumTracks; // number of tracks in event
+    UShort_t      fNumTracklets; // number of tracks in event
 
     TClonesArray* fTracks;      //->
+    TClonesArray* fTracklets;      //->
 
 public:
     Ali_AS_Event() :
 	x(-1),y(-1),z(-1),id(-1),N_tracks(0),N_TRD_tracklets(0),
 	cent_class_ZNA(0),cent_class_ZNC(0),cent_class_V0A(0),cent_class_V0C(0),cent_class_V0M(0),cent_class_CL0(0),cent_class_CL1(0),
-        cent_class_SPD(0),cent_class_V0MEq(0),cent_class_V0AEq(0),cent_class_V0CEq(0),BeamIntAA(-1),T0zVertex(-1),TriggerWord(),fNumTracks(0),
+        cent_class_SPD(0),cent_class_V0MEq(0),cent_class_V0AEq(0),cent_class_V0CEq(0),BeamIntAA(-1),T0zVertex(-1),TriggerWord(),fNumTracks(0),fNumTracklets(0),
         ADC_sum_det()
     {
-	fTracks      = new TClonesArray( "Ali_AS_Track", 10 );
+        fTracks         = new TClonesArray( "Ali_AS_Track", 10 );
+        fTracklets      = new TClonesArray( "Ali_AS_Tracklet", 10 );
     }
 	~Ali_AS_Event()
 	{
 	    delete fTracks;
-	    fTracks = NULL;
+            fTracks = NULL;
+            delete fTracklets;
+	    fTracklets = NULL;
 	}
 
 	void       setx(Float_t r)                    { x = r;                         }
@@ -381,6 +418,7 @@ public:
         ULong64_t  getADC_sum_det(Int_t i_det) const   { return ADC_sum_det[i_det]; }
 
 
+        //----------------------------
 	Ali_AS_Track* createTrack()
 	{
 	    if (fNumTracks == fTracks->GetSize())
@@ -406,7 +444,38 @@ public:
 	Ali_AS_Track* getTrack(UShort_t i) const
 	{
 	    return i < fNumTracks ? (Ali_AS_Track*)((*fTracks)[i]) : NULL;
-}
+        }
+        //----------------------------
+
+
+        //----------------------------
+        Ali_AS_Tracklet* createTracklet()
+	{
+	    if (fNumTracklets == fTracklets->GetSize())
+		fTracklets->Expand( fNumTracklets + 10 );
+	    if (fNumTracklets >= 100000)
+	    {
+		Fatal( "Ali_AS_Event::createTracklet()", "ERROR: Too many tracklets (>100000)!" );
+		exit( 2 );
+	    }
+
+	    new((*fTracklets)[fNumTracklets++]) Ali_AS_Tracklet;
+	    return (Ali_AS_Tracklet*)((*fTracklets)[fNumTracklets - 1]);
+	}
+	void clearTrackletList()
+	{
+	    fNumTracklets   = 0;
+	    fTracklets      ->Clear();
+	}
+	UShort_t getNumTracklets() const
+	{
+	    return fNumTracklets;
+	}
+	Ali_AS_Tracklet* getTracklet(UShort_t i) const
+	{
+	    return i < fNumTracklets ? (Ali_AS_Tracklet*)((*fTracklets)[i]) : NULL;
+        }
+        //----------------------------
 
 ClassDef(Ali_AS_Event,1);  // A simple event compiled of tracks
 };
