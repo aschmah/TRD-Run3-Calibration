@@ -453,13 +453,13 @@ Int_t TGUI_TRD_Calib::Draw_2D_track()
     for(Int_t i_layer = 0; i_layer < 6; i_layer++)
     {
         vec_TPM_single_track_digit_layer[i_layer] ->SetMarkerColor(color_layer[i_layer]);
-        vec_TPM_single_track_digit_layer[i_layer] ->SetMarkerSize(0.5);
+        vec_TPM_single_track_digit_layer[i_layer] ->SetMarkerSize(0.7);
         vec_TPM_single_track_digit_layer[i_layer] ->SetMarkerStyle(24);
         vec_TPM_single_track_digit_layer[i_layer] ->Draw("");
     }
 
     TPM_cluster ->SetMarkerColor(kRed);
-    TPM_cluster ->SetMarkerSize(0.7);
+    TPM_cluster ->SetMarkerSize(0.9);
     TPM_cluster ->SetMarkerStyle(20);
     TPM_cluster ->Draw("");
 

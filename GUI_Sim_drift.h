@@ -1,5 +1,6 @@
 static Int_t i_detector_global = 0;
 static vector<TProfile*> vec_tp_Delta_vs_impact;
+static vector< vector<TProfile*> > vec_tp_Delta_vs_impact_all;
 static const Double_t l_drift = 0.03; // m 0.0335
 static const Double_t B_field = 0.5; // T = kg * s^-2 * A^-1
 static const Double_t delta_t = 0.1; // mus
@@ -18,7 +19,8 @@ TGraph* calc_Delta_alpha(Double_t B_field_use, Double_t E_field, Double_t v_drif
     TGraph* tg_delta_vs_angle_single = new TGraph();
 
     Double_t v_drift = 1.0*v_drift_use*1E06/100.0;
-    Double_t alpha_L = TMath::ATan(v_drift*B_field_use/E_field)*fudge_LorentzAngle*LA_use;
+    //Double_t alpha_L = TMath::ATan(v_drift*B_field_use/E_field)*fudge_LorentzAngle*LA_use;
+    Double_t alpha_L = fudge_LorentzAngle*LA_use;
     Double_t v_drift_vD = 1.0*vD_use*1E06/100.0; // m/s
 
     Int_t phi_counter = 0;
@@ -207,6 +209,11 @@ private:
     TGraph* tg_vD_fit_vs_det;
     TGraph* tg_vfit_vs_vOCDB;
     TGraph* tg_LA_factor_fit_vs_det;
+    TGraph* tg_ExB_vs_det;
+
+    vector< vector<TH1D*> > vec_h_diff_helix_line_impact_angle; // [all,-,+][540]
+
+    vector<TGraph*> vec_tg_chamber_ExB_vs_runid;
 
     TCanvas* can_vdrift_A;
     TCanvas* can_vdrift;
@@ -251,7 +258,7 @@ private:
 
 
     TGGroupFrame*  fGroupFrames[7];
-    TGCheckButton* fCheckBox_sel[3];
+    TGCheckButton* fCheckBox_sel[4];
 
 
     TGNumberEntry*     arr_NEntry_ana_params[4];
@@ -303,6 +310,7 @@ public:
     Int_t Draw_data();
     Int_t Draw3D_track();
     Int_t Calibrate();
+    void  Draw_helix_line_diff();
     ClassDef(GUI_Sim_drift, 0)
 };
 //---------------------------------------------------------------------------------
@@ -324,9 +332,19 @@ GUI_Sim_drift::GUI_Sim_drift() : TGMainFrame(gClient->GetRoot(), 100, 100)
     TGFont *myfont = gClient->GetFont("-adobe-helvetica-bold-r-*-*-12-*-*-*-*-*-iso8859-1");
     //-------------------------------------
 
+    vec_tg_chamber_ExB_vs_runid.resize(540);
     vec_tp_Delta_vs_impact.resize(540);
+    vec_tp_Delta_vs_impact_all.resize(3); // pos+neg,neg,pos
+    vec_tp_Delta_vs_impact_all[0].resize(540);
+    vec_tp_Delta_vs_impact_all[1].resize(540);
+    vec_tp_Delta_vs_impact_all[2].resize(540);
     tpm_track_drift.resize(N_time);
     tpm_track_drift_Lorentz.resize(N_time);
+    vec_h_diff_helix_line_impact_angle.resize(3); // [all,-,+]
+    for(Int_t i_charge = 0; i_charge < 3; i_charge++)
+    {
+        vec_h_diff_helix_line_impact_angle[i_charge].resize(540);
+    }
 
     tpm_track                 = new TPolyMarker();
     tpm_track_Lorentz         = new TPolyMarker();
@@ -394,8 +412,8 @@ GUI_Sim_drift::GUI_Sim_drift() : TGMainFrame(gClient->GetRoot(), 100, 100)
 
     //------------------------------------------------------------
     fGroupFrames[0] = new TGGroupFrame(Frame_Main, new TGString("Input"),kHorizontalFrame|kRaisedFrame);
-    TString label_checkbox[3] = {"Use slider","Use fit","C"};
-    for(Int_t i_cb = 0; i_cb < 3; i_cb++)
+    TString label_checkbox[4] = {"Use slider","Use fit","-","+"};
+    for(Int_t i_cb = 0; i_cb < 4; i_cb++)
     {
         fCheckBox_sel[i_cb]  = new TGCheckButton(fGroupFrames[0], new TGHotString(label_checkbox[i_cb].Data()), -1);
         //fCheckBox_sel[i_cb] ->SetState(kButtonDown);
@@ -453,6 +471,7 @@ GUI_Sim_drift::GUI_Sim_drift() : TGMainFrame(gClient->GetRoot(), 100, 100)
 
 
     LoadData();
+    Draw_helix_line_diff();
 }
 //---------------------------------------------------------------------------------
 
@@ -477,10 +496,37 @@ Int_t GUI_Sim_drift::LoadData()
     //---------------------------------------------------------
     // Read the data
     //TFile* input_data = TFile::Open("./Data/TRD_Calib.root");
-    TFile* input_data = TFile::Open("./Data/TRD_Calib_Zero.root");
+    //TFile* input_data = TFile::Open("./Data/TRD_Calib_Zero.root");
+    TFile* input_data[3];
+    //input_data[0]     = TFile::Open("./Data/TRD_Calib_All_170k.root");
+    input_data[0]     = TFile::Open("./Data/TRD_Calib_72k_5cl_rem.root");
+    //input_data[0]     = TFile::Open("./Data/TRD_Calib_TPC_impact.root");
+    input_data[1] = TFile::Open("./Data/TRD_Calib_All_170k_neg.root");
+    input_data[2] = TFile::Open("./Data/TRD_Calib_All_170k_pos.root");
+
+    for(Int_t i_charge = 0; i_charge < 3; i_charge++)
+    {
+        for(Int_t TRD_detector = 0; TRD_detector < 540; TRD_detector++)
+        {
+            HistName = "Delta_impact/vec_h_diff_helix_line_impact_angle_c_";
+            HistName += i_charge;
+            HistName += "_det_";
+            HistName += TRD_detector;
+            vec_h_diff_helix_line_impact_angle[i_charge][TRD_detector] = (TH1D*)input_data[0]->Get(HistName.Data());
+        }
+    }
+
+    for(Int_t i_file = 0; i_file < 3; i_file++)
+    {
+        for(Int_t i_det = 0; i_det < 540; i_det++)
+        {
+            vec_tp_Delta_vs_impact_all[i_file][i_det] = (TProfile*)input_data[i_file]->Get(Form("vec_th1d_Delta_vs_impact_%d",i_det));
+            vec_tp_Delta_vs_impact_all[i_file][i_det] ->SetName(Form("vec_th1d_Delta_vs_impact_%d_%d",i_det,i_file));
+        }
+    }
     for(Int_t i_det = 0; i_det < 540; i_det++)
     {
-        vec_tp_Delta_vs_impact[i_det] = (TProfile*)input_data->Get(Form("vec_th1d_Delta_vs_impact_%d",i_det));
+        vec_tp_Delta_vs_impact[i_det] = (TProfile*)input_data[0]->Get(Form("vec_th1d_Delta_vs_impact_%d",i_det));
     }
 
     TFile* input_vdrift_A = TFile::Open("./Data/vdrift_vs_det_265338.root");
@@ -528,11 +574,88 @@ Int_t GUI_Sim_drift::LoadData()
     tg_HV_anode_vs_det_A ->SetMarkerColor(kRed);
     tg_HV_anode_vs_det_A ->Draw("same P");
     tg_HV_anode_vs_det = (TGraph*)can_HVanode->FindObject("tg_HV_anode_vs_det");
+
+    Int_t run_id_use = 265525;
+    tg_ExB_vs_det = new TGraph();
+    TFile* input_OCDB_ExB = TFile::Open("/misc/alidata120/alice_u/schmah/TRD_QA/OCDB_out/TRD_ExB_values_y2016.root");
+    for(Int_t det = 0; det < 540; det++)
+    {
+        HistName = "vec_tg_chamber_ExB_vs_runid_";
+        HistName += det;
+        vec_tg_chamber_ExB_vs_runid[det] = (TGraph*)input_OCDB_ExB->Get(HistName.Data());
+
+        Int_t N_points = vec_tg_chamber_ExB_vs_runid[det]->GetN();
+        if(N_points <= 0) continue;
+
+        Double_t ExB_val = vec_tg_chamber_ExB_vs_runid[det]->Eval(run_id_use);
+        tg_ExB_vs_det ->SetPoint(det,det,ExB_val);
+    }
+    TCanvas* can_ExB = new TCanvas("can_ExB","can_ExB",10,10,500,500);
+    can_ExB ->cd();
+    tg_ExB_vs_det ->SetMarkerColor(kBlack);
+    tg_ExB_vs_det ->SetMarkerSize(1);
+    tg_ExB_vs_det ->SetMarkerStyle(20);
+    tg_ExB_vs_det ->Draw("AP");
     //---------------------------------------------------------
 
     return 1;
 }
 //---------------------------------------------------------------------------------
+
+
+
+//---------------------------------------------------------------------------------
+void GUI_Sim_drift::Draw_helix_line_diff()
+{
+    Int_t order_plot[4] = {0,1,3,5};
+    TCanvas* can_helix_line_diff = new TCanvas("can_helix_line_diff","can_helix_line_diff",10,10,1200,1200);
+    can_helix_line_diff ->Divide(2,2);
+    for(Int_t iPad = 0; iPad < 4; iPad++)
+    {
+        Int_t TRD_detector = order_plot[iPad];
+        can_helix_line_diff ->cd(iPad+1);
+        can_helix_line_diff ->cd(iPad+1)->SetTicks(1,1);
+        can_helix_line_diff ->cd(iPad+1)->SetGrid(0,0);
+        can_helix_line_diff ->cd(iPad+1)->SetFillColor(10);
+        can_helix_line_diff ->cd(iPad+1)->SetRightMargin(0.01);
+        can_helix_line_diff ->cd(iPad+1)->SetLeftMargin(0.2);
+        can_helix_line_diff ->cd(iPad+1)->SetBottomMargin(0.2);
+        can_helix_line_diff ->cd(iPad+1)->SetTopMargin(0.01);
+
+        vec_h_diff_helix_line_impact_angle[0][TRD_detector]->SetStats(0);
+        vec_h_diff_helix_line_impact_angle[0][TRD_detector]->SetTitle("");
+        vec_h_diff_helix_line_impact_angle[0][TRD_detector]->GetXaxis()->SetTitleOffset(1.0);
+        vec_h_diff_helix_line_impact_angle[0][TRD_detector]->GetYaxis()->SetTitleOffset(1.7);
+        vec_h_diff_helix_line_impact_angle[0][TRD_detector]->GetXaxis()->SetLabelSize(0.05);
+        vec_h_diff_helix_line_impact_angle[0][TRD_detector]->GetYaxis()->SetLabelSize(0.05);
+        vec_h_diff_helix_line_impact_angle[0][TRD_detector]->GetXaxis()->SetTitleSize(0.05);
+        vec_h_diff_helix_line_impact_angle[0][TRD_detector]->GetYaxis()->SetTitleSize(0.05);
+        vec_h_diff_helix_line_impact_angle[0][TRD_detector]->GetXaxis()->SetNdivisions(505,'N');
+        vec_h_diff_helix_line_impact_angle[0][TRD_detector]->GetYaxis()->SetNdivisions(505,'N');
+        vec_h_diff_helix_line_impact_angle[0][TRD_detector]->GetXaxis()->CenterTitle();
+        vec_h_diff_helix_line_impact_angle[0][TRD_detector]->GetYaxis()->CenterTitle();
+        vec_h_diff_helix_line_impact_angle[0][TRD_detector]->GetXaxis()->SetTitle("#Delta(#alpha_{fit},#alpha_{TPC}) (deg.)");
+        vec_h_diff_helix_line_impact_angle[0][TRD_detector]->GetYaxis()->SetTitle("counts");
+        vec_h_diff_helix_line_impact_angle[0][TRD_detector]->GetXaxis()->SetRangeUser(-5,5);
+
+
+        vec_h_diff_helix_line_impact_angle[0][TRD_detector] ->SetLineColor(kBlack);
+        vec_h_diff_helix_line_impact_angle[0][TRD_detector] ->DrawCopy("h");
+
+        vec_h_diff_helix_line_impact_angle[1][TRD_detector] ->SetLineColor(kRed+2);
+        vec_h_diff_helix_line_impact_angle[1][TRD_detector] ->SetFillColor(kRed);
+        vec_h_diff_helix_line_impact_angle[1][TRD_detector] ->SetFillStyle(3001);
+        vec_h_diff_helix_line_impact_angle[1][TRD_detector] ->DrawCopy("same h");
+
+        vec_h_diff_helix_line_impact_angle[2][TRD_detector] ->SetLineColor(kBlue+2);
+        vec_h_diff_helix_line_impact_angle[2][TRD_detector] ->SetFillColor(kBlue);
+        vec_h_diff_helix_line_impact_angle[2][TRD_detector] ->SetFillStyle(3001);
+        vec_h_diff_helix_line_impact_angle[2][TRD_detector] ->DrawCopy("same h");
+    }
+}
+//---------------------------------------------------------------------------------
+
+
 
 #if 1
 
@@ -563,7 +686,7 @@ Int_t GUI_Sim_drift::Do_Minimize_Single()
     i_detector_global = i_detector;
     TVirtualFitter *min = TVirtualFitter::Fitter(0,5);
     min->SetFCN(Chi2_TRD_vDrift);
-    Double_t pStart[5] = {B_field,HV_drift_in/l_drift,v_drift_in,1.56,1.0}; // B-field, E-field, v_drift, vD_drift (1.7 instead of 1.56)
+    Double_t pStart[5] = {B_field,HV_drift_in/l_drift,v_drift_in,1.56,0.134}; // B-field, E-field, v_drift, vD_drift (1.7 instead of 1.56)
     //Double_t pStart[4] = {B_field,HV_drift_in/l_drift,1.48,1.56}; // B-field, E-field, v_drift, vD_drift (1.7 instead of 1.56)
    
     // 73: 1.48  after fit: 1.269
@@ -688,7 +811,7 @@ Int_t GUI_Sim_drift::Do_Minimize()
 
             TVirtualFitter *min = TVirtualFitter::Fitter(0,5);
             min->SetFCN(Chi2_TRD_vDrift);
-            Double_t pStart[5] = {B_field,HV_drift_in/l_drift,v_drift_in,1.56,1.0}; // B-field, E-field, v_drift, vD_drift (1.7 insread of 1.56)
+            Double_t pStart[5] = {B_field,HV_drift_in/l_drift,v_drift_in,1.56,0.134}; // B-field, E-field, v_drift, vD_drift (1.7 insread of 1.56)
             //Double_t pStart[4] = {B_field,HV_drift_in/l_drift,v_drift_in-0.1,1.56}; // B-field, E-field, v_drift, vD_drift (1.7 insread of 1.56)
 
             min->SetParameter(0,"B_field",pStart[0],0.01,0,0);
@@ -857,7 +980,7 @@ Int_t GUI_Sim_drift::Draw_data()
     Double_t v_slider   = 0.1   + 0.1*vec_slider[0]->GetPosition();
     Double_t vD_slider  = 0.06  + 0.1*vec_slider[1]->GetPosition();
     Double_t UD_slider  = 500.0 + 100*vec_slider[2]->GetPosition();
-    Double_t LA_slider  = 0.0   + 0.1*vec_slider[3]->GetPosition();
+    Double_t LA_slider  = 0.0   + 0.01*vec_slider[3]->GetPosition();
 
     Double_t arr_param_val[5] = {v_slider,vD_slider,UD_slider,LA_slider,0.0};
 
@@ -906,6 +1029,8 @@ Int_t GUI_Sim_drift::Draw_data()
     Double_t HV_drift_in = -1.0;
     tg_HV_drift_vs_det ->GetPoint(i_detector,det,HV_drift_in);
     Double_t E_field = 1.0*(HV_drift_in/l_drift); // V/cm = kg * m * s^-3 * A^-1
+    Double_t ExB_in = -1.0;
+    tg_ExB_vs_det->GetPoint(i_detector,det,ExB_in);
 
     printf("detector: %d, v_drift: %4.3f, HV_drift: %4.3f \n",i_detector,v_drift_in,HV_drift_in);
 
@@ -927,7 +1052,7 @@ Int_t GUI_Sim_drift::Draw_data()
         v_drift_use = v_fit;
         vD_use      = vD_fit;
         E_field     = E_fit;
-        LA_factor   = 1.0;
+        LA_factor   = LA_factor_fit;
     }
 
 
@@ -943,7 +1068,8 @@ Int_t GUI_Sim_drift::Draw_data()
         //Double_t v_drift = 1.0*0.612*1E06/100.0*fac_v_drift; // m/s
         //Double_t v_drift = 0.7*1E06/100.0*fac_v_drift; // m/s
         Double_t v_drift = 1.0*v_drift_use*1E06/100.0;
-        Double_t alpha_L = TMath::ATan(v_drift*B_field/E_field)*fudge_LorentzAngle*LA_factor;
+        //Double_t alpha_L = TMath::ATan(v_drift*B_field/E_field)*fudge_LorentzAngle*LA_factor;
+        Double_t alpha_L = fudge_LorentzAngle*LA_factor;
         printf("alpha_L: %4.3f, v_drift: %4.6f, ref: %4.6f \n",alpha_L*TMath::RadToDeg(),v_drift,1.56*1E06/100.0);
         tg_delta_vs_angle.resize(v_counter+1);
         Int_t vD_counter = 0;
@@ -1202,12 +1328,33 @@ Int_t GUI_Sim_drift::Draw_data()
     vec_tp_Delta_vs_impact[i_detector] ->SetLineStyle(1);
     vec_tp_Delta_vs_impact[i_detector] ->Draw("same hl");
 
+    if(fCheckBox_sel[3]->GetState() == kButtonDown) // slider
+    {
+        vec_tp_Delta_vs_impact_all[2][i_detector] ->SetLineColor(kRed);
+        vec_tp_Delta_vs_impact_all[2][i_detector] ->SetLineWidth(2);
+        vec_tp_Delta_vs_impact_all[2][i_detector] ->SetLineStyle(1);
+        vec_tp_Delta_vs_impact_all[2][i_detector] ->Draw("same hl");
+    }
+
+    if(fCheckBox_sel[2]->GetState() == kButtonDown) // slider
+    {
+        vec_tp_Delta_vs_impact_all[1][i_detector] ->SetLineColor(kBlue);
+        vec_tp_Delta_vs_impact_all[1][i_detector] ->SetLineWidth(2);
+        vec_tp_Delta_vs_impact_all[1][i_detector] ->SetLineStyle(1);
+        vec_tp_Delta_vs_impact_all[1][i_detector] ->Draw("same hl");
+    }
+
+ 
+
 
     HistName = "";
     sprintf(NoP,"%4.0f",(Double_t)i_detector);
     HistName += NoP;
     HistName += ", v_{D} = ";
     sprintf(NoP,"%4.3f",v_drift_in);
+    HistName += NoP;
+    HistName += ", LA = ";
+    sprintf(NoP,"%4.3f",ExB_in);
     HistName += NoP;
     HistName += ", HV = ";
     sprintf(NoP,"%4.1f",HV_drift_in);
@@ -1223,8 +1370,8 @@ Int_t GUI_Sim_drift::Draw_data()
         HistName += ", vf_{D} = ";
         sprintf(NoP,"%4.3f",v_fit*fudge_vdrift);
         HistName += NoP;
-        HistName += ", HVf = ";
-        sprintf(NoP,"%4.1f",E_fit*l_drift);
+        HistName += ", LAf = ";
+        sprintf(NoP,"%4.3f",LA_factor*fudge_LorentzAngle);
         HistName += NoP;
         plotTopLegend((char*)HistName.Data(),0.24,0.85,0.045,kBlack,0.0,42,1,1); // char* label,Float_t x=-1,Float_t y=-1, Float_t size=0.06,Int_t color=1,Float_t angle=0.0, Int_t font = 42, Int_t NDC = 1, Int_t align = 1
     }

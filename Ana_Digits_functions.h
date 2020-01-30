@@ -467,7 +467,7 @@ void SumDistance2_tr(Int_t &, Double_t *, Double_t & sum, Double_t * par, Int_t 
 {
     sum = 0;
 
-    for(Int_t i = 0; i < (Int_t)vec_Dt_digit_pos_cluster[global_layer].size(); ++i)
+    for(Int_t i = 5; i < (Int_t)vec_Dt_digit_pos_cluster[global_layer].size(); ++i) // remove amplification region
     {
         if(vec_Dt_digit_pos_cluster[global_layer][i][3] == -999.0) continue;
         Double_t ADC_val = vec_Dt_digit_pos_cluster[global_layer][i][3];
@@ -482,7 +482,7 @@ void SumDistance2_X_tr(Int_t &, Double_t *, Double_t & sum, Double_t * par, Int_
 {
     sum = 0;
 
-    for(Int_t i = 0; i < (Int_t)vec_Dt_digit_pos_cluster[global_layer].size(); ++i)
+    for(Int_t i = 5; i < (Int_t)vec_Dt_digit_pos_cluster[global_layer].size(); ++i) // remove amplification region
     {
         if(vec_Dt_digit_pos_cluster[global_layer][i][3] == -999.0) continue;
         Double_t ADC_val = vec_Dt_digit_pos_cluster[global_layer][i][3];

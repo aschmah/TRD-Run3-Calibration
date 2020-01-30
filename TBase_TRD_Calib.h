@@ -90,6 +90,7 @@ private:
 
     vector<TEveLine*> vec_TPL3D_helix_neighbor;
     vector< vector<TEveLine*> > vec_TPL3D_TRD_center;
+    vector<TVector3> vec_TV3_TRD_center_offset; // 540 chambers
     vector< vector<TVector3> >     vec_TV3_TRD_center; // 540 chambers, 3 axes
 
     Int_t arr_layer_detector[6];
@@ -98,6 +99,7 @@ private:
 
     TH1D* h_delta_angle_perp_impact;
     TH1D* h_detector_hit;
+    vector< vector<TH1D*> > vec_h_diff_helix_line_impact_angle; // [all,-,+][540]
 
 
     // TRD offline Tracklets
@@ -151,6 +153,7 @@ private:
     vector<Int_t> vec_layer_in_fit;
     vector< vector< vector<Double_t> > > vec_tracklet_fit_points;
     vector<TProfile*> vec_tp_Delta_vs_impact;
+    vector<TH2D*> vec_TH2D_Delta_vs_impact;
 
 
 
@@ -200,6 +203,11 @@ TBase_TRD_Calib::TBase_TRD_Calib()
 
     vec_TV3_Tracklet_pos.resize(540);
     vec_TV3_Tracklet_dir.resize(540);
+    vec_h_diff_helix_line_impact_angle.resize(3); // [all,-,+]
+    for(Int_t i_charge = 0; i_charge < 3; i_charge++)
+    {
+        vec_h_diff_helix_line_impact_angle[i_charge].resize(540);
+    }
 
     // Standard time bins
     vec_merge_time_bins.resize(24+1);
@@ -210,6 +218,7 @@ TBase_TRD_Calib::TBase_TRD_Calib()
 
     vec_TPL3D_TRD_center.resize(540);
     vec_TV3_TRD_center.resize(540);
+    vec_TV3_TRD_center_offset.resize(540);
     for(Int_t i_det = 0; i_det < 540; i_det++)
     {
         vec_TPL3D_TRD_center[i_det].resize(3);
@@ -253,6 +262,18 @@ TBase_TRD_Calib::TBase_TRD_Calib()
     vec_eve_TRD_detector_box.resize(540);
     vec_TV3_local_pos.resize(8);
     TEveManager::Create();
+
+    for(Int_t i_charge = 0; i_charge < 3; i_charge++)
+    {
+        for(Int_t TRD_detector = 0; TRD_detector < 540; TRD_detector++)
+        {
+            HistName = "vec_h_diff_helix_line_impact_angle_c_";
+            HistName += i_charge;
+            HistName += "_det_";
+            HistName += TRD_detector;
+            vec_h_diff_helix_line_impact_angle[i_charge][TRD_detector] = new TH1D(HistName.Data(),HistName.Data(),100,-10.0,10.0);
+        }
+    }
 
     for(Int_t TRD_detector = 0; TRD_detector < 540; TRD_detector++)
     {
@@ -369,10 +390,17 @@ TBase_TRD_Calib::TBase_TRD_Calib()
         }
 
 
+        vec_TV3_TRD_center_offset[TRD_detector].SetXYZ(glb[0],glb[1],glb[2]);
+
         vec_TV3_TRD_center[TRD_detector][0].SetXYZ(glbX[0]-glb[0],glbX[1]-glb[1],glbX[2]-glb[2]);
         vec_TV3_TRD_center[TRD_detector][1].SetXYZ(glbY[0]-glb[0],glbY[1]-glb[1],glbY[2]-glb[2]);
         vec_TV3_TRD_center[TRD_detector][2].SetXYZ(glbZ[0]-glb[0],glbZ[1]-glb[1],glbZ[2]-glb[2]);
 
+    }
+
+    for(Int_t i_det = 0; i_det < 6; i_det++)
+    {
+        printf("layer: %i_det, radius: %4.3f cm \n",i_det,vec_TV3_TRD_center_offset[i_det].Perp());
     }
 
     for(Int_t TRD_detector = 0; TRD_detector < 540; TRD_detector++)
@@ -1515,7 +1543,27 @@ void TBase_TRD_Calib::Draw_2D_track(Int_t i_track)
 
     TCanvas* can_2D_track = new TCanvas("can_2D_track","can_2D_track",10,10,600,600);
     can_2D_track ->cd();
+    can_2D_track ->cd()->SetRightMargin(0.01);
+    can_2D_track ->cd()->SetTopMargin(0.01);
+    can_2D_track ->cd()->SetBottomMargin(0.2);
+    can_2D_track ->cd()->SetLeftMargin(0.2);
     TH1F* h_frame = can_2D_track->cd()->DrawFrame(x_start-5.0,y_start-5.0,x_stop+5.0,y_stop+5.0,"h_frame");
+    h_frame->SetStats(0);
+    h_frame->SetTitle("");
+    h_frame->GetXaxis()->SetTitleOffset(0.85);
+    h_frame->GetYaxis()->SetTitleOffset(1.0);
+    h_frame->GetXaxis()->SetLabelOffset(0.0);
+    h_frame->GetYaxis()->SetLabelOffset(0.01);
+    h_frame->GetXaxis()->SetLabelSize(0.05);
+    h_frame->GetYaxis()->SetLabelSize(0.05);
+    h_frame->GetXaxis()->SetTitleSize(0.05);
+    h_frame->GetYaxis()->SetTitleSize(0.05);
+    h_frame->GetXaxis()->SetNdivisions(505,'N');
+    h_frame->GetYaxis()->SetNdivisions(505,'N');
+    h_frame->GetXaxis()->CenterTitle();
+    h_frame->GetYaxis()->CenterTitle();
+    h_frame->GetXaxis()->SetTitle("x (cm)");
+    h_frame->GetYaxis()->SetTitle("y (cm)");
 
     TPL_helix ->SetLineColor(kRed);
     TPL_helix ->SetLineStyle(1);
@@ -1948,14 +1996,16 @@ void TBase_TRD_Calib::Calibrate()
     printf("TBase_TRD_Calib::Calibrate() \n");
 
     vec_tp_Delta_vs_impact.resize(540);
+    vec_TH2D_Delta_vs_impact.resize(540);
 
     for (Int_t i_det = 0; i_det < 540; i_det++)
     {
         vec_tp_Delta_vs_impact[i_det] = new TProfile(Form("vec_th1d_Delta_vs_impact_%d",i_det),Form("vec_th1d_Delta_vs_impact_%d",i_det),360,-360,360);
+        vec_TH2D_Delta_vs_impact[i_det] = new TH2D(Form("vec_th2d_Delta_vs_impact_%d",i_det),Form("vec_th2d_Delta_vs_impact_%d",i_det),10,70,110,50,-25,25);
     }
 
     //for(Long64_t i_event = 0; i_event < file_entries_total; i_event++)
-    for(Long64_t i_event = 0; i_event < 170000; i_event++)
+    for(Long64_t i_event = 0; i_event < 72000; i_event++)
     {
         if(i_event % 100 == 0) printf("i_event: %lld out of %lld \n",i_event,file_entries_total);
         if (!input_SE->GetEntry( i_event )) return 0; // take the event -> information is stored in event
@@ -1966,6 +2016,10 @@ void TBase_TRD_Calib::Calibrate()
         {
             //cout << "i_track: " << i_track << ", of " << NumTracks << endl;
             AS_Track      = AS_Event ->getTrack( i_track ); // take the track
+            TLorentzVector TLV_part = AS_Track ->get_TLV_part();
+            Float_t pT_track        = TLV_part.Pt();
+            if(pT_track < 3.5) continue;
+
             Double_t nsigma_TPC_e   = AS_Track ->getnsigma_e_TPC();
             Double_t nsigma_TPC_pi  = AS_Track ->getnsigma_pi_TPC();
             Double_t nsigma_TPC_p   = AS_Track ->getnsigma_p_TPC();
@@ -1974,7 +2028,6 @@ void TBase_TRD_Calib::Calibrate()
             Double_t TRD_signal     = AS_Track ->getTRDSignal();
             Double_t TRDsumADC      = AS_Track ->getTRDsumADC();
             Double_t dca            = AS_Track ->getdca();  // charge * distance of closest approach to the primary vertex
-            TLorentzVector TLV_part = AS_Track ->get_TLV_part();
             UShort_t NTPCcls        = AS_Track ->getNTPCcls();
             UShort_t NTRDcls        = AS_Track ->getNTRDcls();
             UShort_t NITScls        = AS_Track ->getNITScls();
@@ -1986,11 +2039,18 @@ void TBase_TRD_Calib::Calibrate()
 
             Float_t momentum        = TLV_part.P();
             Float_t eta_track       = TLV_part.Eta();
-            Float_t pT_track        = TLV_part.Pt();
             Float_t theta_track     = TLV_part.Theta();
 
-            if(pT_track < 4.5) continue;
-            if(dca > 0.0) continue;
+            //if(dca > 0.0) continue;
+
+
+            for(Int_t i_param = 0; i_param < 9; i_param++)
+            {
+                aliHelix.fHelix[i_param] = AS_Track ->getHelix_param(i_param);
+            }
+            Double_t pathA = 0.0;
+            Double_t helix_point[3];
+            Double_t helix_pointB[3];
 
             make_clusters(i_track);
             //get_straight_line_fit(i_track);
@@ -2002,7 +2062,7 @@ void TBase_TRD_Calib::Calibrate()
 
             if(vec_tracklet_fit_points[6][0][0] == -999.0  && vec_tracklet_fit_points[6][1][0] == -999.0) continue; // no global fit available
 
-            printf("Track with pT: %4.3f used for calibration \n",pT_track);
+            //printf("Track with pT: %4.3f used for calibration \n",pT_track);
 
             Double_t impact_angle[6] = {0.0};
             Double_t delta_x_local_global[6] = {0.0}; // local chamber coordinate system, global fit
@@ -2031,6 +2091,7 @@ void TBase_TRD_Calib::Calibrate()
                     // Calculate impact angles of global track to every single layer
                     if(i_layer == 6) // Global track
                     {
+                        Double_t path_offset = 0.0;
                         for(Int_t i_layerB = 0; i_layerB < 6; i_layerB++)
                         {
                             if(arr_layer_detector[i_layerB] < 0) continue;
@@ -2045,8 +2106,42 @@ void TBase_TRD_Calib::Calibrate()
                             Double_t sign_direction_impactB = TMath::Sign(1.0,delta_x_local_global[i_layerB]);
                             impact_angle[i_layerB] = vec_TV3_tracklet_vectors[i_layer].Angle(vec_TV3_TRD_center[arr_layer_detector[i_layerB]][2]);
                             if(impact_angle[i_layerB] > TMath::Pi()*0.5) impact_angle[i_layerB] -= TMath::Pi();
-                            printf("i_layerB: %d, 3D_Angle_on_TRD(TPC track): %4.3f, 2D_impact_angle: %4.3f \n",i_layerB,Angle_on_TRD*TMath::RadToDeg(),impact_angle[i_layerB]*TMath::RadToDeg());
+                            //printf("i_layerB: %d, 3D_Angle_on_TRD(TPC track): %4.3f, 2D_impact_angle: %4.3f \n",i_layerB,Angle_on_TRD*TMath::RadToDeg(),impact_angle[i_layerB]*TMath::RadToDeg());
                             impact_angle[i_layerB] = 0.5*TMath::Pi() - sign_direction_impactB*impact_angle[i_layerB];
+
+
+                            //---------------------------
+                            // Calculate impact angle based on track helix
+                            Double_t radius_layer = vec_TV3_TRD_center_offset[i_layerB].Perp();
+                            Double_t impact_angle_helix = -999.0;
+                            for(Int_t i_step = 0; i_step < 400; i_step++)
+                            {
+                                pathA = i_step*3.0 + path_offset;
+                                aliHelix.Evaluate(pathA,helix_point);
+                                Double_t radius_helix_point = TMath::Sqrt(TMath::Power(helix_point[0],2) + TMath::Power(helix_point[1],2));
+
+                                if(radius_helix_point > radius_layer)
+                                {
+                                    aliHelix.Evaluate(pathA+0.5,helix_pointB);
+                                    TVector3 dir_helix_impact_on_layer(helix_pointB[0] - helix_point[0],helix_pointB[1] - helix_point[1],0.0);
+                                    Double_t delta_x_local_global_helix = dir_helix_impact_on_layer.Dot(vec_TV3_TRD_center[arr_layer_detector[i_layerB]][0]);
+                                    Double_t sign_direction_impact_helix = TMath::Sign(1.0,delta_x_local_global_helix);
+                                    impact_angle_helix = dir_helix_impact_on_layer.Angle(vec_TV3_TRD_center[arr_layer_detector[i_layerB]][2]);
+                                    if(impact_angle_helix > TMath::Pi()*0.5) impact_angle_helix -= TMath::Pi();
+                                    impact_angle_helix = 0.5*TMath::Pi() - sign_direction_impact_helix*impact_angle_helix;
+                                    //impact_angle[i_layerB] = impact_angle_helix; // test to use TPC impact angle instead of TRD one
+
+                                    path_offset = pathA; // start from previous layer radius
+                                    break;
+                                }
+                            }
+                            vec_h_diff_helix_line_impact_angle[0][arr_layer_detector[i_layerB]] ->Fill(impact_angle[i_layerB]*TMath::RadToDeg() - impact_angle_helix*TMath::RadToDeg());
+                            if(dca < 0.0) vec_h_diff_helix_line_impact_angle[1][arr_layer_detector[i_layerB]] ->Fill(impact_angle[i_layerB]*TMath::RadToDeg() - impact_angle_helix*TMath::RadToDeg());
+                            if(dca > 0.0) vec_h_diff_helix_line_impact_angle[2][arr_layer_detector[i_layerB]] ->Fill(impact_angle[i_layerB]*TMath::RadToDeg() - impact_angle_helix*TMath::RadToDeg());
+                            //printf("impact_angle: %4.3f, impact_angle_helix: %4.3f \n",impact_angle[i_layerB]*TMath::RadToDeg(),impact_angle_helix*TMath::RadToDeg());
+                            //---------------------------
+
+
                             //if(impact_angle[i_layerB]*TMath::RadToDeg() > 89.0 && impact_angle[i_layerB]*TMath::RadToDeg() < 91.0)
                             //{
                             //    printf("  --> i_layerB: %d, impact_angle: %4.3f, vec: {%4.3f, %4.3f} \n",i_layerB,impact_angle[i_layerB]*TMath::RadToDeg(),vec_tracklet_fit_points[i_layerB][0][0],vec_tracklet_fit_points[i_layerB][1][0]);
@@ -2071,7 +2166,8 @@ void TBase_TRD_Calib::Calibrate()
 
                         //vec_tp_Delta_vs_impact[arr_layer_detector[i_layer]] ->Fill(impact_angle[i_layer]*TMath::RadToDeg(),Delta_angle*TMath::RadToDeg());
                         //vec_tp_Delta_vs_impact[detector] ->Fill(impact_angle[i_layer]*TMath::RadToDeg(),fabs(Delta_angle*TMath::RadToDeg()));
-                        vec_tp_Delta_vs_impact[detector] ->Fill(impact_angle[i_layer]*TMath::RadToDeg(),Delta_angle*TMath::RadToDeg());
+                        vec_tp_Delta_vs_impact[detector]   ->Fill(impact_angle[i_layer]*TMath::RadToDeg(),Delta_angle*TMath::RadToDeg());
+                        vec_TH2D_Delta_vs_impact[detector] ->Fill(impact_angle[i_layer]*TMath::RadToDeg(),Delta_angle*TMath::RadToDeg());
                         if(impact_angle[i_layer]*TMath::RadToDeg() > 89.0 && impact_angle[i_layer]*TMath::RadToDeg() < 91.0)
                         //if(impact_angle[i_layer]*TMath::RadToDeg() > 80 && impact_angle[i_layer]*TMath::RadToDeg() < 83)
                         {
@@ -2163,11 +2259,24 @@ void TBase_TRD_Calib::Calibrate()
     can_detector_hit ->cd();
     h_detector_hit  ->Draw();
 
+    printf("Write data to output file \n");
     outputfile ->cd();
-    for (Int_t i_det = 0; i_det < 540; i_det++)
+    for(Int_t i_det = 0; i_det < 540; i_det++)
     {
-        vec_tp_Delta_vs_impact[i_det] ->Write();
+        vec_tp_Delta_vs_impact[i_det]   ->Write();
+        vec_TH2D_Delta_vs_impact[i_det] ->Write();
     }
+
+    outputfile ->mkdir("Delta_impact");
+    outputfile ->cd("Delta_impact");
+    for(Int_t i_charge = 0; i_charge < 3; i_charge++)
+    {
+        for(Int_t i_det = 0; i_det < 540; i_det++)
+        {
+            vec_h_diff_helix_line_impact_angle[i_charge][i_det] ->Write();
+        }
+    }
+    printf("All data written \n");
 
 }
 //----------------------------------------------------------------------------------------
