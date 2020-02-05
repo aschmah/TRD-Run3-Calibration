@@ -57,6 +57,13 @@ private:
     Long64_t N_Tracks;
     Long64_t N_Digits;
 
+    TGraph* tg_HV_drift_vs_det;
+    TGraph* tg_HV_anode_vs_det;
+    TGraph* tg_vdrift_vs_det;
+
+    Long64_t Event_active = 0;
+    Double_t tracklets_min[7] = {-1.0};
+
     TChain* input_SE;
     TString JPsi_TREE   = "Tree_AS_Event";
     TString JPsi_BRANCH = "Tree_AS_Event_branch";
@@ -73,6 +80,7 @@ private:
     vector< vector< vector<Float_t> > > vec_digit_track_info;
     vector<Float_t> vec_track_single_info;
     vector< vector<Float_t> > vec_track_info;
+    vector<TPolyLine*> vec_TPL_online_tracklets;
 
     AliHelix aliHelix;
     TEveLine* TPL3D_helix;
@@ -161,6 +169,7 @@ public:
     TBase_TRD_Calib();
     ~TBase_TRD_Calib();
     void Init_tree(TString SEList);
+    void Init_QA();
     Int_t Loop_event(Long64_t event);
     Long64_t get_N_Events() {return N_Events;}
     Long64_t get_N_Tracks() {return N_Tracks;}
@@ -184,6 +193,7 @@ public:
     TPolyLine* get_helix_polyline_2D(Int_t i_track);
     TEveLine* get_straight_line_fit(Int_t i_track);
     void get_tracklets_fit(Int_t i_track);
+    vector<TPolyLine*> get_online_tracklets(Int_t i_track);
     vector< vector<TVector3> >  make_clusters(Int_t i_track);
     vector< vector< vector<Double_t> > > get_tracklet_fit_points() {return vec_tracklet_fit_points;}
     void make_plots_ADC(Int_t i_track);
@@ -200,6 +210,8 @@ public:
 TBase_TRD_Calib::TBase_TRD_Calib()
 {
     outputfile = new TFile("./TRD_Calib.root","RECREATE");
+
+    Init_QA();
 
     vec_TV3_Tracklet_pos.resize(540);
     vec_TV3_Tracklet_dir.resize(540);
@@ -411,179 +423,19 @@ TBase_TRD_Calib::TBase_TRD_Calib()
 
 
     vec_tracklets_line_2D.resize(7);
-
-    //vec_tracklets_line.resize(6);
-    //for (Int_t i_layer = 0; i_layer < 6; i_layer++)
-    //{
-    //    vec_tracklets_line[i_layer] = new TEveLine();
-    //}
-
-    // TRD 3D graphics
-    /*
-    fGeo = new AliTRDgeometry;
-    geom         = new TGeoManager("geom","My 3D Project");
-    vacuum       = new TGeoMaterial("vacuum",0,0,0);
-    vacuum       ->SetTransparency(0);
-    Air          = new TGeoMedium("Air",0,vacuum);
-    top          = geom->MakeBox("top",Air,500,500,500);
-    geom         ->SetTopVolume(top);
-    geom         ->SetTopVisible(0);
-    geom         ->SetVisLevel(4);
-
-    Fe = new TGeoMaterial("Fe",55.84,26.7,7.87);
-    Fe->SetTransparency(80); // higher value means more transparent, 100 is maximum
-
-    M_outer_tube = new TGeoMaterial("M_outer_tube",55.84,26.7,7.87);
-    M_outer_tube->SetTransparency(60); // higher value means more transparent, 100 is maximum
-
-    Material_TRD_box = new TGeoMaterial("Material_TRD_box",55.84,26.7,7.87);
-    Material_TRD_box->SetTransparency(70); // higher value means more transparent, 100 is maximum
-
-    Iron                = new TGeoMedium("Iron",1,Fe);
-    Me_outer_tube       = new TGeoMedium("Me_outer_tube",1,M_outer_tube);
-    Medium_TRD_box      = new TGeoMedium("Medium_TRD_box",1,Material_TRD_box);
-
-    inner_field_tube    = geom->MakeTube("inner_field_tube",Iron,49.5,50.0,510.0/2.0);  // r_min, r_max, dz (half of total length)
-    outer_field_tube    = geom->MakeTube("outer_field_tube",Me_outer_tube,556.0/2.0,556.0/2.0+0.5,510.0/2.0);  // r_min, r_max, dz (half of total length)
-
-    inner_field_tube       ->SetLineColor(4);
-    outer_field_tube       ->SetLineColor(kRed-8);
-
-    top->AddNodeOverlap(inner_field_tube,1,new TGeoTranslation(0,0,0));
-    top->AddNodeOverlap(outer_field_tube,1,new TGeoTranslation(0,0,0));
-
-    z_BeamLine    = new TEveLine(2);
-    z_BeamLine    ->SetPoint(0,0,0,-550);
-    z_BeamLine    ->SetPoint(1,0,0,550);
-    z_BeamLine    ->SetLineStyle(0);
-    z_BeamLine    ->SetLineColor(kBlue);
-    z_BeamLine    ->SetLineWidth(2);
-
-    x_BeamLine    = new TEveLine(2);
-    x_BeamLine    ->SetPoint(0,0,0,0);
-    x_BeamLine    ->SetPoint(1,50.0,0,0);
-    x_BeamLine    ->SetLineStyle(0);
-    x_BeamLine    ->SetLineColor(kGreen);
-    x_BeamLine    ->SetLineWidth(2);
-
-    y_BeamLine    = new TEveLine(2);
-    y_BeamLine    ->SetPoint(0,0,0,0);
-    y_BeamLine    ->SetPoint(1,0,50.0,0);
-    y_BeamLine    ->SetLineStyle(0);
-    y_BeamLine    ->SetLineColor(kRed);
-    y_BeamLine    ->SetLineWidth(2);
+}
+//----------------------------------------------------------------------------------------
 
 
 
-    for(Int_t TRD_detector = 0; TRD_detector < 540; TRD_detector++)
-    {
-        Int_t flag_not_installed_TRD = 0;
-        for(Int_t i_not_installed = 0; i_not_installed < 19; i_not_installed++)
-        {
-            if(TRD_detector == Not_installed_TRD_detectors[i_not_installed])
-            {
-                flag_not_installed_TRD = 1;
-                break;
-            }
-        }
-        if(flag_not_installed_TRD) continue;
-
-
-        Int_t TRD_color = kGray+1;
-        Int_t flag_defect_TRD = 0;
-        for(Int_t i_defect = 0; i_defect < 84; i_defect++)
-        {
-            if(TRD_detector == Defect_TRD_detectors[i_defect])
-            {
-                flag_defect_TRD = 1;
-                break;
-            }
-        }
-        if(flag_defect_TRD)
-        {
-            TRD_color = kGreen+1;
-            //continue;
-        }
-
-
-        Int_t                TRD_sector         = fGeo         ->GetSector(TRD_detector);
-        Int_t                TRD_stack          = fGeo         ->GetStack(TRD_detector);
-        Int_t                TRD_layer          = fGeo         ->GetLayer(TRD_detector);
-        Float_t              TRD_time0          = fGeo         ->GetTime0(TRD_layer);
-
-        Float_t              TRD_chamber_length = fGeo->GetChamberLength(TRD_layer,TRD_stack);
-        Float_t              TRD_chamber_width  = fGeo->GetChamberWidth(TRD_layer);
-        Float_t              TRD_chamber_height = 8.4;
-
-        AliTRDpadPlane*      padplane           = fGeo         ->GetPadPlane(TRD_detector);
-        Double_t             TRD_col_end        = padplane     ->GetColEnd();
-        Double_t             TRD_row_end        = padplane     ->GetRowEnd();            // fPadRow[fNrows-1] - fLengthOPad + fPadRowSMOffset;
-        Double_t             TRD_col_start      = padplane     ->GetCol0();
-        Double_t             TRD_row_start      = padplane     ->GetRow0();              // fPadRow[0] + fPadRowSMOffset
-        Double_t             TRD_row_end_ROC    = padplane     ->GetRowEndROC();         // fPadRow[fNrows-1] - fLengthOPad;
-        Double_t             TRD_col_spacing    = padplane     ->GetColSpacing();
-        Double_t             TRD_row_spacing    = padplane     ->GetRowSpacing();
-
-        Double_t Rotation_angle     = ((360.0/18.0)/2.0) + ((Double_t)TRD_sector)*(360.0/18.0);
-
-        TString HistName = "TRD_box_";
-        HistName += TRD_detector;
-        TRD_boxes[TRD_detector] = geom->MakeBox(HistName.Data(),Medium_TRD_box,TRD_chamber_width/2.0,TRD_chamber_height/2.0,TRD_chamber_length/2.0); // dx, dy, dz
-        TRD_boxes[TRD_detector]->SetLineColor(TRD_color);
-        //TRD_boxes[TRD_detector] = geom->MakeBox(HistName.Data(),Medium_TRD_box,TRD_chamber_width/2.0,1.0,TRD_chamber_length/2.0); // dx, dy, dzd
-
-        Double_t             loc[3]           = {TRD_time0,0.0,(TRD_row_end + TRD_row_start)/2.0};
-        Double_t             glb[3]           = {0.0,0.0,0.0};
-        fGeo ->RotateBack(TRD_detector,loc,glb);
-
-        Double_t             locZ[3]           = {TRD_time0-50.0,0.0,(TRD_row_end + TRD_row_start)/2.0};
-        Double_t             glbZ[3]           = {0.0,0.0,0.0};
-        fGeo ->RotateBack(TRD_detector,locZ,glbZ);
-
-        Double_t             locX[3]           = {TRD_time0,50.0,(TRD_row_end + TRD_row_start)/2.0};
-        Double_t             glbX[3]           = {0.0,0.0,0.0};
-        fGeo ->RotateBack(TRD_detector,locX,glbX);
-
-        Double_t             locY[3]           = {TRD_time0,0.0,50.0+(TRD_row_end + TRD_row_start)/2.0};
-        Double_t             glbY[3]           = {0.0,0.0,0.0};
-        fGeo ->RotateBack(TRD_detector,locY,glbY);
-
-        vec_TPL3D_TRD_center[TRD_detector][0] ->SetPoint(0,glb[0],glb[1],glb[2]);
-        vec_TPL3D_TRD_center[TRD_detector][0] ->SetPoint(1,glbX[0],glbX[1],glbX[2]);
-        vec_TPL3D_TRD_center[TRD_detector][0] ->SetLineColor(kRed);
-        vec_TPL3D_TRD_center[TRD_detector][0] ->SetLineWidth(2);
-        vec_TPL3D_TRD_center[TRD_detector][0] ->SetLineStyle(1);
-
-        vec_TPL3D_TRD_center[TRD_detector][1] ->SetPoint(0,glb[0],glb[1],glb[2]);
-        vec_TPL3D_TRD_center[TRD_detector][1] ->SetPoint(1,glbY[0],glbY[1],glbY[2]);
-        vec_TPL3D_TRD_center[TRD_detector][1] ->SetLineColor(kGreen);
-        vec_TPL3D_TRD_center[TRD_detector][1] ->SetLineWidth(2);
-        vec_TPL3D_TRD_center[TRD_detector][1] ->SetLineStyle(1);
-
-        vec_TPL3D_TRD_center[TRD_detector][2] ->SetPoint(0,glb[0],glb[1],glb[2]);
-        vec_TPL3D_TRD_center[TRD_detector][2] ->SetPoint(1,glbZ[0],glbZ[1],glbZ[2]);
-        vec_TPL3D_TRD_center[TRD_detector][2] ->SetLineColor(kBlue);
-        vec_TPL3D_TRD_center[TRD_detector][2] ->SetLineWidth(2);
-        vec_TPL3D_TRD_center[TRD_detector][2] ->SetLineStyle(1);
-
-        vec_TV3_TRD_center[TRD_detector][0].SetXYZ(glbX[0]-glb[0],glbX[1]-glb[1],glbX[2]-glb[2]);
-        vec_TV3_TRD_center[TRD_detector][1].SetXYZ(glbY[0]-glb[0],glbY[1]-glb[1],glbY[2]-glb[2]);
-        vec_TV3_TRD_center[TRD_detector][2].SetXYZ(glbZ[0]-glb[0],glbZ[1]-glb[1],glbZ[2]-glb[2]);
-
-        // Normalize
-        for(Int_t i_xyz = 0; i_xyz < 3; i_xyz++)
-        {
-            vec_TV3_TRD_center[TRD_detector][i_xyz] *= 1.0/vec_TV3_TRD_center[TRD_detector][i_xyz].Mag();
-        }
-
-
-        combitrans[TRD_detector] = new TGeoCombiTrans();
-        combitrans[TRD_detector] ->RotateZ(Rotation_angle + 90.0);
-        combitrans[TRD_detector] ->SetTranslation(glb[0],glb[1],glb[2]);
-        top->AddNodeOverlap(TRD_boxes[TRD_detector],1,combitrans[TRD_detector]);
-
-    }
-    */
+//----------------------------------------------------------------------------------------
+void TBase_TRD_Calib::Init_QA()
+{
+    printf("TBase_TRD_Calib::Init_QA() \n");
+    TFile* inputfile_QA = TFile::Open("/home/ceres/schmah/ALICE/TRD_Run3_calib/QA_out_year_2016_V2.root");
+    tg_HV_drift_vs_det = (TGraph*)inputfile_QA->Get("tg_HV_drift_vs_det");
+    tg_HV_anode_vs_det = (TGraph*)inputfile_QA->Get("tg_HV_anode_vs_det");;
+    tg_vdrift_vs_det   = (TGraph*)inputfile_QA->Get("tg_vdrift_vs_det");;
 }
 //----------------------------------------------------------------------------------------
 
@@ -725,7 +577,8 @@ vector< vector<TVector3> >  TBase_TRD_Calib::make_clusters(Int_t i_track)
                     }
                     //printf("i_xyzADC: %d, value: %4.3f \n",i_xyzADC,vec_Dt_digit_pos_cluster[i_layer][i_time_merge][i_xyzADC]);
                 }
-                //printf("       pos+ADC: {%4.3f} \n",vec_weight_digits_merged[i_layer][i_time_merge]);
+                Double_t radius = vec_TV3_digit_pos_cluster[i_layer][i_time_merge].Perp();
+                //printf("i_layer: %d, i_time: %d, pos: {%4.3f, %4.3f, %4.3f}, radius: %4.3f, ADC: %4.3f \n",i_layer,i_time_merge,vec_Dt_digit_pos_cluster[i_layer][i_time_merge][0],vec_Dt_digit_pos_cluster[i_layer][i_time_merge][1],vec_Dt_digit_pos_cluster[i_layer][i_time_merge][2],radius,vec_Dt_digit_pos_cluster[i_layer][i_time_merge][3]);
             }
         }
     }
@@ -735,7 +588,26 @@ vector< vector<TVector3> >  TBase_TRD_Calib::make_clusters(Int_t i_track)
     {
         for(Int_t i_xyzADC = 0; i_xyzADC < 4; i_xyzADC++)
         {
-            vec_Dt_digit_pos_cluster[6][i_layer][i_xyzADC] = vec_Dt_digit_pos_cluster[i_layer][0][i_xyzADC];
+            vec_Dt_digit_pos_cluster[6][i_layer][i_xyzADC] = 0.0;
+            Int_t n_points_used = 0;
+            for(Int_t i_time_merge = 0; i_time_merge < 5; i_time_merge++)
+            {
+                // Attention, [layer][time][xyz,ADC] -> [6][layer][xyz,ADC] on purpose to imitate the tracklet structure for the global fit
+                if(vec_Dt_digit_pos_cluster[i_layer][i_time_merge][i_xyzADC] <= -999.0)
+                {
+                    //printf("WARNING in TBase_TRD_Calib::make_clusters, odd value: %4.3f, layer: %d, xyzADC: %d, time: %d \n",vec_Dt_digit_pos_cluster[i_layer][i_time_merge][i_xyzADC],i_layer,i_xyzADC,i_time_merge);
+                    continue;
+                }
+                vec_Dt_digit_pos_cluster[6][i_layer][i_xyzADC] += vec_Dt_digit_pos_cluster[i_layer][i_time_merge][i_xyzADC];
+                n_points_used++;
+            }
+            if(n_points_used > 0)
+            {
+                vec_Dt_digit_pos_cluster[6][i_layer][i_xyzADC] /= (Double_t)n_points_used;
+            }
+            else vec_Dt_digit_pos_cluster[6][i_layer][i_xyzADC] = -999.0;
+
+            //vec_Dt_digit_pos_cluster[6][i_layer][i_xyzADC] = vec_Dt_digit_pos_cluster[i_layer][0][i_xyzADC]; // old version
         }
     }
 
@@ -1147,6 +1019,8 @@ void TBase_TRD_Calib::get_tracklets_fit(Int_t i_track)
 
     for(Int_t i_layer = 0; i_layer < 7; i_layer++)
     {
+        tracklets_min[i_layer] = -1.0;
+
         if(i_layer < 6)
         {
             layer_dist_min_max[i_layer][0] = 295.0 + i_layer*delta_layer;
@@ -1280,11 +1154,14 @@ void TBase_TRD_Calib::get_tracklets_fit(Int_t i_track)
             //parFit[i] = pStart[i];
         }
 
+        //printf("i_layer: %d, amin: %4.3f, par: {%4.3f, %4.3f, %4.3f, %4.3f} \n",i_layer,amin,parFit[0],parFit[1],parFit[2],parFit[3]);
+        tracklets_min[i_layer] = amin;
+
 
         // draw the fitted line
-        n = 1000;
-        t0 = -500.0;
-        dt = 1;
+        n = 5000;   // 1000
+        t0 = -500.0; // -500
+        dt = 0.2;
 
         Double_t x_A, y_A, z_A;
         t0 = ((a0[1]-parFit[2])/parFit[3])-500;
@@ -1306,7 +1183,7 @@ void TBase_TRD_Calib::get_tracklets_fit(Int_t i_track)
             if(flag_XZ == 0) line_X(t,parFit,x,y,z);
             else line(t,parFit,x,y,z);
             TV3_line_point.SetXYZ(x,y,z);
-            //printf("point: {%4.3f, %4.3f, %4.3f} \n",x,y,z);
+            //if(i_layer == 5) printf("point: {%4.3f, %4.3f, %4.3f} \n",x,y,z);
 
             Double_t distance = 1000.0;
             for(Int_t i_time_bin = 0; i_time_bin < (Int_t)vec_Dt_digit_pos_cluster[i_layer].size(); i_time_bin++)
@@ -1317,10 +1194,11 @@ void TBase_TRD_Calib::get_tracklets_fit(Int_t i_track)
                 Double_t distance_layer = TV3_diff.Mag();
                 if(distance_layer < distance) distance = distance_layer;
             }
-            //printf("perp: %4.3f, distance: %4.3f \n",TV3_line_point.Perp(),distance);
+            //if(i_layer == 5) printf("point: {%4.3f, %4.3f, %4.3f}, perp: %4.3f, layer min/max: {%4.3f, %4.3f}, distance: %4.3f \n",x,y,z,TV3_line_point.Perp(),layer_dist_min_max[i_layer][0],layer_dist_min_max[i_layer][1],distance);
             //if(TV3_line_point.Perp() > 270.0 && TV3_line_point.Perp() < 380.0 && distance < 100.0)  // 100 just in case
             if(TV3_line_point.Perp() > layer_dist_min_max[i_layer][0] && TV3_line_point.Perp() < layer_dist_min_max[i_layer][1] && distance < 100.0)  // 100 just in case
             {
+                //if(i_layer == 5) printf("Accepted \n");
                 if(i_point == 0)
                 {
                     vec_AB[0].SetXYZ(x,y,z);
@@ -1364,9 +1242,57 @@ void TBase_TRD_Calib::get_tracklets_fit(Int_t i_track)
 
 
 //----------------------------------------------------------------------------------------
+vector<TPolyLine*> TBase_TRD_Calib::get_online_tracklets(Int_t i_track)
+{
+    // Loop over all tracklets
+    Double_t scale_factor_length = 3.0;
+    Int_t    N_TRD_tracklets_offline = AS_Event ->getNumTracklets();
+    vec_TPL_online_tracklets.clear();
+    for(UShort_t i_tracklet = 0; i_tracklet < N_TRD_tracklets_offline; ++i_tracklet) // loop over all tracklets of the actual event
+    {
+        AS_Tracklet             = AS_Event    ->getTracklet( i_tracklet ); // take the track
+        TVector3 TV3_offset     = AS_Tracklet ->get_TV3_offset(); // online tracklets
+        TVector3 TV3_dir        = AS_Tracklet ->get_TV3_dir();    // online tracklets
+        Short_t  i_det_tracklet = AS_Tracklet ->get_detector();
+
+        Int_t flag_match = 0;
+        for(Int_t i_layer = 0; i_layer < 6; i_layer++)
+        {
+            if(i_det_tracklet == arr_layer_detector[i_layer])
+            {
+                flag_match = 1;
+                break;
+            }
+        }
+
+        if(!flag_match) continue;
+
+        Double_t impact_angle = TV3_dir.Angle(vec_TV3_TRD_center[i_det_tracklet][2]);
+        if(impact_angle > TMath::Pi()*0.5) impact_angle -= TMath::Pi();
+
+        Float_t points[6] =
+        {
+            (Float_t)(TV3_offset[0]),(Float_t)(TV3_offset[1]),(Float_t)(TV3_offset[2]),
+            (Float_t)(TV3_offset[0] + scale_factor_length*TV3_dir[0]),(Float_t)(TV3_offset[1] + scale_factor_length*TV3_dir[1]),(Float_t)(TV3_offset[2] + scale_factor_length*TV3_dir[2])
+        };
+        //printf("i_tracklet: %d, out of %d, impact_angle: %4.3f, offset: {%4.3f, %4.3f, %4.3f}, end: {%4.3f, %4.3f, %4.3f} \n",i_tracklet,N_TRD_tracklets_offline,impact_angle*TMath::RadToDeg(),TV3_offset[0],TV3_offset[1],TV3_offset[2],TV3_offset[0] + TV3_dir[0],TV3_offset[1] + TV3_dir[1],TV3_offset[2] + TV3_dir[2]);
+
+        vec_TPL_online_tracklets.push_back(new TPolyLine());
+        vec_TPL_online_tracklets[(Int_t)vec_TPL_online_tracklets.size()-1] ->SetNextPoint((Float_t)(TV3_offset[0]),(Float_t)(TV3_offset[1]));
+        vec_TPL_online_tracklets[(Int_t)vec_TPL_online_tracklets.size()-1] ->SetNextPoint((Float_t)(TV3_offset[0] + scale_factor_length*TV3_dir[0]),(Float_t)(TV3_offset[1] + scale_factor_length*TV3_dir[1]));
+    }
+
+    return vec_TPL_online_tracklets;
+}
+//----------------------------------------------------------------------------------------
+
+
+
+//----------------------------------------------------------------------------------------
 void TBase_TRD_Calib::Draw_tracklets_line_2D(Int_t i_track)
 {
     get_tracklets_fit(i_track);
+    vector<TPolyLine*> vec_TPL_on_trkl =  get_online_tracklets(i_track);
 
     for(Int_t i_layer = 0; i_layer < 7; i_layer++) // 6 layers + global fit
     {
@@ -1386,6 +1312,45 @@ void TBase_TRD_Calib::Draw_tracklets_line_2D(Int_t i_track)
             printf("TBase_TRD_Calib::Draw_tracklets_line(%d), i_layer: %d has no entry \n",i_track,i_layer);
         }
     }
+
+    for(Int_t i_onl_trkl = 0; i_onl_trkl < (Int_t)vec_TPL_on_trkl.size(); i_onl_trkl++)
+    {
+        vec_TPL_on_trkl[i_onl_trkl] ->SetLineStyle(9);
+        vec_TPL_on_trkl[i_onl_trkl] ->SetLineWidth(3);
+        vec_TPL_on_trkl[i_onl_trkl] ->SetLineColor(kBlack);
+        vec_TPL_on_trkl[i_onl_trkl] ->DrawClone("l");
+    }
+
+    HistName = "Ev. ";
+    HistName += Event_active;
+    HistName += ", tr. ";
+    HistName += i_track;
+    HistName += Form(", min: (%4.3f, %4.3f, %4.3f, %4.3f, %4.3f, %4.3f, gl. %4.3f)",tracklets_min[0],tracklets_min[1],tracklets_min[2],tracklets_min[3],tracklets_min[4],tracklets_min[5],tracklets_min[6]);
+    //sprintf(NoP,"%4.0f",(Double_t)i_detector);
+    //HistName += NoP;
+    plotTopLegend((char*)HistName.Data(),0.1,0.96,0.03,kBlack,0.0,42,1,1); // char* label,Float_t x=-1,Float_t y=-1, Float_t size=0.06,Int_t color=1,Float_t angle=0.0, Int_t font = 42, Int_t NDC = 1, Int_t align = 1
+
+    HistName = Form("det: (%d, %d, %d, %d, %d, %d)",arr_layer_detector[0],arr_layer_detector[1],arr_layer_detector[2],arr_layer_detector[3],arr_layer_detector[4],arr_layer_detector[5]);
+    plotTopLegend((char*)HistName.Data(),0.24,0.92,0.03,kBlack,0.0,42,1,1); // char* label,Float_t x=-1,Float_t y=-1, Float_t size=0.06,Int_t color=1,Float_t angle=0.0, Int_t font = 42, Int_t NDC = 1, Int_t align = 1
+
+    Double_t arr_HV_anode[6] = {-1.0};
+    Double_t arr_HV_drift[6] = {-1.0};
+    for(Int_t i_layer = 0; i_layer < 6; i_layer++)
+    {
+        Double_t det;
+        tg_HV_anode_vs_det ->GetPoint(arr_layer_detector[i_layer],det,arr_HV_anode[i_layer]);
+        tg_HV_drift_vs_det ->GetPoint(arr_layer_detector[i_layer],det,arr_HV_drift[i_layer]);
+    }
+    HistName = Form("HVA: (%4.0f, %4.0f, %4.0f, %4.0f, %4.0f, %4.0f)",arr_HV_anode[0],arr_HV_anode[1],arr_HV_anode[2],arr_HV_anode[3],arr_HV_anode[4],arr_HV_anode[5]);
+    plotTopLegend((char*)HistName.Data(),0.24,0.89,0.03,kBlack,0.0,42,1,1); // char* label,Float_t x=-1,Float_t y=-1, Float_t size=0.06,Int_t color=1,Float_t angle=0.0, Int_t font = 42, Int_t NDC = 1, Int_t align = 1
+
+    HistName = Form("HVD: (%4.0f, %4.0f, %4.0f, %4.0f, %4.0f, %4.0f)",arr_HV_drift[0],arr_HV_drift[1],arr_HV_drift[2],arr_HV_drift[3],arr_HV_drift[4],arr_HV_drift[5]);
+    plotTopLegend((char*)HistName.Data(),0.24,0.86,0.03,kBlack,0.0,42,1,1); // char* label,Float_t x=-1,Float_t y=-1, Float_t size=0.06,Int_t color=1,Float_t angle=0.0, Int_t font = 42, Int_t NDC = 1, Int_t align = 1
+
+
+    //tg_HV_drift_vs_det = (TGraph*)inputfile_QA->Get("tg_HV_drift_vs_det");
+    //tg_HV_anode_vs_det = (TGraph*)inputfile_QA->Get("tg_HV_anode_vs_det");;
+    //tg_vdrift_vs_det   = (TGraph*)inputfile_QA->Get("tg_vdrift_vs_det");;
 }
 //----------------------------------------------------------------------------------------
 
@@ -1541,17 +1506,17 @@ void TBase_TRD_Calib::Draw_2D_track(Int_t i_track)
         //printf("i_point: %d, pos: {%4.3f, %4.3f} \n",i_point,x_vals[i_point],y_vals[i_point]);
     }
 
-    TCanvas* can_2D_track = new TCanvas("can_2D_track","can_2D_track",10,10,600,600);
+    TCanvas* can_2D_track = new TCanvas("can_2D_track","can_2D_track",10,10,900,900);
     can_2D_track ->cd();
     can_2D_track ->cd()->SetRightMargin(0.01);
-    can_2D_track ->cd()->SetTopMargin(0.01);
+    can_2D_track ->cd()->SetTopMargin(0.05);
     can_2D_track ->cd()->SetBottomMargin(0.2);
     can_2D_track ->cd()->SetLeftMargin(0.2);
     TH1F* h_frame = can_2D_track->cd()->DrawFrame(x_start-5.0,y_start-5.0,x_stop+5.0,y_stop+5.0,"h_frame");
     h_frame->SetStats(0);
     h_frame->SetTitle("");
-    h_frame->GetXaxis()->SetTitleOffset(0.85);
-    h_frame->GetYaxis()->SetTitleOffset(1.0);
+    h_frame->GetXaxis()->SetTitleOffset(1.1);
+    h_frame->GetYaxis()->SetTitleOffset(1.8);
     h_frame->GetXaxis()->SetLabelOffset(0.0);
     h_frame->GetYaxis()->SetLabelOffset(0.01);
     h_frame->GetXaxis()->SetLabelSize(0.05);
@@ -1747,6 +1712,7 @@ void TBase_TRD_Calib::Init_tree(TString SEList)
 Int_t TBase_TRD_Calib::Loop_event(Long64_t event)
 {
     printf("Loop event number: %lld \n",event);
+    Event_active = event;
 
     if (!input_SE->GetEntry( event )) return 0; // take the event -> information is stored in event
 
@@ -1805,7 +1771,7 @@ Int_t TBase_TRD_Calib::Loop_event(Long64_t event)
             (Float_t)(TV3_offset[0]),(Float_t)(TV3_offset[1]),(Float_t)(TV3_offset[2]),
             (Float_t)(TV3_offset[0] + scale_factor_length*TV3_dir[0]),(Float_t)(TV3_offset[1] + scale_factor_length*TV3_dir[1]),(Float_t)(TV3_offset[2] + scale_factor_length*TV3_dir[2])
         };
-        printf("i_tracklet: %d, out of %d, impact_angle: %4.3f, offset: {%4.3f, %4.3f, %4.3f}, end: {%4.3f, %4.3f, %4.3f} \n",i_tracklet,N_TRD_tracklets_offline,impact_angle*TMath::RadToDeg(),TV3_offset[0],TV3_offset[1],TV3_offset[2],TV3_offset[0] + TV3_dir[0],TV3_offset[1] + TV3_dir[1],TV3_offset[2] + TV3_dir[2]);
+        //printf("i_tracklet: %d, out of %d, impact_angle: %4.3f, offset: {%4.3f, %4.3f, %4.3f}, end: {%4.3f, %4.3f, %4.3f} \n",i_tracklet,N_TRD_tracklets_offline,impact_angle*TMath::RadToDeg(),TV3_offset[0],TV3_offset[1],TV3_offset[2],TV3_offset[0] + TV3_dir[0],TV3_offset[1] + TV3_dir[1],TV3_offset[2] + TV3_dir[2]);
 
         vec_TPL3D_tracklets.push_back(new TEveLine());
         vec_TPL3D_tracklets[(Int_t)vec_TPL3D_tracklets.size()-1] ->SetNextPoint((Float_t)(TV3_offset[0]),(Float_t)(TV3_offset[1]),(Float_t)(TV3_offset[2]));
@@ -2173,6 +2139,10 @@ void TBase_TRD_Calib::Calibrate()
                         {
                         //    printf("detector: %d, track: %d, impact angle: %4.3f, Delta angle: %4.3f, delta_x_local_tracklet: %4.3f \n",detector,i_track,impact_angle[i_layer]*TMath::RadToDeg(),Delta_angle*TMath::RadToDeg(),delta_x_local_tracklet);
                             h_delta_angle_perp_impact ->Fill(Delta_angle*TMath::RadToDeg());
+                        }
+                        if(impact_angle[i_layer]*TMath::RadToDeg() > 73.0 && impact_angle[i_layer]*TMath::RadToDeg() < 78.0 && pT_track > 3.5)
+                        {
+                            printf("       ======================> i_event: %lld, i_track: %d \n",i_event,i_track);
                         }
                         //printf("detector: %d, track: %d, impact angle: %4.3f, Delta angle: %4.3f \n",detector,i_track,impact_angle[i_layer]*TMath::RadToDeg(),Delta_angle*TMath::RadToDeg());
                     }

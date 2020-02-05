@@ -218,7 +218,7 @@ TGUI_TRD_Calib::TGUI_TRD_Calib() : TGMainFrame(gClient->GetRoot(), 100, 100)
     Frame_Main ->Resize(450,300); // size of frame
     Frame_Main ->MapSubwindows();
     Frame_Main ->MapWindow();
-    Frame_Main ->Move(550,50); // position of frame
+    Frame_Main ->Move(1150,50); // position of frame
     //-------------------------------------
 
     Base_TRD_Calib = new TBase_TRD_Calib();
