@@ -109,10 +109,69 @@ public:
 
 	ClassDef(Ali_AS_TRD_digit,1);  //
 };
+//----------------------------------------------------------------------------------------
 
 
 
+//----------------------------------------------------------------------------------------
+class Ali_AS_offline_Tracklet : public TObject
+{
+private:
+    // Tracklet properties
+    Short_t detector;
+    TVector3 TV3_offset;
+    TVector3 TV3_dir;
+    Float_t  chi2;
+    Float_t  refY;
+    Float_t  refZ;
+    Float_t  locY;
+    Float_t  locZ;
+    Float_t  refdYdx;
+    Float_t  refdZdx;
+    Float_t  locdYdx;
+    Float_t  locdZdx;
 
+public:
+    Ali_AS_offline_Tracklet() :
+        detector(0), TV3_offset(), TV3_dir(), chi2(0), refY(0), refZ(0), locY(0), locZ(0), refdYdx(0),
+        refdZdx(0), locdYdx(0), locdZdx(0)
+    {
+    }
+        ~Ali_AS_offline_Tracklet()
+        {
+        }
+
+	// setters
+        void set_detector(Short_t s)                     { detector = s;         }
+        void set_TV3_offset(TVector3 tv3)                { TV3_offset = tv3;     }
+        void set_TV3_dir(TVector3 tv3)                   { TV3_dir = tv3;        }
+        void set_chi2(Float_t chi2in)                    { chi2 = chi2in;        }
+        void set_refYZ(Float_t refYin, Float_t refZin)   { refY = refYin; refZ = refZin;}
+        void set_refdYdZdx(Float_t refdYdxin, Float_t refdZdxin)   { refdYdx = refdYdxin; refdZdx = refdZdxin;}
+        void set_locYZ(Float_t locYin, Float_t locZin)   { locY = locYin; locZ = locZin;}
+        void set_locdYdZdx(Float_t locdYdxin, Float_t locdZdxin)   { locdYdx = locdYdxin; locdZdx = locdZdxin;}
+
+	// getters
+	Short_t get_detector() const                     { return detector;         }
+        TVector3 get_TV3_offset() const                  { return TV3_offset;       }
+        TVector3 get_TV3_dir() const                     { return TV3_dir;          }
+        Float_t get_chi2() const                         { return chi2;             }
+        Float_t get_refZ() const                         { return refZ;}
+        Float_t get_refY() const                         { return refY;}
+        Float_t get_refdZdx() const                      { return refdZdx;}
+        Float_t get_refdYdx() const                      { return refdYdx;}
+        Float_t get_locZ() const                         { return locZ;}
+        Float_t get_locY() const                         { return locY;}
+        Float_t get_locdZdx() const                      { return locdZdx;}
+        Float_t get_locdYdx() const                      { return locdYdx;}
+
+        ClassDef(Ali_AS_offline_Tracklet,1);  // A simple track of a particle
+};
+//----------------------------------------------------------------------------------------
+
+
+
+//----------------------------------------------------------------------------------------
 class Ali_AS_Track : public TObject
 {
 private:
@@ -142,21 +201,26 @@ private:
     Float_t        aliHelix_params[9];
 
     UShort_t      fNumTRDdigits; // number of TRD digits for this track
+    UShort_t      fNumOfflineTracklets; // number of offline tracklets
 
-    TClonesArray* fTRD_digits;      //->
+    TClonesArray* fTRD_digits;          //->
+    TClonesArray* fOfflineTracklets;    //->
 
 public:
     Ali_AS_Track() :
 	nsigma_e_TPC(-1),nsigma_e_TOF(-1),nsigma_pi_TPC(-1),nsigma_pi_TOF(-1),nsigma_K_TPC(-1),nsigma_K_TOF(-1),nsigma_p_TPC(-1),nsigma_p_TOF(-1),TRD_signal(-1),
         TRDsumADC(-1),dca(-1),TLV_part(),NTPCcls(-1),NTRDcls(-1),NITScls(-1),status(-1),TPCchi2(-1),TRD_ADC_time_layer(),
-        impact_angle_on_TRD(-1),TPCdEdx(-1),TOFsignal(-1),Track_length(-1),aliHelix_params(),fNumTRDdigits(0)
+        impact_angle_on_TRD(-1),TPCdEdx(-1),TOFsignal(-1),Track_length(-1),aliHelix_params(),fNumTRDdigits(0),fNumOfflineTracklets(0)
     {
-	fTRD_digits      = new TClonesArray( "Ali_AS_TRD_digit", 10 );
+        fTRD_digits       = new TClonesArray( "Ali_AS_TRD_digit", 10 );
+        fOfflineTracklets = new TClonesArray( "Ali_AS_offline_Tracklet", 10 );
     }
 	~Ali_AS_Track()
 	{
-	    delete fTRD_digits;
-	    fTRD_digits = NULL;
+            delete fTRD_digits;
+            delete fOfflineTracklets;
+            fTRD_digits       = NULL;
+            fOfflineTracklets = NULL;
 	}
 
 	// setters
@@ -238,6 +302,38 @@ public:
 	Int_t     HasITShit_on_layer(Int_t ilayer) { return ((NITScls >> ilayer) & 1);}  // ITShit -> LOL
 
 
+        //----------------------------
+        Ali_AS_offline_Tracklet* createOfflineTracklet()
+	{
+	    if (fNumOfflineTracklets == fOfflineTracklets->GetSize())
+		fOfflineTracklets->Expand( fNumOfflineTracklets + 10 );
+	    if (fNumOfflineTracklets >= 100000)
+	    {
+		Fatal( "Ali_AS_Event::createOfflineTracklet()", "ERROR: Too many tracklets (>100000)!" );
+		exit( 2 );
+	    }
+
+	    new((*fOfflineTracklets)[fNumOfflineTracklets++]) Ali_AS_offline_Tracklet;
+	    return (Ali_AS_offline_Tracklet*)((*fOfflineTracklets)[fNumOfflineTracklets - 1]);
+	}
+	void clearOfflineTrackletList()
+	{
+	    fNumOfflineTracklets   = 0;
+	    fOfflineTracklets      ->Clear();
+	}
+	UShort_t getNumOfflineTracklets() const
+	{
+	    return fNumOfflineTracklets;
+	}
+	Ali_AS_offline_Tracklet* getOfflineTracklet(UShort_t i) const
+	{
+	    return i < fNumOfflineTracklets ? (Ali_AS_offline_Tracklet*)((*fOfflineTracklets)[i]) : NULL;
+        }
+        //----------------------------
+
+
+
+        //----------------------------
 	Ali_AS_TRD_digit* createTRD_digit()
 	{
 	    if (fNumTRDdigits == fTRD_digits->GetSize())
@@ -262,15 +358,19 @@ public:
 	}
 	Ali_AS_TRD_digit* getTRD_digit(UShort_t i) const
 	{
-	    return i < fNumTRDdigits ? (Ali_AS_TRD_digit*)((*fTRD_digits)[i]) : NULL;
-}
+            return i < fNumTRDdigits ? (Ali_AS_TRD_digit*)((*fTRD_digits)[i]) : NULL;
+        }
+        //----------------------------
+
 
 
 	ClassDef(Ali_AS_Track,1);  // A simple track of a particle
 };
+//----------------------------------------------------------------------------------------
 
 
 
+//----------------------------------------------------------------------------------------
 class Ali_AS_Tracklet : public TObject
 {
 private:
@@ -300,8 +400,11 @@ public:
 
         ClassDef(Ali_AS_Tracklet,1);  // A simple track of a particle
 };
+//----------------------------------------------------------------------------------------
 
 
+
+//----------------------------------------------------------------------------------------
 class Ali_AS_Event : public TObject
 {
 private:
@@ -449,7 +552,7 @@ public:
 
 
         //----------------------------
-        Ali_AS_Tracklet* createTracklet()
+        Ali_AS_Tracklet* createTracklet() // online tracklet
 	{
 	    if (fNumTracklets == fTracklets->GetSize())
 		fTracklets->Expand( fNumTracklets + 10 );
@@ -480,6 +583,7 @@ public:
 ClassDef(Ali_AS_Event,1);  // A simple event compiled of tracks
 };
 //----------------------------------------------------------------------------------------
+
 
 
 #endif // __ALI_AS_EVENT_H__
