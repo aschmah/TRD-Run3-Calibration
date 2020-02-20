@@ -16,6 +16,7 @@ using namespace std;
 ClassImp(Ali_AS_TRD_digit)
 ClassImp(Ali_AS_Track)
 ClassImp(Ali_AS_Tracklet)
+ClassImp(Ali_AS_offline_Tracklet)
 ClassImp(Ali_AS_Event)
 
 
@@ -48,6 +49,7 @@ private:
     Ali_AS_Event*     AS_Event;
     Ali_AS_Track*     AS_Track;
     Ali_AS_Tracklet*  AS_Tracklet;
+    Ali_AS_offline_Tracklet*  AS_offline_Tracklet;
     Ali_AS_TRD_digit* AS_Digit;
 
 
@@ -73,7 +75,8 @@ private:
 
     TEvePointSet* TPM3D_single;
     vector<TEvePointSet*> vec_TPM3D_digits;
-    vector<TEveLine*> vec_TPL3D_tracklets;
+    vector<TEveLine*> vec_TPL3D_tracklets; // online tracklets
+    vector<TEveLine*> vec_TPL3D_offline_tracklets; // offline tracklets
     vector<TEveLine*> vec_TPL3D_tracklets_match;
     vector<Float_t> vec_digit_single_info;
     vector< vector<Float_t> > vec_digit_info;
@@ -81,6 +84,7 @@ private:
     vector<Float_t> vec_track_single_info;
     vector< vector<Float_t> > vec_track_info;
     vector<TPolyLine*> vec_TPL_online_tracklets;
+    vector<TPolyLine*> vec_TPL_offline_tracklets;
 
     AliHelix aliHelix;
     TEveLine* TPL3D_helix;
@@ -108,6 +112,7 @@ private:
     TH1D* h_delta_angle_perp_impact;
     TH1D* h_detector_hit;
     vector< vector<TH1D*> > vec_h_diff_helix_line_impact_angle; // [all,-,+][540]
+    vector< vector<TH1D*> > vec_h_diff_ref_loc_off_trkl; // [all,-,+][540]
 
 
     // TRD offline Tracklets
@@ -186,6 +191,7 @@ public:
     void Draw_tracklets_line_2D(Int_t i_track);
     void Draw_neighbor_tracks(Int_t i_track);
     void Draw_online_tracklets();
+    void Draw_offline_tracklets();
     TGLViewer* Draw_TRD();
     void set_dca_to_track(Double_t dca_r, Double_t dca_z) {max_dca_r_to_track = dca_r; max_dca_z_to_track = dca_z;}
     void set_merged_time_bins(vector<Int_t> vec_merge_time_bins_in) {vec_merge_time_bins = vec_merge_time_bins_in;}
@@ -193,12 +199,15 @@ public:
     TPolyLine* get_helix_polyline_2D(Int_t i_track);
     TEveLine* get_straight_line_fit(Int_t i_track);
     void get_tracklets_fit(Int_t i_track);
+    void get_2D_global_circle_fit();
     vector<TPolyLine*> get_online_tracklets(Int_t i_track);
+    vector<TPolyLine*> get_offline_tracklets(Int_t i_track);
     vector< vector<TVector3> >  make_clusters(Int_t i_track);
     vector< vector< vector<Double_t> > > get_tracklet_fit_points() {return vec_tracklet_fit_points;}
     void make_plots_ADC(Int_t i_track);
     void Calibrate();
     void Track_Tracklets(); // for online tracklets
+    void Draw_2D_circle_3points(vector<TVector2>);
 
     ClassDef(TBase_TRD_Calib, 1)
 };
@@ -216,9 +225,11 @@ TBase_TRD_Calib::TBase_TRD_Calib()
     vec_TV3_Tracklet_pos.resize(540);
     vec_TV3_Tracklet_dir.resize(540);
     vec_h_diff_helix_line_impact_angle.resize(3); // [all,-,+]
+    vec_h_diff_ref_loc_off_trkl.resize(3); // [all,-,+]
     for(Int_t i_charge = 0; i_charge < 3; i_charge++)
     {
-        vec_h_diff_helix_line_impact_angle[i_charge].resize(540);
+        vec_h_diff_helix_line_impact_angle[i_charge].resize(547);
+        vec_h_diff_ref_loc_off_trkl[i_charge].resize(547);
     }
 
     // Standard time bins
@@ -277,13 +288,19 @@ TBase_TRD_Calib::TBase_TRD_Calib()
 
     for(Int_t i_charge = 0; i_charge < 3; i_charge++)
     {
-        for(Int_t TRD_detector = 0; TRD_detector < 540; TRD_detector++)
+        for(Int_t TRD_detector = 0; TRD_detector < 547; TRD_detector++)
         {
             HistName = "vec_h_diff_helix_line_impact_angle_c_";
             HistName += i_charge;
             HistName += "_det_";
             HistName += TRD_detector;
             vec_h_diff_helix_line_impact_angle[i_charge][TRD_detector] = new TH1D(HistName.Data(),HistName.Data(),100,-10.0,10.0);
+
+            HistName = "vec_h_diff_ref_loc_off_trkl_";
+            HistName += i_charge;
+            HistName += "_det_";
+            HistName += TRD_detector;
+            vec_h_diff_ref_loc_off_trkl[i_charge][TRD_detector] = new TH1D(HistName.Data(),HistName.Data(),400,-2.0,2.0);
         }
     }
 
@@ -448,7 +465,7 @@ vector< vector<TVector3> >  TBase_TRD_Calib::make_clusters(Int_t i_track)
     // Merge the ADC digits according to time bins set in set_merged_time_bins
     // Digit space points are merged using the ADC values as weight
 
-    Int_t N_merged_time_bis = (Int_t)vec_merge_time_bins.size();
+    Int_t N_merged_time_bins = (Int_t)vec_merge_time_bins.size();
 
     AS_Track     = AS_Event ->getTrack( i_track ); // take the track
 
@@ -466,14 +483,19 @@ vector< vector<TVector3> >  TBase_TRD_Calib::make_clusters(Int_t i_track)
     for(Int_t i_layer = 0; i_layer < 6; i_layer++)
     {
         arr_layer_detector[i_layer] = -1;
-        vec_TV3_digit_pos_cluster[i_layer].resize(N_merged_time_bis);
+        vec_TV3_digit_pos_cluster[i_layer].resize(N_merged_time_bins);
+        for(Int_t i_time = 0; i_time < N_merged_time_bins; i_time++)
+        {
+            vec_TV3_digit_pos_cluster[i_layer][i_time].SetXYZ(-999.0,-999.0,-999.0);
+        }
     }
 
     //for new vector<Double_t>  vector<vector<vector<Double_t>>> vec_Dt_digit_pos_cluster[i_layer][i_merged_time_bin][i_xyzADC]
+    vec_Dt_digit_pos_cluster.clear();
     vec_Dt_digit_pos_cluster.resize(7); // 6 layers + global line (first time points close to anode wire)
     for(Int_t i_layer = 0; i_layer < 6; i_layer++)
     {
-        vec_Dt_digit_pos_cluster[i_layer].resize(N_merged_time_bis);
+        vec_Dt_digit_pos_cluster[i_layer].resize(N_merged_time_bins);
     }
     vec_Dt_digit_pos_cluster[6].resize(6); // at maximum 6 layer points for global fit
     for(Int_t i_layer = 0; i_layer < 7; i_layer++)
@@ -495,9 +517,9 @@ vector< vector<TVector3> >  TBase_TRD_Calib::make_clusters(Int_t i_track)
     vec_pos_merge.resize(6); // layer
     for(Int_t i_layer = 0; i_layer < 6; i_layer++)
     {
-        vec_weight_digits_merged[i_layer].resize(N_merged_time_bis);
-        vec_pos_merge[i_layer].resize(N_merged_time_bis);
-        for(Int_t i_time_merge = 0; i_time_merge < (N_merged_time_bis); i_time_merge++)
+        vec_weight_digits_merged[i_layer].resize(N_merged_time_bins);
+        vec_pos_merge[i_layer].resize(N_merged_time_bins);
+        for(Int_t i_time_merge = 0; i_time_merge < (N_merged_time_bins); i_time_merge++)
         {
             vec_pos_merge[i_layer][i_time_merge].resize(3); // x,y,z
         }
@@ -530,7 +552,7 @@ vector< vector<TVector3> >  TBase_TRD_Calib::make_clusters(Int_t i_track)
 
         arr_layer_detector[layer] = detector;
 
-        for(Int_t i_time_merge = 0; i_time_merge < (N_merged_time_bis); i_time_merge++)
+        for(Int_t i_time_merge = 0; i_time_merge < (N_merged_time_bins); i_time_merge++)
         {
             Int_t i_time_start = vec_merge_time_bins[i_time_merge];
             Int_t i_time_stop  = vec_merge_time_bins[i_time_merge + 1];
@@ -559,7 +581,7 @@ vector< vector<TVector3> >  TBase_TRD_Calib::make_clusters(Int_t i_track)
     for(Int_t i_layer = 0; i_layer < 6; i_layer++)
     {
         //printf("i_layer: %d \n",i_layer);
-        for(Int_t i_time_merge = 0; i_time_merge < (N_merged_time_bis); i_time_merge++)
+        for(Int_t i_time_merge = 0; i_time_merge < (N_merged_time_bins); i_time_merge++)
         {
             //printf("   i_time_merge: %d \n",i_time_merge);
             if(vec_weight_digits_merged[i_layer][i_time_merge] > 0.0)
@@ -951,6 +973,21 @@ void TBase_TRD_Calib::Draw_line(Int_t i_track)
 
 
 //----------------------------------------------------------------------------------------
+void TBase_TRD_Calib::get_2D_global_circle_fit()
+{
+    // Is fitting  through all first cluster points of all available layers with a 2D circle
+    // First the parameters are estimated by calculating them with three points
+    //vec_Dt_digit_pos_cluster[6][i_layer][i_xyzADC]
+    for(Int_t i = 0; i < (Int_t)vec_Dt_digit_pos_cluster[6].size(); ++i)
+    {
+
+    }
+}
+//----------------------------------------------------------------------------------------
+
+
+
+//----------------------------------------------------------------------------------------
 void TBase_TRD_Calib::get_tracklets_fit(Int_t i_track)
 {
     // Is fitting the tracklets and doing the global fit through all first cluster points of all available layers
@@ -1289,10 +1326,56 @@ vector<TPolyLine*> TBase_TRD_Calib::get_online_tracklets(Int_t i_track)
 
 
 //----------------------------------------------------------------------------------------
+vector<TPolyLine*> TBase_TRD_Calib::get_offline_tracklets(Int_t i_track)
+{
+    // Loop over all tracklets
+    Double_t scale_factor_length = 3.0;
+
+    vec_TPL_offline_tracklets.clear();
+
+    UShort_t N_tracks_off = AS_Event ->getNumTracks(); // number of tracks in this event
+    for(UShort_t i_track = 0; i_track < N_tracks_off; ++i_track) // loop over all tracks of the actual event
+    {
+        AS_Track      = AS_Event ->getTrack( i_track ); // take the track
+        UShort_t  fNumOfflineTracklets = AS_Track ->getNumOfflineTracklets();
+        if(fNumOfflineTracklets > 0)
+        {
+            for(Int_t i_tracklet = 0; i_tracklet < fNumOfflineTracklets; i_tracklet++) // layers
+            {
+                AS_offline_Tracklet     = AS_Track            ->getOfflineTracklet( i_tracklet ); // take the track
+                TVector3 TV3_offset     = AS_offline_Tracklet ->get_TV3_offset(); // offline tracklets
+                TVector3 TV3_dir        = AS_offline_Tracklet ->get_TV3_dir();    // offline tracklets
+                Short_t  i_det_tracklet = AS_offline_Tracklet ->get_detector();
+
+                //TV3_offset.Print();
+                //TV3_dir.Print();
+
+                Float_t points[6] =
+                {
+                    (Float_t)(TV3_offset[0]),(Float_t)(TV3_offset[1]),(Float_t)(TV3_offset[2]),
+                    (Float_t)(TV3_offset[0] + scale_factor_length*TV3_dir[0]),(Float_t)(TV3_offset[1] + scale_factor_length*TV3_dir[1]),(Float_t)(TV3_offset[2] + scale_factor_length*TV3_dir[2])
+                };
+
+                //printf("  offline tracklets: i_tracklet: %d, posA: {%4.3f, %4.3f}, posB: {%4.3f, %4.3f} \n",i_tracklet,(Float_t)(TV3_offset[0]),(Float_t)(TV3_offset[1]),(Float_t)(TV3_offset[0] + scale_factor_length*TV3_dir[0]),(Float_t)(TV3_offset[1] + scale_factor_length*TV3_dir[1]));
+                vec_TPL_offline_tracklets.push_back(new TPolyLine());
+                vec_TPL_offline_tracklets[(Int_t)vec_TPL_offline_tracklets.size()-1] ->SetNextPoint((Float_t)(TV3_offset[0]),(Float_t)(TV3_offset[1]));
+                vec_TPL_offline_tracklets[(Int_t)vec_TPL_offline_tracklets.size()-1] ->SetNextPoint((Float_t)(TV3_offset[0] + scale_factor_length*TV3_dir[0]),(Float_t)(TV3_offset[1] + scale_factor_length*TV3_dir[1]));
+            }
+        }
+    }
+
+    return vec_TPL_offline_tracklets;
+}
+//----------------------------------------------------------------------------------------
+
+
+
+//----------------------------------------------------------------------------------------
 void TBase_TRD_Calib::Draw_tracklets_line_2D(Int_t i_track)
 {
     get_tracklets_fit(i_track);
-    vector<TPolyLine*> vec_TPL_on_trkl =  get_online_tracklets(i_track);
+    vector<TPolyLine*> vec_TPL_on_trkl  =  get_online_tracklets(i_track);
+    vector<TPolyLine*> vec_TPL_off_trkl =  get_offline_tracklets(i_track);
 
     for(Int_t i_layer = 0; i_layer < 7; i_layer++) // 6 layers + global fit
     {
@@ -1319,6 +1402,15 @@ void TBase_TRD_Calib::Draw_tracklets_line_2D(Int_t i_track)
         vec_TPL_on_trkl[i_onl_trkl] ->SetLineWidth(3);
         vec_TPL_on_trkl[i_onl_trkl] ->SetLineColor(kBlack);
         vec_TPL_on_trkl[i_onl_trkl] ->DrawClone("l");
+    }
+
+    for(Int_t i_offl_trkl = 0; i_offl_trkl < (Int_t)vec_TPL_off_trkl.size(); i_offl_trkl++)
+    {
+        //printf(" drawing i_offl_trkl: %d \n",i_offl_trkl);
+        vec_TPL_off_trkl[i_offl_trkl] ->SetLineStyle(9);
+        vec_TPL_off_trkl[i_offl_trkl] ->SetLineWidth(3);
+        vec_TPL_off_trkl[i_offl_trkl] ->SetLineColor(kCyan+1);
+        vec_TPL_off_trkl[i_offl_trkl] ->DrawClone("l");
     }
 
     HistName = "Ev. ";
@@ -1429,9 +1521,11 @@ TPolyLine* TBase_TRD_Calib::get_helix_polyline_2D(Int_t i_track)
     printf("TBase_TRD_Calib::get_helix_polyline_2D \n");
     TPolyLine* TPL_helix_track = new TPolyLine();
     AS_Track      = AS_Event ->getTrack( i_track ); // take the track
+
     for(Int_t i_param = 0; i_param < 9; i_param++)
     {
         aliHelix.fHelix[i_param] = AS_Track ->getHelix_param(i_param);
+        //printf("i_param: %d, param: %4.3f \n",i_param,AS_Track ->getHelix_param(i_param));
     }
 
     Double_t helix_point[3];
@@ -1448,6 +1542,7 @@ TPolyLine* TBase_TRD_Calib::get_helix_polyline_2D(Int_t i_track)
         //printf("i_step: %d, pos: {%4.3f, %4.3f, %4.3f}, radius: %4.3f \n",i_step,helix_point[0],helix_point[1],helix_point[2],radius);
         if(radius > 368.0) break;
     }
+
     return TPL_helix_track;
 }
 //----------------------------------------------------------------------------------------
@@ -1472,9 +1567,9 @@ void TBase_TRD_Calib::Draw_track(Int_t i_track)
 
 
 //----------------------------------------------------------------------------------------
-void TBase_TRD_Calib::Draw_2D_track(Int_t i_track)
-{
+void TBase_TRD_Calib::Draw_2D_track(Int_t i_track){
     printf("TBase_TRD_Calib::Draw_2D_track \n");
+
 
     TPL_helix = get_helix_polyline_2D(i_track);
 
@@ -1712,6 +1807,28 @@ void TBase_TRD_Calib::Init_tree(TString SEList)
 Int_t TBase_TRD_Calib::Loop_event(Long64_t event)
 {
     printf("Loop event number: %lld \n",event);
+
+#if 0
+    //----------------
+    // Check which event has offline tracklet information from friends
+    for(Int_t i_ev = 0; i_ev < 614; i_ev++)
+    {
+        input_SE->GetEntry( i_ev );
+        if((i_ev % 100) == 0) printf("i_ev: %d \n",i_ev);
+        UShort_t N_tr            = AS_Event ->getNumTracks(); // number of tracks in this event
+        for(UShort_t i_track = 0; i_track < N_tr; ++i_track) // loop over all tracks of the actual event
+        {
+            AS_Track      = AS_Event ->getTrack( i_track ); // take the track
+            UShort_t  fNumOfflineTracklets = AS_Track ->getNumOfflineTracklets();
+            if(fNumOfflineTracklets > 0)
+            {
+                printf("    ------> i_ev: %d, i_track: %d, N_off_trkl: %d \n",i_ev,i_track,fNumOfflineTracklets);
+            }
+        }
+    }
+    //----------------
+#endif
+
     Event_active = event;
 
     if (!input_SE->GetEntry( event )) return 0; // take the event -> information is stored in event
@@ -1725,6 +1842,7 @@ Int_t TBase_TRD_Calib::Loop_event(Long64_t event)
     }
 
     vec_TPL3D_tracklets.clear();
+    vec_TPL3D_offline_tracklets.clear();
 
     //---------------------------------------------------------------------------
     UShort_t NumTracks            = AS_Event ->getNumTracks(); // number of tracks in this event
@@ -1733,10 +1851,10 @@ Int_t TBase_TRD_Calib::Loop_event(Long64_t event)
     Double_t EventVertexZ         = AS_Event ->getz();
     Int_t    N_tracks_event       = AS_Event ->getN_tracks();
     Int_t    N_TRD_tracklets      = AS_Event ->getN_TRD_tracklets();
-    Int_t    N_TRD_tracklets_offline = AS_Event ->getNumTracklets();
+    Int_t    N_TRD_tracklets_online = AS_Event ->getNumTracklets(); // online tracklet
     Float_t  V0MEq                = AS_Event ->getcent_class_V0MEq();
 
-    printf("N_TRD_tracklets_offline: %d \n",N_TRD_tracklets_offline);
+    printf("N_TRD_tracklets_online: %d \n",N_TRD_tracklets_online);
 
     N_Tracks = NumTracks;
 
@@ -1750,7 +1868,7 @@ Int_t TBase_TRD_Calib::Loop_event(Long64_t event)
 
     // Loop over all tracklets
     Double_t scale_factor_length = 2.0;
-    for(UShort_t i_tracklet = 0; i_tracklet < N_TRD_tracklets_offline; ++i_tracklet) // loop over all tracklets of the actual event
+    for(UShort_t i_tracklet = 0; i_tracklet < N_TRD_tracklets_online; ++i_tracklet) // loop over all tracklets of the actual event
     {
         AS_Tracklet             = AS_Event    ->getTracklet( i_tracklet ); // take the track
         TVector3 TV3_offset     = AS_Tracklet ->get_TV3_offset(); // online tracklets
@@ -1771,7 +1889,7 @@ Int_t TBase_TRD_Calib::Loop_event(Long64_t event)
             (Float_t)(TV3_offset[0]),(Float_t)(TV3_offset[1]),(Float_t)(TV3_offset[2]),
             (Float_t)(TV3_offset[0] + scale_factor_length*TV3_dir[0]),(Float_t)(TV3_offset[1] + scale_factor_length*TV3_dir[1]),(Float_t)(TV3_offset[2] + scale_factor_length*TV3_dir[2])
         };
-        //printf("i_tracklet: %d, out of %d, impact_angle: %4.3f, offset: {%4.3f, %4.3f, %4.3f}, end: {%4.3f, %4.3f, %4.3f} \n",i_tracklet,N_TRD_tracklets_offline,impact_angle*TMath::RadToDeg(),TV3_offset[0],TV3_offset[1],TV3_offset[2],TV3_offset[0] + TV3_dir[0],TV3_offset[1] + TV3_dir[1],TV3_offset[2] + TV3_dir[2]);
+        //printf("i_tracklet: %d, out of %d, impact_angle: %4.3f, offset: {%4.3f, %4.3f, %4.3f}, end: {%4.3f, %4.3f, %4.3f} \n",i_tracklet,N_TRD_tracklets_online,impact_angle*TMath::RadToDeg(),TV3_offset[0],TV3_offset[1],TV3_offset[2],TV3_offset[0] + TV3_dir[0],TV3_offset[1] + TV3_dir[1],TV3_offset[2] + TV3_dir[2]);
 
         vec_TPL3D_tracklets.push_back(new TEveLine());
         vec_TPL3D_tracklets[(Int_t)vec_TPL3D_tracklets.size()-1] ->SetNextPoint((Float_t)(TV3_offset[0]),(Float_t)(TV3_offset[1]),(Float_t)(TV3_offset[2]));
@@ -1804,8 +1922,7 @@ Int_t TBase_TRD_Calib::Loop_event(Long64_t event)
         Float_t eta_track       = TLV_part.Eta();
         Float_t pT_track        = TLV_part.Pt();
         Float_t theta_track     = TLV_part.Theta();
-
-        printf("i_track: %d, pT: %4.3f \n",i_track,pT_track);
+        Float_t phi_track       = TLV_part.Phi();
 
         vec_track_single_info[0]  = dca;
         vec_track_single_info[1]  = TPCdEdx;
@@ -1823,7 +1940,30 @@ Int_t TBase_TRD_Calib::Loop_event(Long64_t event)
 
         //----------------------------------------------
         // TRD digit information
-        UShort_t  fNumTRDdigits = AS_Track ->getNumTRD_digits();
+        UShort_t  fNumTRDdigits        = AS_Track ->getNumTRD_digits();
+        UShort_t  fNumOfflineTracklets = AS_Track ->getNumOfflineTracklets();
+        //--------------------------
+
+
+        //--------------------------
+        // Offline tracklet loop
+        for(Int_t i_tracklet = 0; i_tracklet < fNumOfflineTracklets; i_tracklet++) // layers
+        {
+            AS_offline_Tracklet     = AS_Track            ->getOfflineTracklet( i_tracklet ); // take the track
+            TVector3 TV3_offset     = AS_offline_Tracklet ->get_TV3_offset(); // offline tracklets
+            TVector3 TV3_dir        = AS_offline_Tracklet ->get_TV3_dir();    // offline tracklets
+            Short_t  i_det_tracklet = AS_offline_Tracklet ->get_detector();
+
+            printf("offline, i_tracklet: %d, offset: {%4.3f, %4.3f, %4.3f}, dir: {%4.3f, %4.3f, %4.3f} \n",i_tracklet,(Float_t)(TV3_offset[0]),(Float_t)(TV3_offset[1]),(Float_t)(TV3_offset[2]),(Float_t)TV3_dir[0],(Float_t)TV3_dir[1],(Float_t)TV3_dir[2]);
+
+            vec_TPL3D_offline_tracklets.push_back(new TEveLine());
+            vec_TPL3D_offline_tracklets[(Int_t)vec_TPL3D_offline_tracklets.size()-1] ->SetNextPoint((Float_t)(TV3_offset[0]),(Float_t)(TV3_offset[1]),(Float_t)(TV3_offset[2]));
+            vec_TPL3D_offline_tracklets[(Int_t)vec_TPL3D_offline_tracklets.size()-1] ->SetNextPoint((Float_t)(TV3_offset[0] + scale_factor_length*TV3_dir[0]),(Float_t)(TV3_offset[1] + scale_factor_length*TV3_dir[1]),(Float_t)(TV3_offset[2] + scale_factor_length*TV3_dir[2]));
+        }
+        //--------------------------
+
+
+        printf("i_track: %d, pT: %4.3f, phi: %4.3f, eta: %4.3f, N_off_trkl: %d \n",i_track,pT_track,phi_track,eta_track,fNumOfflineTracklets);
 
         //printf("i_track: %d, fNumTRDdigits: %d \n",i_track,fNumTRDdigits);
 
@@ -1970,8 +2110,8 @@ void TBase_TRD_Calib::Calibrate()
         vec_TH2D_Delta_vs_impact[i_det] = new TH2D(Form("vec_th2d_Delta_vs_impact_%d",i_det),Form("vec_th2d_Delta_vs_impact_%d",i_det),10,70,110,50,-25,25);
     }
 
-    //for(Long64_t i_event = 0; i_event < file_entries_total; i_event++)
-    for(Long64_t i_event = 0; i_event < 72000; i_event++)
+    //for(Long64_t i_event = 0; i_event < 72000; i_event++)
+    for(Long64_t i_event = 0; i_event < file_entries_total; i_event++)
     {
         if(i_event % 100 == 0) printf("i_event: %lld out of %lld \n",i_event,file_entries_total);
         if (!input_SE->GetEntry( i_event )) return 0; // take the event -> information is stored in event
@@ -1984,7 +2124,7 @@ void TBase_TRD_Calib::Calibrate()
             AS_Track      = AS_Event ->getTrack( i_track ); // take the track
             TLorentzVector TLV_part = AS_Track ->get_TLV_part();
             Float_t pT_track        = TLV_part.Pt();
-            if(pT_track < 3.5) continue;
+            if(pT_track < 3.5) continue; // 3.5
 
             Double_t nsigma_TPC_e   = AS_Track ->getnsigma_e_TPC();
             Double_t nsigma_TPC_pi  = AS_Track ->getnsigma_pi_TPC();
@@ -1997,15 +2137,61 @@ void TBase_TRD_Calib::Calibrate()
             UShort_t NTPCcls        = AS_Track ->getNTPCcls();
             UShort_t NTRDcls        = AS_Track ->getNTRDcls();
             UShort_t NITScls        = AS_Track ->getNITScls();
-            Float_t TPCchi2         = AS_Track ->getTPCchi2();
-            Float_t TPCdEdx         = AS_Track ->getTPCdEdx();
-            Float_t TOFsignal       = AS_Track ->getTOFsignal(); // in ps (1E-12 s)
-            Float_t Track_length    = AS_Track ->getTrack_length();
-            Float_t Angle_on_TRD    = AS_Track ->getimpact_angle_on_TRD();
+            Float_t  TPCchi2        = AS_Track ->getTPCchi2();
+            Float_t  TPCdEdx        = AS_Track ->getTPCdEdx();
+            Float_t  TOFsignal      = AS_Track ->getTOFsignal(); // in ps (1E-12 s)
+            Float_t  Track_length   = AS_Track ->getTrack_length();
+            Float_t  Angle_on_TRD   = AS_Track ->getimpact_angle_on_TRD();
 
-            Float_t momentum        = TLV_part.P();
-            Float_t eta_track       = TLV_part.Eta();
-            Float_t theta_track     = TLV_part.Theta();
+            Float_t  momentum       = TLV_part.P();
+            Float_t  eta_track      = TLV_part.Eta();
+            Float_t  theta_track    = TLV_part.Theta();
+
+
+            //--------------------------
+            // Offline tracklet loop
+            UShort_t  fNumOfflineTracklets = AS_Track ->getNumOfflineTracklets();
+            if(fNumOfflineTracklets > 3)
+            {
+                for(Int_t i_tracklet = 0; i_tracklet < fNumOfflineTracklets; i_tracklet++) // layers
+                {
+                    AS_offline_Tracklet     = AS_Track            ->getOfflineTracklet( i_tracklet ); // take the track
+                    TVector3 TV3_offset     = AS_offline_Tracklet ->get_TV3_offset(); // offline tracklets
+                    TVector3 TV3_dir        = AS_offline_Tracklet ->get_TV3_dir();    // offline tracklets
+                    Short_t  i_det_tracklet = AS_offline_Tracklet ->get_detector();
+                    Float_t  chi2           = AS_offline_Tracklet ->get_chi2();
+                    Float_t  refZ           = AS_offline_Tracklet ->get_refZ();
+                    Float_t  refY           = AS_offline_Tracklet ->get_refY();
+                    Float_t  refdZdx        = AS_offline_Tracklet ->get_refdZdx();
+                    Float_t  refdYdx        = AS_offline_Tracklet ->get_refdYdx();
+                    Float_t  locZ           = AS_offline_Tracklet ->get_locZ();
+                    Float_t  locY           = AS_offline_Tracklet ->get_locY();
+                    Float_t  locdZdx        = AS_offline_Tracklet ->get_locdZdx();
+                    Float_t  locdYdx        = AS_offline_Tracklet ->get_locdYdx();
+
+                    Int_t i_det_layer = i_det_tracklet%6;
+
+                    if(i_det_tracklet < 0 || i_det_tracklet >= 540) continue;
+                    Float_t diff_dYdx = locdYdx - refdYdx;
+
+                    vec_h_diff_ref_loc_off_trkl[0][i_det_tracklet] ->Fill(diff_dYdx);
+                    vec_h_diff_ref_loc_off_trkl[0][540] ->Fill(diff_dYdx);
+                    vec_h_diff_ref_loc_off_trkl[0][541+i_det_layer] ->Fill(diff_dYdx);
+                    if(dca < 0.0)
+                    {
+                        vec_h_diff_ref_loc_off_trkl[1][i_det_tracklet] ->Fill(diff_dYdx);
+                        vec_h_diff_ref_loc_off_trkl[1][540] ->Fill(diff_dYdx);
+                        vec_h_diff_ref_loc_off_trkl[1][541+i_det_layer] ->Fill(diff_dYdx);
+                    }
+                    if(dca > 0.0)
+                    {
+                        vec_h_diff_ref_loc_off_trkl[2][i_det_tracklet] ->Fill(diff_dYdx);
+                        vec_h_diff_ref_loc_off_trkl[2][540] ->Fill(diff_dYdx);
+                        vec_h_diff_ref_loc_off_trkl[2][541+i_det_layer] ->Fill(diff_dYdx);
+                    }
+                }
+            }
+            //--------------------------
 
             //if(dca > 0.0) continue;
 
@@ -2027,8 +2213,16 @@ void TBase_TRD_Calib::Calibrate()
 
 
             if(vec_tracklet_fit_points[6][0][0] == -999.0  && vec_tracklet_fit_points[6][1][0] == -999.0) continue; // no global fit available
+            if(tracklets_min[6] > 7.5) continue;
 
             //printf("Track with pT: %4.3f used for calibration \n",pT_track);
+
+            Int_t N_good_layers = 0;
+            for(Int_t i_layer = 5; i_layer >= 0; i_layer--)
+            {
+                if(vec_tracklet_fit_points[i_layer][0][0] > -999.0 && vec_tracklet_fit_points[i_layer][1][0] > -999.0) N_good_layers++;
+            }
+            if(N_good_layers < 3) continue;
 
             Double_t impact_angle[6] = {0.0};
             Double_t delta_x_local_global[6] = {0.0}; // local chamber coordinate system, global fit
@@ -2118,6 +2312,7 @@ void TBase_TRD_Calib::Calibrate()
 
                     if(i_layer < 6) // tracklets
                     {
+                        if(tracklets_min[i_layer] > 0.2) continue;
                         if(arr_layer_detector[i_layer] < 0) continue;
                         Int_t detector = arr_layer_detector[i_layer];
                         Double_t delta_x_local_tracklet = vec_TV3_tracklet_vectors[i_layer].Dot(vec_TV3_TRD_center[arr_layer_detector[i_layer]][0]);
@@ -2140,9 +2335,10 @@ void TBase_TRD_Calib::Calibrate()
                         //    printf("detector: %d, track: %d, impact angle: %4.3f, Delta angle: %4.3f, delta_x_local_tracklet: %4.3f \n",detector,i_track,impact_angle[i_layer]*TMath::RadToDeg(),Delta_angle*TMath::RadToDeg(),delta_x_local_tracklet);
                             h_delta_angle_perp_impact ->Fill(Delta_angle*TMath::RadToDeg());
                         }
-                        if(impact_angle[i_layer]*TMath::RadToDeg() > 73.0 && impact_angle[i_layer]*TMath::RadToDeg() < 78.0 && pT_track > 3.5)
+                        //if(impact_angle[i_layer]*TMath::RadToDeg() > 73.0 && impact_angle[i_layer]*TMath::RadToDeg() < 78.0 && pT_track > 3.5)
+                        if(impact_angle[i_layer]*TMath::RadToDeg() > 87.5 && impact_angle[i_layer]*TMath::RadToDeg() < 92.5 && pT_track > 3.5)
                         {
-                            printf("       ======================> i_event: %lld, i_track: %d \n",i_event,i_track);
+                            //printf("       ======================> i_event: %lld, i_track: %d \n",i_event,i_track);
                         }
                         //printf("detector: %d, track: %d, impact angle: %4.3f, Delta angle: %4.3f \n",detector,i_track,impact_angle[i_layer]*TMath::RadToDeg(),Delta_angle*TMath::RadToDeg());
                     }
@@ -2241,9 +2437,10 @@ void TBase_TRD_Calib::Calibrate()
     outputfile ->cd("Delta_impact");
     for(Int_t i_charge = 0; i_charge < 3; i_charge++)
     {
-        for(Int_t i_det = 0; i_det < 540; i_det++)
+        for(Int_t i_det = 0; i_det < 547; i_det++)
         {
             vec_h_diff_helix_line_impact_angle[i_charge][i_det] ->Write();
+            vec_h_diff_ref_loc_off_trkl[i_charge][i_det]        ->Write();
         }
     }
     printf("All data written \n");
@@ -2268,6 +2465,79 @@ void TBase_TRD_Calib::Draw_online_tracklets()
     gEve->Redraw3D(kTRUE);
 }
 //----------------------------------------------------------------------------------------
+
+
+
+//----------------------------------------------------------------------------------------
+void TBase_TRD_Calib::Draw_offline_tracklets()
+{
+    printf("TBase_TRD_Calib::Draw_offline_tracklets() \n");
+    for(Int_t i_tracklet = 0; i_tracklet < (Int_t)vec_TPL3D_offline_tracklets.size(); i_tracklet++)
+    {
+        printf("Add tracklet: %d \n",i_tracklet);
+        vec_TPL3D_offline_tracklets[i_tracklet]->SetLineStyle(1);
+        vec_TPL3D_offline_tracklets[i_tracklet]->SetLineWidth(2);
+        vec_TPL3D_offline_tracklets[i_tracklet]->SetMainColor(kMagenta-7);
+        gEve->AddElement(vec_TPL3D_offline_tracklets[i_tracklet]);
+    }
+    gEve->Redraw3D(kTRUE);
+}
+//----------------------------------------------------------------------------------------
+
+
+
+//----------------------------------------------------------------------------------------
+void TBase_TRD_Calib::Draw_2D_circle_3points(vector<TVector2> vec_TV2_points)
+{
+    // Calculate the circle parameters based on the input points
+    // http://www.ambrsoft.com/trigocalc/circle3d.htm
+    // (x - a)^2 + (y - b)^2  = R^2
+
+    printf("TBase_TRD_Calib::Draw_2D_circle_3points \n");
+
+    TPolyLine* tpl_circle = new TPolyLine();
+
+    Double_t x1 = vec_TV2_points[0].X();
+    Double_t y1 = vec_TV2_points[0].Y();
+    Double_t x2 = vec_TV2_points[1].X();
+    Double_t y2 = vec_TV2_points[1].Y();
+    Double_t x3 = vec_TV2_points[2].X();
+    Double_t y3 = vec_TV2_points[2].Y();
+
+
+    Double_t A_help = x1*(y2 - y3) - y1*(x2 - x3) + x2*y3 - x3*y2;
+    Double_t B_help = (x1*x1 + y1*y1)*(y3 - y2) + (x2*x2 + y2*y2)*(y1 - y3) + (x3*x3 + y3*y3)*(y2 - y1);
+    Double_t C_help = (x1*x1 + y1*y1)*(x2 - x3) + (x2*x2 + y2*y2)*(x3 - x1) + (x3*x3 + y3*y3)*(x1 - x2);
+    Double_t D_help = (x1*x1 + y1*y1)*(x3*y2 - x2*y3) + (x2*x2 + y2*y2)*(x1*y3 - x3*y1) + (x3*x3 + y3*y3)*(x2*y1 - x1*y2);
+
+    if(A_help != 0.0)
+    {
+
+        Double_t a_param = -B_help/(2*A_help);
+        Double_t b_param = -C_help/(2*A_help);
+        Double_t R_param = TMath::Sqrt(TMath::Power(x1 - a_param,2.0) + TMath::Power(y1 - b_param,2.0));
+
+        //printf("pointA: {%4.3f, %4.3f}, pointB: {%4.3f, %4.3f}, pointC: {%4.3f, %4.3f}, circle(a,b,R): {%4.3f, %4.3f, %4.3f} \n",x1,y1,x2,y2,x3,y3,a_param,b_param,R_param);
+
+        Double_t delta_i_y = R_param/200.0;
+        for(Double_t i_sign = -1.0; i_sign <= +1.0; i_sign += 2.0)
+        {
+            for(Double_t i_y = (b_param - R_param); i_y < (b_param + R_param); (i_y += delta_i_y))
+            {
+                Double_t i_x = i_sign*TMath::Sqrt(TMath::Power(R_param,2.0) - TMath::Power(i_y - b_param,2.0)) + a_param;
+                tpl_circle ->SetNextPoint(i_x,i_y);
+                //printf("point: {%4.3f, %4.3f} \n",i_x,i_y);
+            }
+        }
+
+        tpl_circle ->SetLineStyle(1);
+        tpl_circle ->SetLineWidth(3);
+        tpl_circle ->SetLineColor(kTeal+2);
+        tpl_circle ->DrawClone("l");
+    }
+}
+//----------------------------------------------------------------------------------------
+
 
 
 

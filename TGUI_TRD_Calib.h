@@ -38,6 +38,7 @@ private:
     TGTextButton *Button_draw3D;
     TGTextButton *Button_draw3D_track;
     TGTextButton *Button_draw3D_online_tracklets;
+    TGTextButton *Button_draw3D_offline_tracklets;
     TGTextButton *Button_Calibrate;
     TGTextButton *Button_Track_Tracklets;
     TGTextButton *Button_draw2D_track;
@@ -73,6 +74,7 @@ public:
     Int_t Draw3D_track();
     Int_t Draw_2D_track();
     Int_t Draw_online_tracklets();
+    Int_t Draw_offline_tracklets();
     Int_t Calibrate();
     Int_t Track_Tracklets();
     ClassDef(TGUI_TRD_Calib, 0)
@@ -149,6 +151,11 @@ TGUI_TRD_Calib::TGUI_TRD_Calib() : TGMainFrame(gClient->GetRoot(), 100, 100)
     Button_draw3D_online_tracklets->Connect("Clicked()", "TGUI_TRD_Calib", this, "Draw_online_tracklets()");
     hframe_Main[0]->AddFrame(Button_draw3D_online_tracklets, new TGLayoutHints(kLHintsCenterX,5,5,3,4));
 
+    // draw 3D button
+    Button_draw3D_offline_tracklets = new TGTextButton(hframe_Main[0], "&Draw off. trk. ",10);
+    Button_draw3D_offline_tracklets->Connect("Clicked()", "TGUI_TRD_Calib", this, "Draw_offline_tracklets()");
+    hframe_Main[0]->AddFrame(Button_draw3D_offline_tracklets, new TGLayoutHints(kLHintsCenterX,5,5,3,4));
+
 
     Frame_Main ->AddFrame(hframe_Main[0], new TGLayoutHints(kLHintsCenterX,2,2,2,2));
     //--------------
@@ -215,7 +222,7 @@ TGUI_TRD_Calib::TGUI_TRD_Calib() : TGMainFrame(gClient->GetRoot(), 100, 100)
 
 
 
-    Frame_Main ->Resize(450,300); // size of frame
+    Frame_Main ->Resize(550,300); // size of frame
     Frame_Main ->MapSubwindows();
     Frame_Main ->MapWindow();
     Frame_Main ->Move(1150,50); // position of frame
@@ -223,7 +230,11 @@ TGUI_TRD_Calib::TGUI_TRD_Calib() : TGMainFrame(gClient->GetRoot(), 100, 100)
 
     Base_TRD_Calib = new TBase_TRD_Calib();
     //Base_TRD_Calib ->Init_tree("list_tree.txt");
-    Base_TRD_Calib ->Init_tree("list_tree_pPb_full.txt");
+    //Base_TRD_Calib ->Init_tree("list_tree_pPb_full.txt");
+    //Base_TRD_Calib ->Init_tree("list_tree_testB.txt");
+    //Base_TRD_Calib ->Init_tree("list_tree_testA.txt");
+    //Base_TRD_Calib ->Init_tree("list_tree_off_trkl.txt");
+    Base_TRD_Calib ->Init_tree("list_tree_off_trkl_V1.txt");
     Base_TRD_Calib ->Loop_event(0);
     vec_TPM3D_digits    = Base_TRD_Calib ->get_PM3D_digits();
     vec_TPL3D_tracklets = Base_TRD_Calib ->get_PL3D_tracklets();
@@ -392,16 +403,31 @@ Int_t TGUI_TRD_Calib::Draw_2D_track()
 
     Int_t i_track = arr_NEntry_ana_params[1]->GetNumberEntry()->GetNumber();
 
+    vector<TVector2> vec_TV2_clusters;
+    vec_TV2_clusters.resize(6);
+    Int_t N_clusters_circle_fit = 0;
     vector< vector<TVector3> > vec_TV3_digit_pos_cluster = Base_TRD_Calib ->make_clusters(i_track); // layer, merged time bin
     for(Int_t i_layer = 0; i_layer < 6; i_layer++)
     {
         for(Int_t i_time_merge = 0; i_time_merge < (Int_t)vec_TV3_digit_pos_cluster[i_layer].size(); i_time_merge++)
         {
-            TPM_cluster ->SetNextPoint(vec_TV3_digit_pos_cluster[i_layer][i_time_merge][0],vec_TV3_digit_pos_cluster[i_layer][i_time_merge][1]);
+            if(vec_TV3_digit_pos_cluster[i_layer][i_time_merge][0] > -999.0)
+            {
+                TPM_cluster ->SetNextPoint(vec_TV3_digit_pos_cluster[i_layer][i_time_merge][0],vec_TV3_digit_pos_cluster[i_layer][i_time_merge][1]);
+                if(i_time_merge == 3 && i_layer < 3)
+                {
+                    vec_TV2_clusters[i_layer].SetX(vec_TV3_digit_pos_cluster[i_layer][i_time_merge][0]);
+                    vec_TV2_clusters[i_layer].SetY(vec_TV3_digit_pos_cluster[i_layer][i_time_merge][1]);
+                    N_clusters_circle_fit++;
+                    //printf("i_layer: %d, i_time_merge: %d, N_clusters_circle_fit: %d, point: {%4.3f, %4.3f} \n",i_layer,i_time_merge,N_clusters_circle_fit,vec_TV3_digit_pos_cluster[i_layer][i_time_merge][0],vec_TV3_digit_pos_cluster[i_layer][i_time_merge][1]);
+                }
+            }
         }
     }
 
     Base_TRD_Calib ->Draw_2D_track(i_track);
+    //printf("N_clusters_circle_fit: %d \n",N_clusters_circle_fit);
+    if(N_clusters_circle_fit == 3) Base_TRD_Calib ->Draw_2D_circle_3points(vec_TV2_clusters);
 
 
     Float_t dca            = vec_track_info[i_track][0];
@@ -478,6 +504,20 @@ Int_t TGUI_TRD_Calib::Draw_online_tracklets()
     gClient->GetColorByName("green", green);
     Button_draw3D_online_tracklets->ChangeBackground(green);
     Base_TRD_Calib ->Draw_online_tracklets();
+
+    return 1;
+}
+//---------------------------------------------------------------------------------
+
+
+
+//---------------------------------------------------------------------------------
+Int_t TGUI_TRD_Calib::Draw_offline_tracklets()
+{
+    Pixel_t green;
+    gClient->GetColorByName("green", green);
+    Button_draw3D_offline_tracklets->ChangeBackground(green);
+    Base_TRD_Calib ->Draw_offline_tracklets();
 
     return 1;
 }
