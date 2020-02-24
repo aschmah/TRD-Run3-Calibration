@@ -427,7 +427,8 @@ Int_t TGUI_TRD_Calib::Draw_2D_track()
 
     Base_TRD_Calib ->Draw_2D_track(i_track);
     //printf("N_clusters_circle_fit: %d \n",N_clusters_circle_fit);
-    if(N_clusters_circle_fit == 3) Base_TRD_Calib ->Draw_2D_circle_3points(vec_TV2_clusters);
+    //if(N_clusters_circle_fit == 3) Base_TRD_Calib ->Draw_2D_circle_3points(vec_TV2_clusters);
+    if(N_clusters_circle_fit == 3) Base_TRD_Calib ->get_2D_global_circle_fit(vec_TV2_clusters);
 
 
     Float_t dca            = vec_track_info[i_track][0];
