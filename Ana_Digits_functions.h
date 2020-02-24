@@ -581,3 +581,44 @@ void SumDistance2_F_tr(Int_t &, Double_t *, Double_t & sum, Double_t * par, Int_
 }
 
 //------------------------------------------------------------------------------------
+
+//------------------------------------------------------------------------------------
+
+double distance_circ_point_2D(Double_t x,double_t y,Double_t *p) {
+    // distance between circle and point 2D
+    // D = |sqrt((xp-x0)^2 + (yp-y0)^2)-r|
+
+    //TVector2 xp(x,y);
+
+    Double_t d2 = TMath::Abs(TMath::Sqrt(TMath::Power(x-p[0],2.0)+TMath::Power(y-p[1],2.0))-p[2]);
+    return d2;
+}
+
+
+// function to be minimized
+void sum_distance_circ_point_2D(Int_t &, Double_t *, Double_t & sum, Double_t * par, Int_t ) {
+    // the TGraph must be a global variable
+
+    bool first = true;
+    TGraph * gr = dynamic_cast<TGraph*>( (TVirtualFitter::GetFitter())->GetObjectFit() );
+    assert(gr != 0);
+    Double_t * x = gr->GetX();
+    Double_t * y = gr->GetY();
+    //Double_t * z = gr->GetZ();
+    Int_t npoints = gr->GetN();
+    sum = 0;
+    for (Int_t i  = 0; i < npoints; ++i) {
+        Double_t d = distance_circ_point_2D(x[i],y[i],par);
+        sum += d;
+#ifdef DEBUG
+        if (first) std::cout << "point " << i << "\t"
+            << x[i] << "\t"
+                << y[i] << "\t"
+                << std::sqrt(d) << std::endl;
+#endif
+    }
+    if (first)
+        //std::cout << "Total sum2 = " << sum << std::endl;
+        first = false;
+}
+
