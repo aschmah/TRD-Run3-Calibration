@@ -403,6 +403,7 @@ Int_t TGUI_TRD_Calib::Draw_2D_track()
 
     Int_t i_track = arr_NEntry_ana_params[1]->GetNumberEntry()->GetNumber();
 
+#if 0
     vector<TVector2> vec_TV2_clusters;
     vec_TV2_clusters.resize(6);
     Int_t N_clusters_circle_fit = 0;
@@ -424,11 +425,12 @@ Int_t TGUI_TRD_Calib::Draw_2D_track()
             }
         }
     }
+#endif
 
     Base_TRD_Calib ->Draw_2D_track(i_track);
     //printf("N_clusters_circle_fit: %d \n",N_clusters_circle_fit);
     //if(N_clusters_circle_fit == 3) Base_TRD_Calib ->Draw_2D_circle_3points(vec_TV2_clusters);
-    if(N_clusters_circle_fit == 3) Base_TRD_Calib ->get_2D_global_circle_fit(vec_TV2_clusters);
+    if(N_clusters_circle_fit == 3) Base_TRD_Calib ->get_2D_global_circle_fit();
 
 
     Float_t dca            = vec_track_info[i_track][0];

@@ -199,7 +199,7 @@ public:
     TPolyLine* get_helix_polyline_2D(Int_t i_track);
     TEveLine* get_straight_line_fit(Int_t i_track);
     void get_tracklets_fit(Int_t i_track);
-    void get_2D_global_circle_fit(vector<TVector2>);
+    void get_2D_global_circle_fit();
     vector<TPolyLine*> get_online_tracklets(Int_t i_track);
     vector<TPolyLine*> get_offline_tracklets(Int_t i_track);
     vector< vector<TVector3> >  make_clusters(Int_t i_track);
@@ -611,7 +611,7 @@ vector< vector<TVector3> >  TBase_TRD_Calib::make_clusters(Int_t i_track)
         for(Int_t i_xyzADC = 0; i_xyzADC < 4; i_xyzADC++)
         {
             vec_Dt_digit_pos_cluster[6][i_layer][i_xyzADC] = 0.0;
-            Int_t n_points_used = 0;
+            Double_t n_points_used = 0.0;
             for(Int_t i_time_merge = 0; i_time_merge < 5; i_time_merge++)
             {
                 // Attention, [layer][time][xyz,ADC] -> [6][layer][xyz,ADC] on purpose to imitate the tracklet structure for the global fit
@@ -620,10 +620,10 @@ vector< vector<TVector3> >  TBase_TRD_Calib::make_clusters(Int_t i_track)
                     //printf("WARNING in TBase_TRD_Calib::make_clusters, odd value: %4.3f, layer: %d, xyzADC: %d, time: %d \n",vec_Dt_digit_pos_cluster[i_layer][i_time_merge][i_xyzADC],i_layer,i_xyzADC,i_time_merge);
                     continue;
                 }
-                vec_Dt_digit_pos_cluster[6][i_layer][i_xyzADC] += vec_Dt_digit_pos_cluster[i_layer][i_time_merge][i_xyzADC];
-                n_points_used++;
+                vec_Dt_digit_pos_cluster[6][i_layer][i_xyzADC] += vec_Dt_digit_pos_cluster[i_layer][i_time_merge][i_xyzADC]*vec_Dt_digit_pos_cluster[i_layer][i_time_merge][3];
+                n_points_used += vec_Dt_digit_pos_cluster[i_layer][i_time_merge][3];
             }
-            if(n_points_used > 0)
+            if(n_points_used > 0.0)
             {
                 vec_Dt_digit_pos_cluster[6][i_layer][i_xyzADC] /= (Double_t)n_points_used;
             }
@@ -973,12 +973,27 @@ void TBase_TRD_Calib::Draw_line(Int_t i_track)
 
 
 //----------------------------------------------------------------------------------------
-void TBase_TRD_Calib::get_2D_global_circle_fit(vector<TVector2> vec_TV2_points)
+void TBase_TRD_Calib::get_2D_global_circle_fit()
 {
     // Is fitting  through all first cluster points of all available layers with a 2D circle
     // First the parameters are estimated by calculating them with three points
     //vec_Dt_digit_pos_cluster[6][i_layer][i_xyzADC]
-    for(Int_t i = 0; i < (Int_t)vec_Dt_digit_pos_cluster[6].size(); ++i)
+
+
+    // vec_Dt_digit_pos_cluster[6][i_layer][i_xyzADC] // use that one
+
+    vector<TVector2> vec_TV2_points;
+    vec_TV2_points.resize(6);
+    for(Int_t i_layer = 0; i_layer < 6; i_layer++)
+    {
+        for(Int_t i_xyz = 0; i_xyz < 2; i_xyz++)
+        {
+            vec_TV2_points[i_layer][i_xyz] = vec_Dt_digit_pos_cluster[6][i_layer][i_xyz];
+            // Check layer for -999.0
+        }
+    }
+
+    for(Int_t i = 0; i < (Int_t)vec_Dt_digit_pos_cluster[6].size(); ++i)  // needs to be removed, don't use i, and return Prussia
     {
         //printf("TBase_TRD_Calib::get_2D_global_circle_fit((%d) \n",i_track);
 
