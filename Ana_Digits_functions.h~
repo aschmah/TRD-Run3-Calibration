@@ -152,6 +152,11 @@ using namespace std;
 //ClassImp(Ali_AS_Track)
 //ClassImp(Ali_AS_Event)
 
+static vector< vector< vector<Double_t> > > vec_Dt_digit_pos_cluster;    // layer, merged time bin. xyzADC
+static Int_t global_layer;
+
+static const Double_t TRD_res_XY = 0.725/TMath::Sqrt(12.0);
+static const Double_t TRD_res_Z  = 8.5/TMath::Sqrt(12.0);
 
 //static Ali_AS_Event* AS_Event;
 //static Ali_AS_Track* AS_Track;
@@ -243,6 +248,39 @@ void Init_tree(TString SEList)
 //----------------------------------------------------------------------------------------
 */
 
+
+//----------------------------------------------------------------------------------------
+TLatex* plotTopLegend(char* label,Float_t x=-1,Float_t y=-1,Float_t size=0.06,Int_t color=1,Float_t angle=0.0, Int_t font = 42, Int_t NDC = 1, Int_t align = 1)
+{
+    // coordinates in NDC!
+    // plots the string label in position x and y in NDC coordinates
+    // size is the text size
+    // color is the text color
+
+    // Text alignment: https://root.cern.ch/doc/master/classTAttText.html#T1
+    // align = 10*HorizontalAlign + VerticalAlign
+    // horizontal: 1=left adjusted, 2=centered, 3=right adjusted
+    // vertical: 1=bottom adjusted, 2=centered, 3=top adjusted
+
+
+    if((x<0||y<0) && NDC == 1)
+    {   // defaults
+      x=gPad->GetLeftMargin()*1.15;
+      y=(1-gPad->GetTopMargin())*1.04;
+    }
+    TLatex* text=new TLatex(x,y,label);
+    text->SetTextFont(font);
+    text->SetTextSize(size);
+    if(NDC == 1) text->SetNDC();
+    text->SetTextColor(color);
+    text->SetTextAngle(angle);
+    text->SetTextAlign(align);
+    text->Draw();
+    return text;
+}
+//----------------------------------------------------------------------------------------
+
+
 //----------------------------THINGS FOR 3D LINE FIT--------------------------------------
 
 // define the parameteric line equation 
@@ -256,7 +294,8 @@ void line(Double_t t, Double_t *p, Double_t &x, Double_t &y, Double_t &z) {
 }
 
 // calculate distance line-point 
-double distance2(Double_t x,double_t y,Double_t z, Double_t *p) {
+double distance2(Double_t x,double_t y,Double_t z, Double_t *p)
+{
    // distance line point is D= | (xp-x0) cross  ux | 
    // where ux is direction of line and x0 is a point in the line (like t = 0) 
    //XYZVector xp(x,y,z);
@@ -265,14 +304,105 @@ double distance2(Double_t x,double_t y,Double_t z, Double_t *p) {
    TVector3 xp(x,y,z);
    TVector3 x0(p[0], p[2], 0. ); 
    TVector3 x1(p[0] + p[1], p[2] + p[3], 1. );
-   TVector3 u = (x1-x0).Unit(); 
-   Double_t d2 = ((xp-x0).Cross(u)) .Mag2();
-   return d2; 
+   TVector3 u = (x1-x0).Unit();
+
+   TVector3 vec_line_point = xp-x0;
+   TVector3 vec_dist = (vec_line_point).Cross(u);
+
+
+   TVector3 vec_proj = ((vec_line_point).Dot(u))*u;
+   TVector3 vec_distB = vec_line_point - vec_proj;
+   Double_t distB = vec_distB.Mag2();
+
+   //Double_t d2 = vec_dist.Mag2();
+
+   // weighted squared distance, 7.25 mm pad width, 85.0 pad length
+   Double_t d2 = (TMath::Power(vec_distB.X()/TRD_res_XY,2) + TMath::Power(vec_distB.Y()/TRD_res_XY,2) + TMath::Power(vec_distB.Z()/TRD_res_Z,2));
+   //printf("vec_dist: {%4.3f, %4.3f, %4.3f} \n",vec_distB.X(),vec_distB.Y(),vec_distB.Z());
+   //printf("d2: %4.3f, distB: %4.3f \n",d2,distB);
+   return d2;
+}
+
+// calculate distance line-point
+double distance2_X(Double_t x,double_t y,Double_t z, Double_t *p)
+{
+    // distance line point is D= | (xp-x0) cross  ux |
+    // where ux is direction of line and x0 is a point in the line (like t = 0)
+    //XYZVector xp(x,y,z);
+    //XYZVector x0(p[0], p[2], 0. );
+    //XYZVector x1(p[0] + p[1], p[2] + p[3], 1. );
+    TVector3 xp(x,y,z);
+    TVector3 x0(0., p[2], p[0]);
+    TVector3 x1(1., p[2] + p[3], p[0] + p[1]);
+    TVector3 u = (x1-x0).Unit();
+
+    TVector3 vec_line_point = xp-x0;
+    TVector3 vec_dist = (vec_line_point).Cross(u);
+
+
+    TVector3 vec_proj = ((vec_line_point).Dot(u))*u;
+    TVector3 vec_distB = vec_line_point - vec_proj;
+    Double_t distB = vec_distB.Mag2();
+
+    //Double_t d2 = vec_dist.Mag2();
+
+    // weighted squared distance, 7.25 mm pad width, 85.0 pad length
+    Double_t d2 = (TMath::Power(vec_distB.X()/TRD_res_XY,2) + TMath::Power(vec_distB.Y()/TRD_res_XY,2) + TMath::Power(vec_distB.Z()/TRD_res_Z,2));
+    //printf("vec_dist: {%4.3f, %4.3f, %4.3f} \n",vec_distB.X(),vec_distB.Y(),vec_distB.Z());
+    //printf("d2: %4.3f, distB: %4.3f \n",d2,distB);
+    return d2;
+}
+
+
+// function to be minimized
+void SumDistance2(Int_t &, Double_t *, Double_t & sum, Double_t * par, Int_t ) {
+    // the TGraph must be a global variable
+
+    bool first = true;
+    TGraph2D * gr = dynamic_cast<TGraph2D*>( (TVirtualFitter::GetFitter())->GetObjectFit() );
+    assert(gr != 0);
+    Double_t * x = gr->GetX();
+    Double_t * y = gr->GetY();
+    Double_t * z = gr->GetZ();
+    Int_t npoints = gr->GetN();
+ 
+   sum = 0;
+   for (int i  = 0; i < npoints; ++i) { 
+       Double_t d = distance2(x[i],y[i],z[i],par);
+       //Double_t ADC = vec_Dt_digit_pos_cluster[][][]
+           sum += d;
+#ifdef DEBUG
+      if (first) std::cout << "point " << i << "\t" 
+                           << x[i] << "\t" 
+                           << y[i] << "\t" 
+                           << z[i] << "\t" 
+                           << std::sqrt(d) << std::endl; 
+#endif
+   }
+   if (first) 
+      //std::cout << "Total sum2 = " << sum << std::endl;
+   first = false;
+}
+
+
+//----------------------------------------------------------------------------------------
+
+
+
+
+// define the parameteric line equation
+void line_X(Double_t t, Double_t *p, Double_t &x, Double_t &y, Double_t &z) {
+   // a parameteric line is define from 6 parameters but 4 are independent
+   // x0,y0,z0,z1,y1,z1 which are the coordinates of two points on the line
+   // can choose z0 = 0 if line not parallel to x-y plane and z1 = 1; 
+    x = t;
+    y = p[2] + p[3]*t;
+    z = p[0] + p[1]*t;
 }
 
 
 // function to be minimized 
-void SumDistance2(Int_t &, Double_t *, Double_t & sum, Double_t * par, Int_t ) {
+void SumDistance2_X(Int_t &, Double_t *, Double_t & sum, Double_t * par, Int_t ) {
    // the TGraph must be a global variable
 
    bool first = true; 
@@ -284,7 +414,7 @@ void SumDistance2(Int_t &, Double_t *, Double_t & sum, Double_t * par, Int_t ) {
    Int_t npoints = gr->GetN();
    sum = 0;
    for (int i  = 0; i < npoints; ++i) { 
-      Double_t d = distance2(x[i],y[i],z[i],par);
+      Double_t d = distance2_X(x[i],y[i],z[i],par);
       sum += d;
 #ifdef DEBUG
       if (first) std::cout << "point " << i << "\t" 
@@ -295,10 +425,159 @@ void SumDistance2(Int_t &, Double_t *, Double_t & sum, Double_t * par, Int_t ) {
 #endif
    }
    if (first) 
-      std::cout << "Total sum2 = " << sum << std::endl;
+      //std::cout << "Total sum2 = " << sum << std::endl;
    first = false;
 }
 
 
 //----------------------------------------------------------------------------------------
 
+
+
+// define the parameteric line equation
+void line_F(Double_t t, Double_t *p, Double_t &x, Double_t &y, Double_t &z) {
+   // a parameteric line is define from 6 parameters but 4 are independent
+   // x0,y0,z0,z1,y1,z1 which are the coordinates of two points on the line
+   // can choose z0 = 0 if line not parallel to x-y plane and z1 = 1; 
+    x = p[0] + p[1]*t;
+    y = p[2] + p[3]*t;
+    z = p[4] + p[5]*t;
+}
+
+// calculate distance line-point 
+double distance2_F(Double_t x,double_t y,Double_t z, Double_t *p) {
+   // distance line point is D= | (xp-x0) cross  ux | 
+   // where ux is direction of line and x0 is a point in the line (like t = 0) 
+   //XYZVector xp(x,y,z);
+   //XYZVector x0(p[0], p[2], 0. );
+   //XYZVector x1(p[0] + p[1], p[2] + p[3], 1. );
+    TVector3 xp(x,y,z);
+    TVector3 x0(p[0], p[1], p[2]);
+    TVector3 x1(1., p[2] + p[3], p[0] + p[1]);
+
+    TVector3 u = (x1-x0).Unit();
+    Double_t d2 = ((xp-x0).Cross(u)) .Mag2();
+    return d2;
+}
+
+
+// function to be minimized 
+void SumDistance2_F(Int_t &, Double_t *, Double_t & sum, Double_t * par, Int_t ) {
+   // the TGraph must be a global variable
+
+   bool first = true; 
+   TGraph2D * gr = dynamic_cast<TGraph2D*>( (TVirtualFitter::GetFitter())->GetObjectFit() );
+   assert(gr != 0);
+   Double_t * x = gr->GetX();
+   Double_t * y = gr->GetY();
+   Double_t * z = gr->GetZ();
+   Int_t npoints = gr->GetN();
+   sum = 0;
+   for (int i  = 0; i < npoints; ++i) { 
+      Double_t d = distance2_X(x[i],y[i],z[i],par);
+      sum += d;
+#ifdef DEBUG
+      if (first) std::cout << "point " << i << "\t" 
+                           << x[i] << "\t" 
+                           << y[i] << "\t" 
+                           << z[i] << "\t" 
+                           << std::sqrt(d) << std::endl; 
+#endif
+   }
+   if (first) 
+      //std::cout << "Total sum2 = " << sum << std::endl;
+   first = false;
+}
+
+
+//----------------------------------------------------------------------------------------
+
+//-------------FUNCTION FOR TRACKLET FIT---------------------------------------------------------------------------
+
+// function to be minimized
+void SumDistance2_tr(Int_t &, Double_t *, Double_t & sum, Double_t * par, Int_t )
+{
+    sum = 0;
+
+    // global layer 0-5 -> TRD individual layer, global layer = 6 -> all first clusters
+    Double_t sum_weight = 0.0;
+    for(Int_t i = 0; i < (Int_t)vec_Dt_digit_pos_cluster[global_layer].size(); ++i)
+    {
+        if(global_layer < 6 && i < 5) continue; // remove amplification region
+        if(vec_Dt_digit_pos_cluster[global_layer][i][3] == -999.0) continue;
+        Double_t ADC_val = vec_Dt_digit_pos_cluster[global_layer][i][3];
+        Double_t d       = distance2(vec_Dt_digit_pos_cluster[global_layer][i][0],vec_Dt_digit_pos_cluster[global_layer][i][1],vec_Dt_digit_pos_cluster[global_layer][i][2],par);
+        sum             += d*ADC_val;
+        //if(global_layer == 1) printf("i: %d, dist: %4.3f, ADC: %4.3f, sum: %4.3f, pos: {%4.3f, %4.3f, %4.3f} \n",i,d,ADC_val,sum,vec_Dt_digit_pos_cluster[global_layer][i][0],vec_Dt_digit_pos_cluster[global_layer][i][1],vec_Dt_digit_pos_cluster[global_layer][i][2]);
+        sum_weight += ADC_val;
+    }
+    if(sum_weight > 0.0) sum /= sum_weight;
+    //printf("sum: %4.3f \n",sum);
+}
+
+//------------------------------------------------------------------------------------
+// function to be minimized
+void SumDistance2_X_tr(Int_t &, Double_t *, Double_t & sum, Double_t * par, Int_t )
+{
+    sum = 0;
+
+    // global layer 0-5 -> TRD individual layer, global layer = 6 -> all first clusters
+    Double_t sum_weight = 0.0;
+    for(Int_t i = 0; i < (Int_t)vec_Dt_digit_pos_cluster[global_layer].size(); ++i)
+    {
+        if(global_layer < 6 && i < 5) continue; // remove amplification region
+        if(vec_Dt_digit_pos_cluster[global_layer][i][3] == -999.0) continue;
+        Double_t ADC_val = vec_Dt_digit_pos_cluster[global_layer][i][3];
+        Double_t d       = distance2_X(vec_Dt_digit_pos_cluster[global_layer][i][0],vec_Dt_digit_pos_cluster[global_layer][i][1],vec_Dt_digit_pos_cluster[global_layer][i][2],par);
+        sum             += d*ADC_val;
+        //if(global_layer == 1) printf("i: %d, dist: %4.3f, ADC: %4.3f, sum: %4.3f, pos: {%4.3f, %4.3f, %4.3f} \n",i,d,ADC_val,sum,vec_Dt_digit_pos_cluster[global_layer][i][0],vec_Dt_digit_pos_cluster[global_layer][i][1],vec_Dt_digit_pos_cluster[global_layer][i][2]);
+        sum_weight += ADC_val;
+    }
+    if(sum_weight > 0.0) sum /= sum_weight;
+    //printf("sum: %4.3f \n",sum);
+}
+
+//------------------------------------------------------------------------------------
+// function to be minimized
+void SumDistance2_F_tr(Int_t &, Double_t *, Double_t & sum, Double_t * par, Int_t ) {
+    // the TGraph must be a global variable
+
+   bool first = true; 
+
+   sum = 0;
+
+   for (Int_t i_layer = 0; i_layer<6; i_layer++)
+   {
+       Int_t npoints = (Int_t)vec_Dt_digit_pos_cluster[i_layer].size();
+       Double_t  x_val[npoints];
+       Double_t  y_val[npoints];
+       Double_t  z_val[npoints];
+
+       for (int i  = 0; i < npoints; ++i) {
+
+           x_val[i]= vec_Dt_digit_pos_cluster[i_layer][i][0];
+           y_val[i]   = vec_Dt_digit_pos_cluster[i_layer][i][1];
+           z_val[i]   = vec_Dt_digit_pos_cluster[i_layer][i][2];
+
+           Double_t ADC_val = vec_Dt_digit_pos_cluster[i_layer][i][3];
+
+           Double_t d       = distance2_F(x_val[i],y_val[i],z_val[i],par);
+
+           sum += d*ADC_val;
+
+#ifdef DEBUG
+           if (first) std::cout << "point " << i << "\t"
+               << x_val[i] << "\t"
+                   << y_val[i] << "\t"
+                   << z_val[i] << "\t"
+                   << std::sqrt(d) << std::endl;
+#endif
+       }
+   }
+
+   if (first) 
+      //std::cout << "Total sum2 = " << sum << std::endl;
+   first = false;
+}
+
+//------------------------------------------------------------------------------------
