@@ -65,6 +65,7 @@ private:
 
     Long64_t Event_active = 0;
     Double_t tracklets_min[7] = {-1.0};
+    Double_t tracklets_min_circle = -1.0;
 
     TChain* input_SE;
     TString JPsi_TREE   = "Tree_AS_Event";
@@ -168,7 +169,7 @@ private:
     vector<TProfile*> vec_tp_Delta_vs_impact;
     vector<TH2D*> vec_TH2D_Delta_vs_impact;
 
-
+    vector<TVector2> vec_TV2_points;
 
 public:
     TBase_TRD_Calib();
@@ -773,6 +774,7 @@ void TBase_TRD_Calib::make_plots_ADC(Int_t i_track)
 }
 
 //----------------------------------------------------------------------------------------
+
 TEveLine* TBase_TRD_Calib::get_straight_line_fit(Int_t i_track)
 {
     printf("TBase_TRD_Calib::get_straight_line_fit((%d) \n",i_track);
@@ -959,8 +961,8 @@ TEveLine* TBase_TRD_Calib::get_straight_line_fit(Int_t i_track)
     return digits_fit_line;
 
 }
-//----------------------------------------------------------------------------------------
 
+//----------------------------------------------------------------------------------------
 
 
 //----------------------------------------------------------------------------------------
@@ -974,174 +976,138 @@ void TBase_TRD_Calib::Draw_line(Int_t i_track)
 
 //----------------------------------------------------------------------------------------
 void TBase_TRD_Calib::get_2D_global_circle_fit()
+
+
 {
+
+    printf("start get_2D_global_circle_fit \n");
+
     // Is fitting  through all first cluster points of all available layers with a 2D circle
     // First the parameters are estimated by calculating them with three points
     //vec_Dt_digit_pos_cluster[6][i_layer][i_xyzADC]
-
 
     // vec_Dt_digit_pos_cluster[6][i_layer][i_xyzADC] // use that one
 
     vector<TVector2> vec_TV2_points;
     vec_TV2_points.resize(6);
+
+    Int_t i_layer_notempty = 0;
+
     for(Int_t i_layer = 0; i_layer < 6; i_layer++)
     {
-        for(Int_t i_xyz = 0; i_xyz < 2; i_xyz++)
+        if(vec_Dt_digit_pos_cluster[i_layer][0][0] != -999.0 && vec_Dt_digit_pos_cluster[i_layer][0][1] != -999.0)
         {
-            vec_TV2_points[i_layer][i_xyz] = vec_Dt_digit_pos_cluster[6][i_layer][i_xyz];
-            // Check layer for -999.0
+            vec_TV2_points[i_layer_notempty].SetX(vec_Dt_digit_pos_cluster[6][i_layer][0]);
+            vec_TV2_points[i_layer_notempty].SetY(vec_Dt_digit_pos_cluster[6][i_layer][1]);
+            i_layer_notempty++;
         }
     }
 
-    for(Int_t i = 0; i < (Int_t)vec_Dt_digit_pos_cluster[6].size(); ++i)  // needs to be removed, don't use i, and return Prussia
+    if (i_layer_notempty < 2)
+
     {
-        //printf("TBase_TRD_Calib::get_2D_global_circle_fit((%d) \n",i_track);
-
-        //fit merged digits with a straight line
-
-        TGraph* tg_cluster_points_2D = new TGraph();
-        //TEveLine* digits_fit_line = new TEveLine();
-
-        // Fill the 2D graph
-        Double_t p0[3] = {10,20,1};
-       
-
-        // generate graph with the 3d points
-
-        Int_t i_layer_notempty = 0;
-
-        for(Int_t i_layer = 0; i_layer < 6; i_layer++)
-        {
-            //printf("i_layer: %d \n",i_layer);
-            if(vec_Dt_digit_pos_cluster[i_layer][0][0] != -999.0 && vec_Dt_digit_pos_cluster[i_layer][0][1] != -999.0 && vec_Dt_digit_pos_cluster[i_layer][0][2] != -999.0)
-            {
-                tg_cluster_points_2D->SetPoint(i_layer_notempty,vec_Dt_digit_pos_cluster[i_layer][0][0],vec_Dt_digit_pos_cluster[i_layer][0][1]);
-                //printf("i_layer: %d, point: {%4.3f, %4.3f, %4.3f} \n",i_layer,vec_Dt_digit_pos_cluster[i_layer][0][0],vec_Dt_digit_pos_cluster[i_layer][0][1],vec_Dt_digit_pos_cluster[i_layer][0][2]);
-                //dt->SetPointError(N,0,0,err);
-                //Double_t* point = tg_cluster_points->GetX();
-                //cout << "layer: " <<  i_layer  << endl;
-                //cout << "layer not empty : " <<  i_layer_notempty  << endl;
-                //cout << "point: " <<  point[i_layer_notempty]  << endl;
-                i_layer_notempty++;
-            }
-        }
-
-        if(i_layer_notempty == 0)
-        {
-            printf("No digits found for this track \n");
-            //return digits_fit_line;
-        }
-
-        // fit the graph now
-
-        TVirtualFitter *min = TVirtualFitter::Fitter(0,3);
-        min->SetObjectFit(tg_cluster_points_2D);
-        //min->SetFCN(SumDistance2);
-        min->SetFCN(sum_distance_circ_point_2D);
-
-
-        Double_t arglist[10];
-        arglist[0] = 3;
-        //min->ExecuteCommand("SET PRINT",arglist,1);
-
-        Double_t a0[2] = {0,0};
-        Double_t a1[2] = {0,0};
-
-        tg_cluster_points_2D -> GetPoint(0,a0[0],a0[1]);
-        tg_cluster_points_2D -> GetPoint(i_layer_notempty-1,a1[0],a1[1]);
-
-        printf("point start: {%4.3f, %4.3f, %4.3f} \n",a0[0],a0[1]);
-        printf("point end: {%4.3f, %4.3f, %4.3f} \n",a1[0],a1[1]);
-
-        Double_t pStart[3]; //= {1,1,1,1};
-
-        TPolyLine* tpl_circle = new TPolyLine();
-
-        Double_t x1 = vec_TV2_points[0].X();
-        Double_t y1 = vec_TV2_points[0].Y();
-        Double_t x2 = vec_TV2_points[1].X();
-        Double_t y2 = vec_TV2_points[1].Y();
-        Double_t x3 = vec_TV2_points[2].X();
-        Double_t y3 = vec_TV2_points[2].Y();
-
-
-        Double_t A_help = x1*(y2 - y3) - y1*(x2 - x3) + x2*y3 - x3*y2;
-        Double_t B_help = (x1*x1 + y1*y1)*(y3 - y2) + (x2*x2 + y2*y2)*(y1 - y3) + (x3*x3 + y3*y3)*(y2 - y1);
-        Double_t C_help = (x1*x1 + y1*y1)*(x2 - x3) + (x2*x2 + y2*y2)*(x3 - x1) + (x3*x3 + y3*y3)*(x1 - x2);
-        Double_t D_help = (x1*x1 + y1*y1)*(x3*y2 - x2*y3) + (x2*x2 + y2*y2)*(x1*y3 - x3*y1) + (x3*x3 + y3*y3)*(x2*y1 - x1*y2);
-
-        printf("A_help: {%4.3f, %4.3f}, B_help: {%4.3f, %4.3f}, C_help: {%4.3f, %4.3f}  \n",A_help,B_help,C_help);
-
-        //if(A_help != 0.0)
-        //{
-
-            Double_t a_param = -B_help/(2*A_help);
-            Double_t b_param = -C_help/(2*A_help);
-            Double_t R_param = TMath::Sqrt(TMath::Power(x1 - a_param,2.0) + TMath::Power(y1 - b_param,2.0));
-        //}
-
-        //printf("pointA: {%4.3f, %4.3f}, pointB: {%4.3f, %4.3f}, pointC: {%4.3f, %4.3f}, circle(a,b,R): {%4.3f, %4.3f, %4.3f} \n",x1,y1,x2,y2,x3,y3,a_param,b_param,R_param);
-
-        pStart[0] = a_param;
-        pStart[1] = b_param;
-        pStart[2] = R_param;
-
-
-        cout << "pStart[0]" << pStart[0] << endl;
-        cout << "pStart[1]" << pStart[1] << endl;
-        cout << "pStart[2]" << pStart[2] << endl;
-
-        min->SetParameter(0,"a_param",pStart[0],0.01,0,0);
-        min->SetParameter(1,"b_param",pStart[1],0.01,0,0);
-        min->SetParameter(2,"R_param",pStart[2],0.01,0,0);
-
-        arglist[0] = 1000; // number of function calls
-        arglist[1] = 0.001; // tolerance
-        min->ExecuteCommand("MIGRAD",arglist,2);
-
-        //if (minos) min->ExecuteCommand("MINOS",arglist,0);
-        int nvpar,nparx;
-        Double_t amin,edm, errdef;
-        min->GetStats(amin,edm,errdef,nvpar,nparx);
-        min->PrintResults(1,amin);
-        //tg_cluster_points->Draw("p0");
-
-        // get fit parameters
-
-       // for(int i = 0; i <3; ++i)
-        //{
-        //    //parFit_circ[i] = min->GetParameter(i);
-        //    parFit_circ[i] = pStart[i];
-        //}
-
-        Double_t parFit_circ[3];
-       
-        for(int i = 0; i <3; ++i)
-        {
-            parFit_circ[i] = min->GetParameter(i);
-            //parFit[i] = pStart[i];
-        }
-
-        //Draw the fitted circle
-
-        Double_t delta_i_y = parFit_circ[2]/200.0;
-        for(Double_t i_sign = -1.0; i_sign <= +1.0; i_sign += 2.0)
-        {
-            for(Double_t i_y = (parFit_circ[1] - parFit_circ[2]); i_y < (parFit_circ[1] + parFit_circ[2]); (i_y += delta_i_y))
-            {
-                Double_t i_x = i_sign*TMath::Sqrt(TMath::Power(parFit_circ[2],2.0) - TMath::Power(i_y - parFit_circ[1],2.0)) + parFit_circ[0];
-                tpl_circle ->SetNextPoint(i_x,i_y);
-                //printf("point: {%4.3f, %4.3f} \n",i_x,i_y);
-            }
-        }
-
-        tpl_circle ->SetLineStyle(1);
-        tpl_circle ->SetLineWidth(3);
-        tpl_circle ->SetLineColor(kTeal+2);
-        tpl_circle ->DrawClone("l");
-
-
+        printf("!!! less than 3 points to fit circle - you got bad circle !!! \n");
     }
+
+    Double_t p0[3] = {10,20,1};
+    tracklets_min_circle = -1;
+
+    TVirtualFitter *min = TVirtualFitter::Fitter(0,3);
+
+    min->SetFCN(sum_distance_circ_point_2D);
+
+    Double_t arglist_B[1] = {-1};
+    min->ExecuteCommand("SET PRIntout",arglist_B,1);
+    min->ExecuteCommand("SET NOWarnings",arglist_B,1);
+
+
+    Double_t arglist[10];
+    arglist[0] = 3;
+
+    Double_t pStart[3]; //= {1,1,1,1};
+
+    TPolyLine* tpl_circle = new TPolyLine();
+
+    Double_t x1 = vec_TV2_points[0].X();
+    Double_t y1 = vec_TV2_points[0].Y();
+    Double_t x2 = vec_TV2_points[1].X();
+    Double_t y2 = vec_TV2_points[1].Y();
+    Double_t x3 = vec_TV2_points[2].X();
+    Double_t y3 = vec_TV2_points[2].Y();
+
+
+    Double_t A_help = x1*(y2 - y3) - y1*(x2 - x3) + x2*y3 - x3*y2;
+    Double_t B_help = (x1*x1 + y1*y1)*(y3 - y2) + (x2*x2 + y2*y2)*(y1 - y3) + (x3*x3 + y3*y3)*(y2 - y1);
+    Double_t C_help = (x1*x1 + y1*y1)*(x2 - x3) + (x2*x2 + y2*y2)*(x3 - x1) + (x3*x3 + y3*y3)*(x1 - x2);
+    Double_t D_help = (x1*x1 + y1*y1)*(x3*y2 - x2*y3) + (x2*x2 + y2*y2)*(x1*y3 - x3*y1) + (x3*x3 + y3*y3)*(x2*y1 - x1*y2);
+
+    printf("A_help: {%4.3f, %4.3f}, B_help: {%4.3f, %4.3f}, C_help: {%4.3f, %4.3f}  \n",A_help,B_help,C_help);
+
+    Double_t a_param = 0.0;
+    Double_t b_param = 0.0;
+    Double_t R_param = 0.0;
+  
+
+    if(A_help != 0.0)
+    {
+        a_param = -B_help/(2*A_help);
+        b_param = -C_help/(2*A_help);
+        R_param = TMath::Sqrt(TMath::Power(x1 - a_param,2.0) + TMath::Power(y1 - b_param,2.0));
+    }
+
+    //printf("pointA: {%4.3f, %4.3f}, pointB: {%4.3f, %4.3f}, pointC: {%4.3f, %4.3f}, circle(a,b,R): {%4.3f, %4.3f, %4.3f} \n",x1,y1,x2,y2,x3,y3,a_param,b_param,R_param);
+
+    pStart[0] = a_param;
+    pStart[1] = b_param;
+    pStart[2] = R_param;
+
+
+    cout << "pStart[0]" << pStart[0] << endl;
+    cout << "pStart[1]" << pStart[1] << endl;
+    cout << "pStart[2]" << pStart[2] << endl;
+
+    min->SetParameter(0,"a_param",pStart[0],0.01,0,0);
+    min->SetParameter(1,"b_param",pStart[1],0.01,0,0);
+    min->SetParameter(2,"R_param",pStart[2],0.01,0,0);
+
+    arglist[0] = 1000; // number of function calls
+    arglist[1] = 0.001; // tolerance
+
+    min->ExecuteCommand("MIGRAD",arglist,2);
+
+    //if (minos) min->ExecuteCommand("MINOS",arglist,0);
+    Int_t nvpar,nparx;
+    Double_t amin,edm, errdef;
+    min->GetStats(amin,edm,errdef,nvpar,nparx);
+    min->PrintResults(1,amin);
+
+    Double_t parFit_circ[3];
+
+    for(int i = 0; i <3; ++i)
+    {
+        parFit_circ[i] = min->GetParameter(i);
+        //parFit[i] = pStart[i];
+    }
+
+    tracklets_min_circle = amin;
+
+    //Draw the fitted circle
+
+    Double_t delta_i_y = parFit_circ[2]/200.0;
+    for(Double_t i_sign = -1.0; i_sign <= +1.0; i_sign += 2.0)
+    {
+        for(Double_t i_y = (parFit_circ[1] - parFit_circ[2]); i_y < (parFit_circ[1] + parFit_circ[2]); (i_y += delta_i_y))
+        {
+            Double_t i_x = i_sign*TMath::Sqrt(TMath::Power(parFit_circ[2],2.0) - TMath::Power(i_y - parFit_circ[1],2.0)) + parFit_circ[0];
+            tpl_circle ->SetNextPoint(i_x,i_y);
+            //printf("point: {%4.3f, %4.3f} \n",i_x,i_y);
+        }
+    }
+
+    tpl_circle ->SetLineStyle(1);
+    tpl_circle ->SetLineWidth(3);
+    tpl_circle ->SetLineColor(kTeal+2);
+    tpl_circle ->DrawClone("l");
 }
 //----------------------------------------------------------------------------------------
 
@@ -1154,6 +1120,7 @@ void TBase_TRD_Calib::get_tracklets_fit(Int_t i_track)
     //printf("TBase_TRD_Calib::get_tracklets_fit((%d) \n",i_track);
 
     //fit merged digits with a straight line
+
     for(Int_t i_layer = 0; i_layer < 7; i_layer++)
     {
         for(Int_t i_start_stop = 0; i_start_stop < 2; i_start_stop++)
@@ -1239,6 +1206,8 @@ void TBase_TRD_Calib::get_tracklets_fit(Int_t i_track)
             if(vec_Dt_digit_pos_cluster[i_layer][i_time_merge][0] == -999.0 && vec_Dt_digit_pos_cluster[i_layer][i_time_merge][1] == -999.0 && vec_Dt_digit_pos_cluster[i_layer][i_time_merge][2] == -999.0) continue;
             else i_time_merge_AB[0] = i_time_merge;
         }
+
+        
         if(i_time_merge_AB[0] == -1) continue; // all values are 0
 
         for(Int_t i_time_merge = ((Int_t)vec_Dt_digit_pos_cluster[i_layer].size() - 1); i_time_merge >= 0; i_time_merge--)
@@ -1250,7 +1219,6 @@ void TBase_TRD_Calib::get_tracklets_fit(Int_t i_track)
         if(i_time_merge_AB[0] == i_time_merge_AB[1]) continue; // no fit possible with just one point
 
         //printf("TBase_TRD_Calib::get_tracklets_fit(%d), i_layer: %d \n",i_track,i_layer);
-
 
         TVirtualFitter *min = TVirtualFitter::Fitter(0,4);
         //min->SetObjectFit(tracklets_gr);
@@ -1335,6 +1303,7 @@ void TBase_TRD_Calib::get_tracklets_fit(Int_t i_track)
 
         arglist[0] = 1000; // number of function calls
         arglist[1] = 0.001; // tolerance
+
         //printf("     ------------------ MIGRAD ------------------ \n");
         min->ExecuteCommand("MIGRAD",arglist,2);
         //printf("     ------------------ END ------------------ \n");
@@ -1352,8 +1321,8 @@ void TBase_TRD_Calib::get_tracklets_fit(Int_t i_track)
         }
 
         //printf("i_layer: %d, amin: %4.3f, par: {%4.3f, %4.3f, %4.3f, %4.3f} \n",i_layer,amin,parFit[0],parFit[1],parFit[2],parFit[3]);
-        tracklets_min[i_layer] = amin;
 
+        tracklets_min[i_layer] = amin;
 
         // draw the fitted line
         n = 5000;   // 1000
@@ -1373,6 +1342,7 @@ void TBase_TRD_Calib::get_tracklets_fit(Int_t i_track)
         vec_AB[1].SetXYZ(-999.0,-999.0,-999.0);
         vec_AB_2D[0].SetXYZ(-999.0,-999.0,-999.0);
         vec_AB_2D[1].SetXYZ(-999.0,-999.0,-999.0);
+
         for(int i = 0; i < n; ++i)
         {
             Double_t t = t0 + dt*i;
@@ -1534,6 +1504,7 @@ vector<TPolyLine*> TBase_TRD_Calib::get_offline_tracklets(Int_t i_track)
 void TBase_TRD_Calib::Draw_tracklets_line_2D(Int_t i_track)
 {
     get_tracklets_fit(i_track);
+
     vector<TPolyLine*> vec_TPL_on_trkl  =  get_online_tracklets(i_track);
     vector<TPolyLine*> vec_TPL_off_trkl =  get_offline_tracklets(i_track);
 
@@ -1577,7 +1548,8 @@ void TBase_TRD_Calib::Draw_tracklets_line_2D(Int_t i_track)
     HistName += Event_active;
     HistName += ", tr. ";
     HistName += i_track;
-    HistName += Form(", min: (%4.3f, %4.3f, %4.3f, %4.3f, %4.3f, %4.3f, gl. %4.3f)",tracklets_min[0],tracklets_min[1],tracklets_min[2],tracklets_min[3],tracklets_min[4],tracklets_min[5],tracklets_min[6]);
+    HistName += Form(", min: (%4.3f, %4.3f, %4.3f, %4.3f, %4.3f, %4.3f, gl. %4.3f, circle_gl. %4.3f)",tracklets_min[0],tracklets_min[1],tracklets_min[2],tracklets_min[3],tracklets_min[4],tracklets_min[5],tracklets_min[6],tracklets_min_circle);
+
     //sprintf(NoP,"%4.0f",(Double_t)i_detector);
     //HistName += NoP;
     plotTopLegend((char*)HistName.Data(),0.1,0.96,0.03,kBlack,0.0,42,1,1); // char* label,Float_t x=-1,Float_t y=-1, Float_t size=0.06,Int_t color=1,Float_t angle=0.0, Int_t font = 42, Int_t NDC = 1, Int_t align = 1
