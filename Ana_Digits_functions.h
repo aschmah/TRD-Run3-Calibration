@@ -602,6 +602,7 @@ void sum_distance_circ_point_2D(Int_t &, Double_t *, Double_t & sum, Double_t * 
         if(vec_Dt_digit_pos_cluster[6][i_layer][0] == -999.0) continue;
         Double_t d = distance_circ_point_2D(vec_Dt_digit_pos_cluster[6][i_layer][0],vec_Dt_digit_pos_cluster[6][i_layer][1],par);
         sum += d;
+        //printf("i_layer: %d, sum: %4.8f \n",i_layer,sum);
         //std::cout << "sum2 = " << sum << std::endl;
 
 #ifdef DEBUG

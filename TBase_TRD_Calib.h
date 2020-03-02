@@ -1073,7 +1073,9 @@ void TBase_TRD_Calib::get_2D_global_circle_fit()
     arglist[0] = 1000; // number of function calls
     arglist[1] = 0.001; // tolerance
 
-    min->ExecuteCommand("MIGRAD",arglist,2);
+    //min->ExecuteCommand("MIGRAD",arglist,2);
+    min->ExecuteCommand("MINOS",arglist,2);
+
 
     //if (minos) min->ExecuteCommand("MINOS",arglist,0);
     Int_t nvpar,nparx;
@@ -1093,10 +1095,11 @@ void TBase_TRD_Calib::get_2D_global_circle_fit()
 
     //Draw the fitted circle
 
+
     Double_t delta_i_y = parFit_circ[2]/200.0;
     for(Double_t i_sign = -1.0; i_sign <= +1.0; i_sign += 2.0)
     {
-        for(Double_t i_y = (parFit_circ[1] - parFit_circ[2]); i_y < (parFit_circ[1] + parFit_circ[2]); (i_y += delta_i_y))
+        for(Double_t i_y = ((parFit_circ[1] - parFit_circ[2]) + delta_i_y); i_y < ((parFit_circ[1] + parFit_circ[2]) - delta_i_y); (i_y += delta_i_y))
         {
             Double_t i_x = i_sign*TMath::Sqrt(TMath::Power(parFit_circ[2],2.0) - TMath::Power(i_y - parFit_circ[1],2.0)) + parFit_circ[0];
             tpl_circle ->SetNextPoint(i_x,i_y);
@@ -1104,11 +1107,13 @@ void TBase_TRD_Calib::get_2D_global_circle_fit()
         }
     }
 
+
     tpl_circle ->SetLineStyle(1);
     tpl_circle ->SetLineWidth(3);
     //tpl_circle ->SetLineColor(kTeal+2);
     tpl_circle ->SetLineColor(kBlue);
     tpl_circle ->DrawClone("l");
+
 }
 //----------------------------------------------------------------------------------------
 
