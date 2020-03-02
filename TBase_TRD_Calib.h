@@ -995,7 +995,7 @@ void TBase_TRD_Calib::get_2D_global_circle_fit()
 
     for(Int_t i_layer = 0; i_layer < 6; i_layer++)
     {
-        if(vec_Dt_digit_pos_cluster[i_layer][0][0] != -999.0 && vec_Dt_digit_pos_cluster[i_layer][0][1] != -999.0)
+        if(vec_Dt_digit_pos_cluster[6][i_layer][0] != -999.0 && vec_Dt_digit_pos_cluster[6][i_layer][1] != -999.0)
         {
             vec_TV2_points[i_layer_notempty].SetX(vec_Dt_digit_pos_cluster[6][i_layer][0]);
             vec_TV2_points[i_layer_notempty].SetY(vec_Dt_digit_pos_cluster[6][i_layer][1]);
@@ -1041,7 +1041,7 @@ void TBase_TRD_Calib::get_2D_global_circle_fit()
     Double_t C_help = (x1*x1 + y1*y1)*(x2 - x3) + (x2*x2 + y2*y2)*(x3 - x1) + (x3*x3 + y3*y3)*(x1 - x2);
     Double_t D_help = (x1*x1 + y1*y1)*(x3*y2 - x2*y3) + (x2*x2 + y2*y2)*(x1*y3 - x3*y1) + (x3*x3 + y3*y3)*(x2*y1 - x1*y2);
 
-    printf("A_help: {%4.3f, %4.3f}, B_help: {%4.3f, %4.3f}, C_help: {%4.3f, %4.3f}  \n",A_help,B_help,C_help);
+    //printf("A_help: {%4.3f, %4.3f}, B_help: {%4.3f, %4.3f}, C_help: {%4.3f, %4.3f}  \n",A_help,B_help,C_help);
 
     Double_t a_param = 0.0;
     Double_t b_param = 0.0;
@@ -1106,7 +1106,8 @@ void TBase_TRD_Calib::get_2D_global_circle_fit()
 
     tpl_circle ->SetLineStyle(1);
     tpl_circle ->SetLineWidth(3);
-    tpl_circle ->SetLineColor(kTeal+2);
+    //tpl_circle ->SetLineColor(kTeal+2);
+    tpl_circle ->SetLineColor(kBlue);
     tpl_circle ->DrawClone("l");
 }
 //----------------------------------------------------------------------------------------
