@@ -397,9 +397,18 @@ Int_t TGUI_TRD_Calib::Track_Tracklets()
 Int_t TGUI_TRD_Calib::Draw_2D_track()
 {
     printf("TGUI_TRD_Calib::Draw_2D_track() \n");
+
     Pixel_t green;
     gClient->GetColorByName("green", green);
     Button_draw2D_track->ChangeBackground(green);
+
+
+    vec_TPM_single_track_digit_layer.resize(6); // layer
+    for(Int_t i_layer = 0; i_layer < 6; i_layer++)
+    {
+        if(vec_TPM_single_track_digit_layer[i_layer]) delete vec_TPM_single_track_digit_layer[i_layer];
+        vec_TPM_single_track_digit_layer[i_layer]   = new TPolyMarker();
+    }
 
     Int_t i_track = arr_NEntry_ana_params[1]->GetNumberEntry()->GetNumber();
 
@@ -417,7 +426,6 @@ Int_t TGUI_TRD_Calib::Draw_2D_track()
 
 
     Base_TRD_Calib ->Draw_2D_track(i_track);
-    Base_TRD_Calib ->get_2D_global_circle_fit();
 
 
     Float_t dca            = vec_track_info[i_track][0];
@@ -471,7 +479,7 @@ Int_t TGUI_TRD_Calib::Draw_2D_track()
         vec_TPM_single_track_digit_layer[i_layer] ->SetMarkerColor(color_layer[i_layer]);
         vec_TPM_single_track_digit_layer[i_layer] ->SetMarkerSize(0.7);
         vec_TPM_single_track_digit_layer[i_layer] ->SetMarkerStyle(24);
-        vec_TPM_single_track_digit_layer[i_layer] ->Draw("");
+        vec_TPM_single_track_digit_layer[i_layer] ->Draw(""); // TRD digits
     }
 
     TPM_cluster ->SetMarkerColor(kRed);
@@ -479,6 +487,7 @@ Int_t TGUI_TRD_Calib::Draw_2D_track()
     TPM_cluster ->SetMarkerStyle(20);
     TPM_cluster ->Draw("");
 
+    Base_TRD_Calib ->get_2D_global_circle_fit();
     Base_TRD_Calib ->Draw_tracklets_line_2D(i_track);
 
     return 1;
