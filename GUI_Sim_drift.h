@@ -5,6 +5,15 @@ static const Double_t l_drift = 0.03; // m 0.0335
 static const Double_t B_field = 0.5; // T = kg * s^-2 * A^-1
 static const Double_t delta_t = 0.1; // mus
 static const Int_t    N_time  = 24;
+static const Double_t vD_set  = 1.56;
+
+
+static const Double_t TRD_drift_start = 0.0;
+static const Double_t TRD_drift_stop  = 0.03;
+static const Double_t TRD_anode_plane = 0.0335;
+static const Double_t TRD_ampl_stop   = 0.037;
+static const Int_t    N_clusters      = 100;
+static const Double_t step_clusters   = 0.001; // cm
 
 
 // Fudge factors
@@ -14,6 +23,53 @@ static const Double_t fudge_LorentzAngle = 1.0;
 
 
 //----------------------------------------------------------------------------------------
+// New version
+TGraph* calc_Delta_alpha(Double_t Lorentz_angle, Double_t drift_vel_ratio)
+{
+    TGraph* TG_Delta_alpha_vs_impact_angle = new TGraph();
+
+    Int_t i_point = 0;
+    for(Double_t impact_angle = 65.0*TMath::DegToRad(); impact_angle < 115.0*TMath::DegToRad(); impact_angle += 1.0*TMath::DegToRad())
+    {
+
+        Double_t x_dir = TMath::Cos(impact_angle);
+        Double_t y_dir = TMath::Sin(impact_angle);
+        Double_t slope = 10000000.0;
+        if(x_dir != 0.0) slope = y_dir/x_dir;
+
+        Double_t Lorentz_tan   = TMath::Tan(Lorentz_angle);
+        Double_t Lorentz_slope = 10000000.0;
+        if(Lorentz_tan != 0.0) Lorentz_slope = 1.0/Lorentz_tan;
+
+        Double_t x_anode_hit = TRD_anode_plane/slope;
+        Double_t y_anode_hit = TRD_anode_plane;
+
+        Double_t x_Lorentz_anode_hit = TRD_anode_plane/Lorentz_slope;
+        Double_t y_Lorentz_anode_hit = TRD_anode_plane;
+
+        Double_t x_Lorentz_drift_hit = x_Lorentz_anode_hit;
+        Double_t y_Lorentz_drift_hit = TRD_anode_plane - TRD_anode_plane*drift_vel_ratio;
+
+        Double_t impact_angle_track = TMath::ATan2(y_anode_hit,x_anode_hit);
+
+        Double_t Delta_x_Lorentz_drift_hit = x_anode_hit - x_Lorentz_drift_hit;
+        Double_t Delta_y_Lorentz_drift_hit = y_anode_hit - y_Lorentz_drift_hit;
+        Double_t impact_angle_rec   = TMath::ATan2(Delta_y_Lorentz_drift_hit,Delta_x_Lorentz_drift_hit);
+
+        Double_t Delta_angle = -(impact_angle_track - impact_angle_rec);
+        TG_Delta_alpha_vs_impact_angle ->SetPoint(i_point,impact_angle*TMath::RadToDeg(),Delta_angle*TMath::RadToDeg());
+        i_point++;
+        //printf("impact_angle: %4.3f, impact_angle_track: %4.3f, impact_angle_rec: %4.3f, Delta: {%4.3f, %4.3f}, x_anode_hit: %4.3f, x_Lorentz_drift_hit: %4.3f \n",impact_angle*TMath::RadToDeg(),impact_angle_track*TMath::RadToDeg(),impact_angle_rec*TMath::RadToDeg(),Delta_x_Lorentz_drift_hit,Delta_y_Lorentz_drift_hit,x_anode_hit,x_Lorentz_drift_hit);
+    }
+
+    return TG_Delta_alpha_vs_impact_angle;
+}
+
+
+
+#if 0
+//----------------------------------------------------------------------------------------
+// Old version
 TGraph* calc_Delta_alpha(Double_t B_field_use, Double_t E_field, Double_t v_drift_use, Double_t vD_use, Double_t LA_use)
 {
     TGraph* tg_delta_vs_angle_single = new TGraph();
@@ -91,7 +147,7 @@ TGraph* calc_Delta_alpha(Double_t B_field_use, Double_t E_field, Double_t v_drif
     return tg_delta_vs_angle_single;
 }
 //----------------------------------------------------------------------------------------
-
+#endif
 
 
 
@@ -101,13 +157,17 @@ void Chi2_TRD_vDrift(Int_t &, Double_t *, Double_t & sum, Double_t * par, Int_t 
 {
     sum = 0;
 
-    Double_t B_field_use = par[0];
-    Double_t E_field_use = par[1];
-    Double_t v_drift_use = par[2];
-    Double_t vD_use      = par[3];
-    Double_t LA_use      = par[4];
+    //Double_t B_field_use = par[0];
+    //Double_t E_field_use = par[1];
+    //Double_t v_drift_use = par[2];
+    //Double_t vD_use      = par[3];
+    //Double_t LA_use      = par[4];
 
-    TGraph* tg_Delta_vs_impact_single = calc_Delta_alpha(B_field_use,E_field_use,v_drift_use,vD_use,LA_use);
+    Double_t LA_use       = par[0];
+    Double_t vD_ratio_use = par[1];
+
+    //TGraph* tg_Delta_vs_impact_single = calc_Delta_alpha(B_field_use,E_field_use,v_drift_use,vD_use,LA_use);
+    TGraph* tg_Delta_vs_impact_single = calc_Delta_alpha(LA_use,vD_ratio_use);
 
     for(Int_t i_bin = 1; i_bin <= vec_tp_Delta_vs_impact[i_detector_global]->GetNbinsX(); i_bin++)
     {
@@ -212,6 +272,7 @@ private:
     TGraph* tg_ExB_vs_det;
 
     vector< vector<TH1D*> > vec_h_diff_helix_line_impact_angle; // [all,-,+][540]
+    vector< vector<TH1D*> > vec_h_diff_ref_loc_off_trkl; // [all,-,+][540]
 
     vector<TGraph*> vec_tg_chamber_ExB_vs_runid;
 
@@ -240,11 +301,17 @@ private:
     vector< Double_t> vec_vOCDB_fit;
     vector< Double_t> vec_LA_factor_fit;
 
+    vector< Double_t> vec_LA_fit;
+    vector< Double_t> vec_vD_ratio_fit;
+
+
     Double_t v_fit  = 1.56;
     Double_t vD_fit = 1.56;
     Double_t E_fit  = 2000.0/0.0335;
     Double_t LA_factor_fit = 1.0;
     Double_t LA_factor;
+    Double_t LA_fit = -7.5;
+    Double_t vD_ratio_fit = 1.0;
 
 
     TRootEmbeddedCanvas *fCanvas_HV_vs_time        = NULL;
@@ -311,6 +378,7 @@ public:
     Int_t Draw3D_track();
     Int_t Calibrate();
     void  Draw_helix_line_diff();
+    void  Draw_offline_trkl_diff();
     ClassDef(GUI_Sim_drift, 0)
 };
 //---------------------------------------------------------------------------------
@@ -341,9 +409,11 @@ GUI_Sim_drift::GUI_Sim_drift() : TGMainFrame(gClient->GetRoot(), 100, 100)
     tpm_track_drift.resize(N_time);
     tpm_track_drift_Lorentz.resize(N_time);
     vec_h_diff_helix_line_impact_angle.resize(3); // [all,-,+]
+    vec_h_diff_ref_loc_off_trkl.resize(3); // [all,-,+]
     for(Int_t i_charge = 0; i_charge < 3; i_charge++)
     {
-        vec_h_diff_helix_line_impact_angle[i_charge].resize(540);
+        vec_h_diff_helix_line_impact_angle[i_charge].resize(547);
+        vec_h_diff_ref_loc_off_trkl[i_charge].resize(547);
     }
 
     tpm_track                 = new TPolyMarker();
@@ -472,6 +542,7 @@ GUI_Sim_drift::GUI_Sim_drift() : TGMainFrame(gClient->GetRoot(), 100, 100)
 
     LoadData();
     Draw_helix_line_diff();
+    Draw_offline_trkl_diff();
 }
 //---------------------------------------------------------------------------------
 
@@ -499,23 +570,32 @@ Int_t GUI_Sim_drift::LoadData()
     //TFile* input_data = TFile::Open("./Data/TRD_Calib_Zero.root");
     TFile* input_data[3];
     //input_data[0]     = TFile::Open("./Data/TRD_Calib_All_170k.root");
-    input_data[0]     = TFile::Open("./Data/TRD_Calib_72k_5cl_rem.root");
+    //input_data[0]     = TFile::Open("./Data/TRD_Calib_72k_5cl_rem.root");
+    input_data[0]     = TFile::Open("./Data/TRD_Calib_V11.root");
     //input_data[0]     = TFile::Open("./Data/TRD_Calib_TPC_impact.root");
-    input_data[1] = TFile::Open("./Data/TRD_Calib_All_170k_neg.root");
-    input_data[2] = TFile::Open("./Data/TRD_Calib_All_170k_pos.root");
+    //input_data[1] = TFile::Open("./Data/TRD_Calib_All_170k_neg.root");
+    //input_data[2] = TFile::Open("./Data/TRD_Calib_All_170k_pos.root");
 
     for(Int_t i_charge = 0; i_charge < 3; i_charge++)
     {
-        for(Int_t TRD_detector = 0; TRD_detector < 540; TRD_detector++)
+        for(Int_t TRD_detector = 0; TRD_detector < 547; TRD_detector++)
         {
             HistName = "Delta_impact/vec_h_diff_helix_line_impact_angle_c_";
             HistName += i_charge;
             HistName += "_det_";
             HistName += TRD_detector;
             vec_h_diff_helix_line_impact_angle[i_charge][TRD_detector] = (TH1D*)input_data[0]->Get(HistName.Data());
+
+
+            HistName = "Delta_impact/vec_h_diff_ref_loc_off_trkl_";
+            HistName += i_charge;
+            HistName += "_det_";
+            HistName += TRD_detector;
+            vec_h_diff_ref_loc_off_trkl[i_charge][TRD_detector] = (TH1D*)input_data[0]->Get(HistName.Data());
         }
     }
 
+    /*
     for(Int_t i_file = 0; i_file < 3; i_file++)
     {
         for(Int_t i_det = 0; i_det < 540; i_det++)
@@ -524,6 +604,7 @@ Int_t GUI_Sim_drift::LoadData()
             vec_tp_Delta_vs_impact_all[i_file][i_det] ->SetName(Form("vec_th1d_Delta_vs_impact_%d_%d",i_det,i_file));
         }
     }
+    */
     for(Int_t i_det = 0; i_det < 540; i_det++)
     {
         vec_tp_Delta_vs_impact[i_det] = (TProfile*)input_data[0]->Get(Form("vec_th1d_Delta_vs_impact_%d",i_det));
@@ -599,6 +680,58 @@ Int_t GUI_Sim_drift::LoadData()
     //---------------------------------------------------------
 
     return 1;
+}
+//---------------------------------------------------------------------------------
+
+
+
+//---------------------------------------------------------------------------------
+void GUI_Sim_drift::Draw_offline_trkl_diff()
+{
+    TGraph* tg_offline_trkl_mean_diff[2];
+    tg_offline_trkl_mean_diff[0] = new TGraph();
+    tg_offline_trkl_mean_diff[1] = new TGraph();
+
+    for(Int_t i_charge = 1; i_charge < 2; i_charge++)  // [all,-,+]
+    {
+        Int_t i_point[2] = {0};
+        for(Int_t TRD_detector = 0; TRD_detector < 540; TRD_detector++)
+        {
+            Int_t  entries = vec_h_diff_ref_loc_off_trkl[i_charge][TRD_detector] ->GetEntries();
+            if(entries < 20) continue;
+            Int_t i_group = TRD_detector%2;
+            Double_t mean_diff = vec_h_diff_ref_loc_off_trkl[i_charge][TRD_detector] ->GetMean();
+            Double_t RMS_diff  = vec_h_diff_ref_loc_off_trkl[i_charge][TRD_detector] ->GetRMS();
+            if(RMS_diff > 0.06) continue;
+            printf("det: %d, RMS: %4.3f \n",TRD_detector,RMS_diff);
+            tg_offline_trkl_mean_diff[i_group] ->SetPoint(i_point[i_group],TRD_detector,mean_diff);
+            i_point[i_group]++;
+        }
+    }
+
+    TCanvas* can_offline_trkl_mean_diff = new TCanvas("can_offline_trkl_mean_diff","can_offline_trkl_mean_diff",10,10,1200,500);
+    can_offline_trkl_mean_diff ->cd();
+    tg_offline_trkl_mean_diff[0] ->GetXaxis()->SetTitleOffset(0.9);
+    tg_offline_trkl_mean_diff[0] ->GetYaxis()->SetTitleOffset(0.9);
+    tg_offline_trkl_mean_diff[0] ->GetXaxis()->SetLabelSize(0.05);
+    tg_offline_trkl_mean_diff[0] ->GetYaxis()->SetLabelSize(0.05);
+    tg_offline_trkl_mean_diff[0] ->GetXaxis()->SetTitleSize(0.05);
+    tg_offline_trkl_mean_diff[0] ->GetYaxis()->SetTitleSize(0.05);
+    tg_offline_trkl_mean_diff[0] ->GetXaxis()->SetNdivisions(505,'N');
+    tg_offline_trkl_mean_diff[0] ->GetYaxis()->SetNdivisions(505,'N');
+    tg_offline_trkl_mean_diff[0] ->GetXaxis()->CenterTitle();
+    tg_offline_trkl_mean_diff[0] ->GetYaxis()->CenterTitle();
+    tg_offline_trkl_mean_diff[0] ->GetXaxis()->SetTitle("TRD detector");
+    tg_offline_trkl_mean_diff[0] ->GetYaxis()->SetTitle("#Delta dy/dx(ref - loc)");
+    tg_offline_trkl_mean_diff[0] ->SetMarkerSize(1.0);
+    tg_offline_trkl_mean_diff[0] ->SetMarkerColor(kRed);
+    tg_offline_trkl_mean_diff[0] ->SetMarkerStyle(20);
+    tg_offline_trkl_mean_diff[0] ->Draw("AP");
+
+    tg_offline_trkl_mean_diff[1] ->SetMarkerSize(1.0);
+    tg_offline_trkl_mean_diff[1] ->SetMarkerColor(kBlue);
+    tg_offline_trkl_mean_diff[1] ->SetMarkerStyle(20);
+    tg_offline_trkl_mean_diff[1] ->Draw("same P");
 }
 //---------------------------------------------------------------------------------
 
@@ -684,22 +817,26 @@ Int_t GUI_Sim_drift::Do_Minimize_Single()
     //-------------------------------------------------
     // Minimization
     i_detector_global = i_detector;
-    TVirtualFitter *min = TVirtualFitter::Fitter(0,5);
+    TVirtualFitter *min = TVirtualFitter::Fitter(0,2);
     min->SetFCN(Chi2_TRD_vDrift);
-    Double_t pStart[5] = {B_field,HV_drift_in/l_drift,v_drift_in,1.56,0.134}; // B-field, E-field, v_drift, vD_drift (1.7 instead of 1.56)
+    Double_t pStart[2] = {-7.5*TMath::DegToRad(),1.0}; // B-field, E-field, v_drift, vD_drift (1.7 instead of 1.56)
+    //Double_t pStart[5] = {B_field,HV_drift_in/l_drift,v_drift_in,1.56,0.134}; // B-field, E-field, v_drift, vD_drift (1.7 instead of 1.56)
     //Double_t pStart[4] = {B_field,HV_drift_in/l_drift,1.48,1.56}; // B-field, E-field, v_drift, vD_drift (1.7 instead of 1.56)
    
     // 73: 1.48  after fit: 1.269
 
-    min->SetParameter(0,"B_field",pStart[0],0.01,0,0);
-    min->SetParameter(1,"E_field",pStart[1]*fudge_Hdrift,0.01,0,0);
-    min->SetParameter(2,"v_drift",pStart[2],0.01,0,0);
-    min->SetParameter(3,"vD_drift",pStart[3],0.01,0,0);
-    min->SetParameter(4,"LA_factor",pStart[4],0.01,0,0);
+    min->SetParameter(0,"LA",pStart[0],0.01,0,0);
+    min->SetParameter(1,"Ratio",pStart[1],0.01,0,0);
 
-    min->FixParameter(0);
-    min->FixParameter(1);
-    min->FixParameter(3);
+    //min->SetParameter(0,"B_field",pStart[0],0.01,0,0);
+    //min->SetParameter(1,"E_field",pStart[1]*fudge_Hdrift,0.01,0,0);
+    //min->SetParameter(2,"v_drift",pStart[2],0.01,0,0);
+    //min->SetParameter(3,"vD_drift",pStart[3],0.01,0,0);
+    //min->SetParameter(4,"LA_factor",pStart[4],0.01,0,0);
+
+    //min->FixParameter(0);
+    //min->FixParameter(1);
+    //min->FixParameter(3);
     //min->FixParameter(4);
 
     Double_t arglist[2];
@@ -707,18 +844,24 @@ Int_t GUI_Sim_drift::Do_Minimize_Single()
     arglist[1] = 0.001; // tolerance
     min->ExecuteCommand("MIGRAD",arglist,2);
     // get fit parameters
-    Double_t parFit[5];
-    for(int i = 0; i < 5; ++i)
+    Double_t parFit[2];
+    for(int i = 0; i < 2; ++i)
     {
         parFit[i] = min->GetParameter(i);
     }
 
-    v_fit  = parFit[2];
-    vD_fit = parFit[3];
-    E_fit  = parFit[1];
-    LA_factor_fit = parFit[4];
+    //v_fit  = parFit[2];
+    //vD_fit = parFit[3];
+    //E_fit  = parFit[1];
+    //LA_factor_fit = parFit[4];
 
-    printf("v_drift: %4.3f, vD_drift: %4.3f, E_field: %4.3f, LA_factor: %4.3f \n",parFit[2],parFit[3],parFit[1],parFit[4]);
+    LA_fit       = parFit[0];
+    vD_ratio_fit = parFit[1];
+    if(vD_ratio_fit != 0.0) v_fit = vD_set/vD_ratio_fit;
+
+    printf("LA_fit: %4.3f, vD_ratio_fit: %4.3f \n",LA_fit,vD_ratio_fit);
+
+    //printf("v_drift: %4.3f, vD_drift: %4.3f, E_field: %4.3f, LA_factor: %4.3f \n",parFit[2],parFit[3],parFit[1],parFit[4]);
     //-------------------------------------------------
 
     Draw_data();
@@ -760,6 +903,9 @@ Int_t GUI_Sim_drift::Do_Minimize()
     vec_vOCDB_fit.resize(ndet);
     vec_LA_factor_fit.resize(ndet);
 
+    vec_LA_fit.resize(ndet);
+    vec_vD_ratio_fit.resize(ndet);
+
     TGraph* tg_v_fit_vs_det         = new TGraph();
     TGraph* tg_vD_fit_vs_det        = new TGraph();
     TGraph* tg_vfit_vs_vOCDB        = new TGraph();
@@ -794,6 +940,11 @@ Int_t GUI_Sim_drift::Do_Minimize()
         vec_vD_fit[i_detector] = 1.56;
         vec_LA_factor_fit[i_detector] = 1.0;
 
+        vec_LA_fit[i_detector]       = -7.5;
+        vec_vD_ratio_fit[i_detector] = 1.0;
+
+
+
         printf("---------------------> i_detector = %d, E_field: %4.3f, HV_drift_in: %4.3f, HV_anode_in: %4.3f \n",i_detector,E_field,HV_drift_in,HV_anode_in);
 
 
@@ -809,20 +960,24 @@ Int_t GUI_Sim_drift::Do_Minimize()
         if(N >= 10 && E_field > 100 && HV_anode_in > 1500)
         {
 
-            TVirtualFitter *min = TVirtualFitter::Fitter(0,5);
+            TVirtualFitter *min = TVirtualFitter::Fitter(0,2);
             min->SetFCN(Chi2_TRD_vDrift);
-            Double_t pStart[5] = {B_field,HV_drift_in/l_drift,v_drift_in,1.56,0.134}; // B-field, E-field, v_drift, vD_drift (1.7 insread of 1.56)
+            //Double_t pStart[5] = {B_field,HV_drift_in/l_drift,v_drift_in,1.56,0.134}; // B-field, E-field, v_drift, vD_drift (1.7 insread of 1.56)
+            Double_t pStart[2] = {-7.5*TMath::DegToRad(),1.0};
             //Double_t pStart[4] = {B_field,HV_drift_in/l_drift,v_drift_in-0.1,1.56}; // B-field, E-field, v_drift, vD_drift (1.7 insread of 1.56)
 
-            min->SetParameter(0,"B_field",pStart[0],0.01,0,0);
-            min->SetParameter(1,"E_field",pStart[1]*fudge_Hdrift,0.01,0,0);
-            min->SetParameter(2,"v_drift",pStart[2],0.01,0,0);
-            min->SetParameter(3,"vD_drift",pStart[3],0.01,0,0);
-            min->SetParameter(4,"LA_factor",pStart[4],0.01,0,0);
+            min->SetParameter(0,"LA",pStart[0],0.01,0,0);
+            min->SetParameter(1,"Ratio",pStart[1],0.01,0,0);
 
-            min->FixParameter(0);
-            min->FixParameter(1);
-            min->FixParameter(3);
+            //min->SetParameter(0,"B_field",pStart[0],0.01,0,0);
+            //min->SetParameter(1,"E_field",pStart[1]*fudge_Hdrift,0.01,0,0);
+            //min->SetParameter(2,"v_drift",pStart[2],0.01,0,0);
+            //min->SetParameter(3,"vD_drift",pStart[3],0.01,0,0);
+            //min->SetParameter(4,"LA_factor",pStart[4],0.01,0,0);
+
+            //min->FixParameter(0);
+            //min->FixParameter(1);
+            //min->FixParameter(3);
             //min->FixParameter(4);
 
             Double_t arglist[2];
@@ -835,7 +990,7 @@ Int_t GUI_Sim_drift::Do_Minimize()
             // get fit parameters
             Double_t parFit[5];
 
-            for(int i = 0; i < 5; ++i)
+            for(int i = 0; i < 2; ++i)
             {
                 parFit[i] = min->GetParameter(i);
             }
@@ -854,12 +1009,17 @@ Int_t GUI_Sim_drift::Do_Minimize()
             //    parFit[i] = min->GetParameter(i);
             //}
 
-            vec_v_fit[i_detector]              = parFit[2]*fudge_vdrift;
-            vec_vD_fit[i_detector]             = parFit[3];
-            E_fit                              = parFit[1];
-            vec_LA_factor_fit[i_detector]      = parFit[4];
+            //vec_v_fit[i_detector]              = parFit[2]*fudge_vdrift;
+            //vec_vD_fit[i_detector]             = parFit[3];
+            //E_fit                              = parFit[1];
+            //vec_LA_factor_fit[i_detector]      = parFit[4];
 
-            printf("v_drift: %4.3f, vD_drift: %4.3f, E_field: %4.3f, LA_factor: %4.3f \n",parFit[2],parFit[3],parFit[1],parFit[4]);
+            vec_LA_fit[i_detector]       = parFit[0];
+            vec_vD_ratio_fit[i_detector] = parFit[1];
+
+            printf("det: %d, LA_fit: %4.3f, vD_ratio: %4.3f \n",i_detector,vec_LA_fit[i_detector]*TMath::RadToDeg(),vec_vD_ratio_fit[i_detector]);
+
+            //printf("v_drift: %4.3f, vD_drift: %4.3f, E_field: %4.3f, LA_factor: %4.3f \n",parFit[2],parFit[3],parFit[1],parFit[4]);
             //-------------------------------------------------
             //#endif
 
@@ -871,19 +1031,25 @@ Int_t GUI_Sim_drift::Do_Minimize()
 
             i_point = i_point+1;
 
+            if(vec_vD_ratio_fit[i_detector] != 0.0)
+            {
+                vec_v_fit[i_detector] = vD_set/vec_vD_ratio_fit[i_detector];
+            }
+            else vec_v_fit[i_detector] = -1.0;
+
             tg_v_fit_vs_det          ->SetPoint(i_point,i_detector,vec_v_fit[i_detector]);
-            tg_vD_fit_vs_det         ->SetPoint(i_point,i_detector,vec_vD_fit[i_detector]);
+            ///tg_vD_fit_vs_det         ->SetPoint(i_point,i_detector,vec_vD_fit[i_detector]);
             tg_vfit_vs_vOCDB         ->SetPoint(i_point,v_drift_in,vec_v_fit[i_detector]);
-            tg_LA_factor_fit_vs_det  ->SetPoint(i_point,i_detector,vec_LA_factor_fit[i_detector]);
+            tg_LA_factor_fit_vs_det  ->SetPoint(i_point,i_detector,vec_LA_fit[i_detector]);
         }
 
         //tg_vD_fit_vs_det ->SetPoint(i_detector,i_detector,i_detector);
 
-        printf("i_detector = %d \n",i_detector);
-        printf("tg_v_fit_vs_det -> getbincont: %4.3f \n",tg_v_fit_vs_det ->Eval(i_detector));
-        printf("tg_vD_fit_vs_det -> getbincont: %4.3f \n",tg_vD_fit_vs_det ->Eval(i_detector));
+        //printf("i_detector = %d \n",i_detector);
+        //printf("tg_v_fit_vs_det -> getbincont: %4.3f \n",tg_v_fit_vs_det ->Eval(i_detector));
+        //printf("tg_vD_fit_vs_det -> getbincont: %4.3f \n",tg_vD_fit_vs_det ->Eval(i_detector));
         //printf("v_drift: %4.3f, vD_drift: %4.3f, E_field: %4.3f \n",parFit[2],parFit[3],parFit[1]);
-        printf("tg_LA_factor_fit_vs_det -> getbincont: %4.3f \n",tg_LA_factor_fit_vs_det ->Eval(i_detector));
+        //printf("tg_LA_factor_fit_vs_det -> getbincont: %4.3f \n",tg_LA_factor_fit_vs_det ->Eval(i_detector));
         //printf("v_drift: %4.3f, vD_drift: %4.3f, E_field: %4.3f \n",parFit[2],parFit[3],parFit[1]);
 
 
@@ -1046,16 +1212,23 @@ Int_t GUI_Sim_drift::Draw_data()
         LA_factor   = LA_slider;
     }
 
+    Double_t LA_use = 0.0;
+    Double_t vD_ratio_use = 0.0;
+
     if(fCheckBox_sel[1]->GetState() == kButtonDown) // fit
     {
         printf("Use fit data \n");
-        v_drift_use = v_fit;
-        vD_use      = vD_fit;
-        E_field     = E_fit;
-        LA_factor   = LA_factor_fit;
+        LA_use       = LA_fit;
+        vD_ratio_use = vD_ratio_fit;
+        //v_drift_use = v_fit;
+        //vD_use      = vD_fit;
+        //E_field     = E_fit;
+        //LA_factor   = LA_factor_fit;
     }
 
+    TGraph* tg_Delta_alpha_fit = calc_Delta_alpha(LA_use,vD_ratio_use);
 
+    /*
     //------------------------------------------------------------------------
     Int_t v_counter = 0;
     vector<Double_t> vec_v_drift_vals;
@@ -1103,9 +1276,9 @@ Int_t GUI_Sim_drift::Draw_data()
                     //Double_t y_pos = time*1.56*1E06/100.0;     // original track cluster positions
                     Double_t x_pos = y_pos/track_slope;
                     //printf("phi_counter: %d, phi_counter_plot: %d, vD_counter: %d, vD_counter_plot: %d  \n",phi_counter,phi_counter_plot,vD_counter,vD_counter_plot);
-                    //printf("i_time: %d, pos: {%4.3f, %4.3f} \n",i_time,x_pos,y_pos);
                     if(phi_counter == phi_counter_plot && vD_counter == vD_counter_plot && v_counter == v_counter_plot)
                     {
+                        printf("i_time: %d, pos: {%4.3f, %4.3f}, v_drift: %4.3f \n",i_time,x_pos,y_pos,v_drift);
                         //printf("track_phi_deg: %4.3f \n",track_phi_deg);
                         tpm_track ->SetNextPoint(x_pos,y_pos);
                     }
@@ -1190,8 +1363,9 @@ Int_t GUI_Sim_drift::Draw_data()
         v_counter++;
     } // end of v loop
     //------------------------------------------------------------------------
+    */
 
-
+    /*
     //------------------------------------------------------------------------
     TCanvas* can_track = new TCanvas("can_track","can_track",600,50,600,600);
     can_track->cd()->SetTicks(1,1);
@@ -1264,7 +1438,7 @@ Int_t GUI_Sim_drift::Draw_data()
     can_track ->GetCanvas()->cd(1)->Modified();
     can_track ->GetCanvas()->cd(1)->Update();
     //------------------------------------------------------------------------
-
+    */
 
 
 
@@ -1296,6 +1470,7 @@ Int_t GUI_Sim_drift::Draw_data()
     h_frame_delta_vs_angle->GetXaxis()->SetTitle("impact angle (deg.)");
     h_frame_delta_vs_angle->GetYaxis()->SetTitle("#Delta#alpha (deg.)");
 
+    /*
     for(Int_t i_vD = 0; i_vD < (Int_t)tg_delta_vs_angle[0].size(); i_vD++)
     //for(Int_t i_vD = 0; i_vD < (Int_t)1; i_vD++)
     {
@@ -1314,6 +1489,11 @@ Int_t GUI_Sim_drift::Draw_data()
         //tg_delta_vs_angle[5][i_vD] ->SetLineWidth(2);
         //tg_delta_vs_angle[5][i_vD] ->Draw("same");
     }
+    */
+
+     tg_Delta_alpha_fit->SetLineColor(kRed);
+     tg_Delta_alpha_fit->SetLineWidth(2);
+     tg_Delta_alpha_fit->Draw("same");
 
 
 #if 0
@@ -1328,6 +1508,7 @@ Int_t GUI_Sim_drift::Draw_data()
     vec_tp_Delta_vs_impact[i_detector] ->SetLineStyle(1);
     vec_tp_Delta_vs_impact[i_detector] ->Draw("same hl");
 
+    /*
     if(fCheckBox_sel[3]->GetState() == kButtonDown) // slider
     {
         vec_tp_Delta_vs_impact_all[2][i_detector] ->SetLineColor(kRed);
@@ -1343,7 +1524,7 @@ Int_t GUI_Sim_drift::Draw_data()
         vec_tp_Delta_vs_impact_all[1][i_detector] ->SetLineStyle(1);
         vec_tp_Delta_vs_impact_all[1][i_detector] ->Draw("same hl");
     }
-
+    */
  
 
 
@@ -1370,14 +1551,15 @@ Int_t GUI_Sim_drift::Draw_data()
         HistName += ", vf_{D} = ";
         sprintf(NoP,"%4.3f",v_fit*fudge_vdrift);
         HistName += NoP;
-        HistName += ", LAf = ";
-        sprintf(NoP,"%4.3f",LA_factor*fudge_LorentzAngle);
+        HistName += ", LA = ";
+        sprintf(NoP,"%4.3f",LA_fit*TMath::RadToDeg());
         HistName += NoP;
         plotTopLegend((char*)HistName.Data(),0.24,0.85,0.045,kBlack,0.0,42,1,1); // char* label,Float_t x=-1,Float_t y=-1, Float_t size=0.06,Int_t color=1,Float_t angle=0.0, Int_t font = 42, Int_t NDC = 1, Int_t align = 1
     }
 
 
     printf("detector: %d, v_drift: %4.3f, HV_drift: %4.3f \n",i_detector,v_drift_in,HV_drift_in);
+
 
     PlotLine(70.0,110.0,0.0,0.0,kBlack,2,2); // (Double_t x1_val, Double_t x2_val, Double_t y1_val, Double_t y2_val, Int_t Line_Col, Int_t LineWidth, Int_t LineStyle)
     PlotLine(90.0,90.0,-13.5,13.5,kBlack,2,2); // (Double_t x1_val, Double_t x2_val, Double_t y1_val, Double_t y2_val, Int_t Line_Col, Int_t LineWidth, Int_t LineStyle)
