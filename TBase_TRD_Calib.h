@@ -998,7 +998,7 @@ Int_t TBase_TRD_Calib::get_2D_global_circle_fit()
 
     // vec_Dt_digit_pos_cluster[6][i_layer][i_xyzADC] // use that one
 
-    vector<TVector2> vec_TV2_points;
+    //vector<TVector2> vec_TV2_points;
     vec_TV2_points.resize(6);
 
     Int_t i_layer_notempty = 0;
@@ -1085,9 +1085,10 @@ Int_t TBase_TRD_Calib::get_2D_global_circle_fit()
     arglist[0] = 1000; // number of function calls
     arglist[1] = 0.001; // tolerance
 
+    printf("test1 \n");
     //min->ExecuteCommand("MIGRAD",arglist,2);
     min->ExecuteCommand("MINOS",arglist,2);
-
+    printf("test2 \n");
 
     //if (minos) min->ExecuteCommand("MINOS",arglist,0);
     Int_t nvpar,nparx;
@@ -1156,7 +1157,7 @@ Int_t TBase_TRD_Calib::get_2D_global_circle_fit()
     }
     vec_TPL_circle_tracklets.clear();
 
-    vector<TVector3> vec_dir_vec_circle;
+    //vector<TVector3> vec_dir_vec_circle;
     vec_dir_vec_circle.resize(6);
 
     for (Int_t i_layer = 0; i_layer <6; ++i_layer)
@@ -1164,7 +1165,7 @@ Int_t TBase_TRD_Calib::get_2D_global_circle_fit()
         vec_dir_vec_circle[i_layer].SetXYZ(-999.0,-999.0,-999.0);   //because i maybe need it to have all 6 dimensions in Calibrate
     }
 
-    vector<TVector3> vec_dir_vec_circle_notempty;           //this one will have only n_notempty dimensions
+    //vector<TVector3> vec_dir_vec_circle_notempty;           //this one will have only n_notempty dimensions
     vec_dir_vec_circle_notempty.resize(i_layer_notempty);
 
     for(Int_t i_point = 0; i_point < i_layer_notempty; i_point++)
@@ -2471,6 +2472,9 @@ void TBase_TRD_Calib::Calibrate()
             Double_t helix_point[3];
             Double_t helix_pointB[3];
 
+            printf("i_track: %4.3d, i_event: %4.3d \n",i_track,i_event);
+
+
             make_clusters(i_track);
             //get_straight_line_fit(i_track);
             get_tracklets_fit(i_track);
@@ -2481,7 +2485,7 @@ void TBase_TRD_Calib::Calibrate()
             //dir_vec_circle   just a number
             //after all use vec_dir_ver_circle[i_point] :  vector<TVector3>
 
-            printf("test 1 \n");
+            //printf("test 1 \n");
 
 
             vector<TVector3> vec_TV3_tracklet_vectors;
@@ -2500,8 +2504,8 @@ void TBase_TRD_Calib::Calibrate()
             }
             if(N_good_layers < 3) continue;
 
-            printf("N_good_layers: %d \n",N_good_layers);
-            printf("i_track: %d \n",i_track);
+            //printf("N_good_layers: %d \n",N_good_layers);
+            //printf("i_track: %d \n",i_track);
 
 
             Double_t impact_angle[6] = {0.0};
@@ -2510,7 +2514,7 @@ void TBase_TRD_Calib::Calibrate()
             Double_t delta_x_local_global[6] = {0.0}; // local chamber coordinate system, global fit
             Double_t delta_x_local_global_circle[6] = {0.0}; // local chamber coordinate system, global circle fit - in case it's different
 
-            printf("test 2 \n");
+            //printf("test 2 \n");
 
 
             for(Int_t i_layer = 6; i_layer >= 0; i_layer--)
@@ -2598,37 +2602,35 @@ void TBase_TRD_Calib::Calibrate()
                         }
                     }
 
-                    printf("test 3 \n");
+                    //printf("test 3 \n");
 
                     if(i_layer < 6) // tracklets + impact angle for circle fit
                     {
-
-                        printf("vec_dir_vec_circle[i_layer].X: %4.3f \n",vec_dir_vec_circle[i_layer].X());
                         if(tracklets_min[i_layer] > 0.2) continue;  
                         if(arr_layer_detector[i_layer] < 0) continue;
                         Int_t detector = arr_layer_detector[i_layer];
 
 
-                        printf("test 3.1 \n");
+                        //printf("test 3.1 \n");
 
                         //-----impact angle for circle global fit HERE---------
 
                         if (tracklets_min_circle == 0.0 && tracklets_min_circle > 7.0) continue;
-                        printf("test 3.2 \n");
+                        //printf("test 3.2 \n");
 
-                        printf("i_track: %d, i_layer: %d \n",i_track,i_layer);
+                        //printf("i_track: %d, i_layer: %d \n",i_track,i_layer);
 
                         printf("vec_dir_vec_circle[i_layer].X: %4.3f, vec_dir_vec_circle[i_layer].Y: %4.3f, vec_dir_vec_circle[i_layer].Z: %4.3f \n",vec_dir_vec_circle[i_layer].X(),vec_dir_vec_circle[i_layer].Y(),vec_dir_vec_circle[i_layer].Z());
 
                         delta_x_local_global_circle[i_layer] = vec_dir_vec_circle[i_layer].Dot(vec_TV3_TRD_center[arr_layer_detector[i_layer]][0]);
                         //Double_t proj_radial = TV3_delta.Dot(vec_TV3_TRD_center[arr_layer_detector[i_layerB]][2]);    looks like this isn't used
 
-                        printf("test 3.3 \n");
+                        //printf("test 3.3 \n");
 
                         Double_t sign_direction_impact_circle = TMath::Sign(1.0,delta_x_local_global_circle[i_layer]);
                         impact_angle_circle[i_layer] = vec_dir_vec_circle[i_layer].Angle(vec_TV3_TRD_center[arr_layer_detector[i_layer]][2]);  //i need something like that for circles
 
-                        printf("test 3.4 \n");
+                        //printf("test 3.4 \n");
 
                         if(impact_angle_circle[i_layer] > TMath::Pi()*0.5) impact_angle_circle[i_layer] -= TMath::Pi();
                         //printf("i_layerB: %d, 3D_Angle_on_TRD(TPC track): %4.3f, 2D_impact_angle: %4.3f \n",i_layerB,Angle_on_TRD*TMath::RadToDeg(),impact_angle[i_layerB]*TMath::RadToDeg());
@@ -2636,7 +2638,7 @@ void TBase_TRD_Calib::Calibrate()
 
                         //-----------------------------------------------------
 
-                        printf("test 4 \n");
+                        //printf("test 4 \n");
 
 
                         Double_t delta_x_local_tracklet = vec_TV3_tracklet_vectors[i_layer].Dot(vec_TV3_TRD_center[arr_layer_detector[i_layer]][0]);
@@ -2653,7 +2655,7 @@ void TBase_TRD_Calib::Calibrate()
                         if(Delta_angle_circle > TMath::Pi()*0.5)  Delta_angle_circle -= TMath::Pi();
                         if(Delta_angle_circle < -TMath::Pi()*0.5) Delta_angle_circle += TMath::Pi();
 
-                        printf("test 5 \n");
+                        //printf("test 5 \n");
 
 
                         h_detector_hit ->Fill(detector);
@@ -2670,7 +2672,7 @@ void TBase_TRD_Calib::Calibrate()
                         vec_tp_Delta_vs_impact_circle[detector]   ->Fill(impact_angle_circle[i_layer]*TMath::RadToDeg(),Delta_angle_circle*TMath::RadToDeg());
                         vec_TH2D_Delta_vs_impact_circle[detector] ->Fill(impact_angle_circle[i_layer]*TMath::RadToDeg(),Delta_angle_circle*TMath::RadToDeg());
 
-                        printf("test 6 \n");
+                        //printf("test 6 \n");
 
 
                         //separate hist for perpendicular impacts - straight line
@@ -2702,8 +2704,7 @@ void TBase_TRD_Calib::Calibrate()
         }
     }
 
-    printf("test 7 \n");
-
+    //printf("test 7 \n");
 
     // copy all that for circle angle histos
     vector<TCanvas*> vec_can_Delta_vs_impact;
@@ -2773,10 +2774,7 @@ void TBase_TRD_Calib::Calibrate()
         }
     }
 
-    printf("test 8 \n");
-
-
-#if 0
+    //printf("test 8 \n");
 
     //cancas for circle fit
     vector<TCanvas*> vec_can_Delta_vs_impact_circle;
@@ -2846,20 +2844,14 @@ void TBase_TRD_Calib::Calibrate()
         }
     }
 
-#endif
-
     TCanvas* can_delta_angle_perp_impact = new TCanvas("can_delta_angle_perp_impact","can_delta_angle_perp_impact",500,10,500,500);
     can_delta_angle_perp_impact ->cd();
     h_delta_angle_perp_impact  ->Draw();
-
-#if 0
 
     //same for circle perp impact
     TCanvas* can_delta_angle_perp_impact_circle = new TCanvas("can_delta_angle_perp_impact_circle","can_delta_angle_perp_impact_circle",500,10,500,500);
     can_delta_angle_perp_impact_circle ->cd();
     h_delta_angle_perp_impact_circle  ->Draw();
-
-#endif
 
     TCanvas* can_detector_hit = new TCanvas("can_detector_hit","can_detector_hit",500,500,500,500);
     can_detector_hit ->cd();
