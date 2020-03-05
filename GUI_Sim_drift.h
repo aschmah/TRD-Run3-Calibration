@@ -571,10 +571,11 @@ Int_t GUI_Sim_drift::LoadData()
     TFile* input_data[3];
     //input_data[0]     = TFile::Open("./Data/TRD_Calib_All_170k.root");
     //input_data[0]     = TFile::Open("./Data/TRD_Calib_72k_5cl_rem.root");
-    input_data[0]     = TFile::Open("./Data/TRD_Calib_V11.root");
+    //input_data[0]     = TFile::Open("./Data/TRD_Calib_V11.root");
     //input_data[0]     = TFile::Open("./Data/TRD_Calib_TPC_impact.root");
     //input_data[1] = TFile::Open("./Data/TRD_Calib_All_170k_neg.root");
     //input_data[2] = TFile::Open("./Data/TRD_Calib_All_170k_pos.root");
+    input_data[0]     = TFile::Open("./Data/TRD_Calib_circles.root");
 
     for(Int_t i_charge = 0; i_charge < 3; i_charge++)
     {
@@ -605,9 +606,11 @@ Int_t GUI_Sim_drift::LoadData()
         }
     }
     */
+
+    //get delta vs impact CIRCLE hists
     for(Int_t i_det = 0; i_det < 540; i_det++)
     {
-        vec_tp_Delta_vs_impact[i_det] = (TProfile*)input_data[0]->Get(Form("vec_th1d_Delta_vs_impact_%d",i_det));
+        vec_tp_Delta_vs_impact[i_det] = (TProfile*)input_data[0]->Get(Form("Delta_impact_circle/vec_th1d_Delta_vs_impact_circle_%d",i_det));
     }
 
     TFile* input_vdrift_A = TFile::Open("./Data/vdrift_vs_det_265338.root");

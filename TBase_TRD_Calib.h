@@ -228,7 +228,8 @@ public:
 //----------------------------------------------------------------------------------------
 TBase_TRD_Calib::TBase_TRD_Calib()
 {
-    outputfile = new TFile("./TRD_Calib.root","RECREATE");
+    //outputfile = new TFile("./TRD_Calib.root","RECREATE");
+    outputfile = new TFile("./TRD_Calib_circle.root","RECREATE");
 
     Init_QA();
 
@@ -2642,8 +2643,11 @@ void TBase_TRD_Calib::Calibrate()
 
 
                         Double_t delta_x_local_tracklet = vec_TV3_tracklet_vectors[i_layer].Dot(vec_TV3_TRD_center[arr_layer_detector[i_layer]][0]);
-                        Double_t sign_angle = 1.0;
-                        if(delta_x_local_tracklet < delta_x_local_global[i_layer]) sign_angle = -1.0;
+                        Double_t sign_angle        = 1.0;
+                        Double_t sign_angle_circle = 1.0;
+                        if(delta_x_local_tracklet < delta_x_local_global[i_layer]) sign_angle               = -1.0;
+                        if(delta_x_local_tracklet < delta_x_local_global_circle[i_layer]) sign_angle_circle = -1.0;
+
 
                         //calculate Delta angle for straight line
                         Double_t Delta_angle  = sign_angle*vec_TV3_tracklet_vectors[6].Angle(vec_TV3_tracklet_vectors[i_layer]);
@@ -2651,7 +2655,7 @@ void TBase_TRD_Calib::Calibrate()
                         if(Delta_angle < -TMath::Pi()*0.5) Delta_angle += TMath::Pi();
 
                         //same for delta angle tracklet vs circle
-                        Double_t Delta_angle_circle  = sign_angle*vec_dir_vec_circle[i_layer].Angle(vec_TV3_tracklet_vectors[i_layer]);
+                        Double_t Delta_angle_circle  = sign_angle_circle*vec_dir_vec_circle[i_layer].Angle(vec_TV3_tracklet_vectors[i_layer]);
                         if(Delta_angle_circle > TMath::Pi()*0.5)  Delta_angle_circle -= TMath::Pi();
                         if(Delta_angle_circle < -TMath::Pi()*0.5) Delta_angle_circle += TMath::Pi();
 
@@ -2728,7 +2732,7 @@ void TBase_TRD_Calib::Calibrate()
     h_dummy_Delta_vs_impact->GetXaxis()->SetTitle("impact angle");
     h_dummy_Delta_vs_impact->GetYaxis()->SetTitle("#Delta #alpha");
     h_dummy_Delta_vs_impact->GetXaxis()->SetRangeUser(70,110);
-    h_dummy_Delta_vs_impact->GetYaxis()->SetRangeUser(0,24);
+    h_dummy_Delta_vs_impact->GetYaxis()->SetRangeUser(-24,24);
 
     Int_t arr_color_layer[6] = {kBlack,kRed,kBlue,kGreen,kMagenta,kCyan};
 
@@ -2798,7 +2802,7 @@ void TBase_TRD_Calib::Calibrate()
     h_dummy_Delta_vs_impact_circle->GetXaxis()->SetTitle("impact angle");
     h_dummy_Delta_vs_impact_circle->GetYaxis()->SetTitle("#Delta #alpha");
     h_dummy_Delta_vs_impact_circle->GetXaxis()->SetRangeUser(70,110);
-    h_dummy_Delta_vs_impact_circle->GetYaxis()->SetRangeUser(0,24);
+    h_dummy_Delta_vs_impact_circle->GetYaxis()->SetRangeUser(-24,24);
 
     //Int_t arr_color_layer[6] = {kBlack,kRed,kBlue,kGreen,kMagenta,kCyan};
 
@@ -2867,6 +2871,15 @@ void TBase_TRD_Calib::Calibrate()
         //vec_TH2D_Delta_vs_impact_circle[i_det] ->Write();
     }
 
+    outputfile ->mkdir("Delta_impact_circle");
+    outputfile ->cd("Delta_impact_circle");
+    for(Int_t i_det = 0; i_det < 540; i_det++)
+    {
+        vec_tp_Delta_vs_impact_circle[i_det]   ->Write();
+        vec_TH2D_Delta_vs_impact_circle[i_det] ->Write();
+    }
+
+    outputfile ->cd();
     outputfile ->mkdir("Delta_impact");
     outputfile ->cd("Delta_impact");
     for(Int_t i_charge = 0; i_charge < 3; i_charge++)
