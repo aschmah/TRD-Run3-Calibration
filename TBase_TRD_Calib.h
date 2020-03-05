@@ -712,7 +712,6 @@ void TBase_TRD_Calib::make_plots_ADC(Int_t i_track)
             cout << "!!! layers are not organised properly !!! " << endl;
         }
 
-        //cout << "Test 2" << << endl;
 
         //cout << "i_digits: " << i_digits << endl;
         //cout << "i_digits_loc: " << i_digits_loc << endl;
@@ -721,7 +720,6 @@ void TBase_TRD_Calib::make_plots_ADC(Int_t i_track)
 
         for(Int_t i_time_bin = 0; i_time_bin < N_time_bin; i_time_bin++)
         {
-            //cout << "Test 2.2" << endl;
 
             Float_t ADC = (Float_t)AS_Digit ->getADC_time_value(i_time_bin) - 10.0;  // baseline correction
             //cout << "ADC: " << ADC <<  endl;
@@ -737,7 +735,6 @@ void TBase_TRD_Calib::make_plots_ADC(Int_t i_track)
 
         layer_check = layer;
         i_digits_loc++; // = i_digits;
-        //cout << "Test 4" << endl;
     }
 
     //cout << "Test 5" << endl;
@@ -751,7 +748,6 @@ void TBase_TRD_Calib::make_plots_ADC(Int_t i_track)
         N_pads_x = ceil(N_digits_per_layer[i_layer]/N_pads_y)+1;
 
         ADC_vs_time[i_layer] = new TCanvas(Form("ADC_vs_time_%d",i_layer),Form("ADC_vs_time_%d",i_layer),100,200,1500,620);
-        //cout << "Test 7" << endl;
         ADC_vs_time[i_layer] ->SetTopMargin(0.02);
         ADC_vs_time[i_layer] ->SetBottomMargin(0.18);
         ADC_vs_time[i_layer] ->SetRightMargin(0.2);
@@ -764,7 +760,6 @@ void TBase_TRD_Calib::make_plots_ADC(Int_t i_track)
         for(Int_t i_pad = 0; i_pad < N_digits_per_layer[i_layer]; i_pad++)
         {
             ADC_vs_time[i_layer]->cd(i_pad+1)->SetTicks(1,1);
-            //cout << "Test 11" << endl;
             ADC_vs_time[i_layer]->cd(i_pad+1)->SetGrid(0,0);
             ADC_vs_time[i_layer]->cd(i_pad+1)->SetFillColor(10);
             ADC_vs_time[i_layer]->cd(i_pad+1)->SetRightMargin(0.01);
@@ -780,7 +775,6 @@ void TBase_TRD_Calib::make_plots_ADC(Int_t i_track)
             th1f_ADC_vs_time[i_layer][i_pad]->GetYaxis()->SetTitle("ADC counts");
             th1f_ADC_vs_time[i_layer][i_pad]->Draw();
 
-            //cout << "Test 12" << endl;
             //cout << "th1f: " << th1f_ADC_vs_time[i_layer][i_pad]->GetBinContent(0) <<  endl;
         }
     }
@@ -991,7 +985,7 @@ void TBase_TRD_Calib::Draw_line(Int_t i_track)
 Int_t TBase_TRD_Calib::get_2D_global_circle_fit()
 {
 
-    printf("start get_2D_global_circle_fit \n");
+    //printf("start get_2D_global_circle_fit \n");
 
     // Is fitting  through all first cluster points of all available layers with a 2D circle
     // First the parameters are estimated by calculating them with three points
@@ -1018,7 +1012,7 @@ Int_t TBase_TRD_Calib::get_2D_global_circle_fit()
 
     if (i_layer_notempty-1 < 2)
     {
-        printf("!!! less than 3 points to fit circle - you got bad circle !!! \n");
+        //printf("!!! less than 3 points to fit circle - you got bad circle !!! \n");
         return 0;
     }
 
@@ -1029,9 +1023,14 @@ Int_t TBase_TRD_Calib::get_2D_global_circle_fit()
 
     min->SetFCN(sum_distance_circ_point_2D);
 
-    Double_t arglist_B[1] = {-1};
-    min->ExecuteCommand("SET PRIntout",arglist_B,1);
+    Double_t arglist_A[1] = {-1};
+    Double_t arglist_B[1] = {0};
+    Double_t arglist_C[1] = {-1};
+    min->ExecuteCommand("SET PRIntout",arglist_A,1); // http://www.fresco.org.uk/minuit/cern/node18.html
+    //min->ExecuteCommand("SHOw FCNvalue",arglist_A,1);
     min->ExecuteCommand("SET NOWarnings",arglist_B,1);
+    //min->ExecuteCommand("SET PRINT",arglist_C,1);
+
 
 
     Double_t arglist[10];
@@ -1075,9 +1074,9 @@ Int_t TBase_TRD_Calib::get_2D_global_circle_fit()
     pStart[2] = R_param;
 
 
-    cout << "pStart[0]" << pStart[0] << endl;
-    cout << "pStart[1]" << pStart[1] << endl;
-    cout << "pStart[2]" << pStart[2] << endl;
+    //cout << "pStart[0]" << pStart[0] << endl;
+    //cout << "pStart[1]" << pStart[1] << endl;
+    //cout << "pStart[2]" << pStart[2] << endl;
 
     min->SetParameter(0,"a_param",pStart[0],0.01,0,0);
     min->SetParameter(1,"b_param",pStart[1],0.01,0,0);
@@ -1086,16 +1085,15 @@ Int_t TBase_TRD_Calib::get_2D_global_circle_fit()
     arglist[0] = 1000; // number of function calls
     arglist[1] = 0.001; // tolerance
 
-    printf("test1 \n");
     //min->ExecuteCommand("MIGRAD",arglist,2);
-    min->ExecuteCommand("MINOS",arglist,2);
-    printf("test2 \n");
+    //min->ExecuteCommand("MINOS",arglist,2);
+    min->ExecuteCommand("MINIMIZE",arglist,2);
 
     //if (minos) min->ExecuteCommand("MINOS",arglist,0);
     Int_t nvpar,nparx;
     Double_t amin,edm, errdef;
     min->GetStats(amin,edm,errdef,nvpar,nparx);
-    min->PrintResults(1,amin);
+    //min->PrintResults(1,amin);
 
     Double_t parFit_circ[3];
 
@@ -1233,7 +1231,7 @@ Int_t TBase_TRD_Calib::get_2D_global_circle_fit()
             //printf("vec_dir_vec_circle[i_layer].X: %4.3f, vec_dir_vec_circle[i_layer].Y: %4.3f, vec_dir_vec_circle[i_layer].Z: %4.3f \n",vec_dir_vec_circle[i_layer].X(),vec_dir_vec_circle[i_layer].Y(),vec_dir_vec_circle[i_layer].Z());
 
         }
-        printf("vec_dir_vec_circle[i_layer].X: %4.3f, vec_dir_vec_circle[i_layer].Y: %4.3f, vec_dir_vec_circle[i_layer].Z: %4.3f \n",vec_dir_vec_circle[i_layer].X(),vec_dir_vec_circle[i_layer].Y(),vec_dir_vec_circle[i_layer].Z());
+        //printf("vec_dir_vec_circle[i_layer].X: %4.3f, vec_dir_vec_circle[i_layer].Y: %4.3f, vec_dir_vec_circle[i_layer].Z: %4.3f \n",vec_dir_vec_circle[i_layer].X(),vec_dir_vec_circle[i_layer].Y(),vec_dir_vec_circle[i_layer].Z());
 
 
     }
@@ -1356,9 +1354,14 @@ void TBase_TRD_Calib::get_tracklets_fit(Int_t i_track)
 
         arglist[0] = 3;
         //min->ExecuteCommand("SET PRINT",arglist,1);
-        Double_t arglist_B[1] = {-1};
-        min->ExecuteCommand("SET PRIntout",arglist_B,1);
+
+        Double_t arglist_A[1] = {-1};
+        Double_t arglist_B[1] = {1};
+        Double_t arglist_C[1] = {-1};
+        min->ExecuteCommand("SET PRIntout",arglist_A,1); // http://www.fresco.org.uk/minuit/cern/node18.html
         min->ExecuteCommand("SET NOWarnings",arglist_B,1);
+        min->ExecuteCommand("SET PRINT",arglist_C,1);
+
 
         for(Int_t i_xyz = 0; i_xyz < 3; i_xyz++)
         {
@@ -2473,7 +2476,7 @@ void TBase_TRD_Calib::Calibrate()
             Double_t helix_point[3];
             Double_t helix_pointB[3];
 
-            printf("i_track: %4.3d, i_event: %4.3d \n",i_track,i_event);
+            //printf("i_track: %4.3d, i_event: %4.3d \n",i_track,i_event);
 
 
             make_clusters(i_track);
@@ -2486,7 +2489,6 @@ void TBase_TRD_Calib::Calibrate()
             //dir_vec_circle   just a number
             //after all use vec_dir_ver_circle[i_point] :  vector<TVector3>
 
-            //printf("test 1 \n");
 
 
             vector<TVector3> vec_TV3_tracklet_vectors;
@@ -2515,7 +2517,6 @@ void TBase_TRD_Calib::Calibrate()
             Double_t delta_x_local_global[6] = {0.0}; // local chamber coordinate system, global fit
             Double_t delta_x_local_global_circle[6] = {0.0}; // local chamber coordinate system, global circle fit - in case it's different
 
-            //printf("test 2 \n");
 
 
             for(Int_t i_layer = 6; i_layer >= 0; i_layer--)
@@ -2621,7 +2622,7 @@ void TBase_TRD_Calib::Calibrate()
 
                         //printf("i_track: %d, i_layer: %d \n",i_track,i_layer);
 
-                        printf("vec_dir_vec_circle[i_layer].X: %4.3f, vec_dir_vec_circle[i_layer].Y: %4.3f, vec_dir_vec_circle[i_layer].Z: %4.3f \n",vec_dir_vec_circle[i_layer].X(),vec_dir_vec_circle[i_layer].Y(),vec_dir_vec_circle[i_layer].Z());
+                        //printf("vec_dir_vec_circle[i_layer].X: %4.3f, vec_dir_vec_circle[i_layer].Y: %4.3f, vec_dir_vec_circle[i_layer].Z: %4.3f \n",vec_dir_vec_circle[i_layer].X(),vec_dir_vec_circle[i_layer].Y(),vec_dir_vec_circle[i_layer].Z());
 
                         delta_x_local_global_circle[i_layer] = vec_dir_vec_circle[i_layer].Dot(vec_TV3_TRD_center[arr_layer_detector[i_layer]][0]);
                         //Double_t proj_radial = TV3_delta.Dot(vec_TV3_TRD_center[arr_layer_detector[i_layerB]][2]);    looks like this isn't used
