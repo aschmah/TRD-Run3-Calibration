@@ -1156,7 +1156,6 @@ Int_t TBase_TRD_Calib::get_2D_global_circle_fit()
     }
     vec_TPL_circle_tracklets.clear();
 
-    //vector<TVector3> vec_dir_vec_circle;
     vec_dir_vec_circle.resize(6);
 
     for (Int_t i_layer = 0; i_layer <6; ++i_layer)
@@ -1226,6 +1225,11 @@ Int_t TBase_TRD_Calib::get_2D_global_circle_fit()
         if(vec_Dt_digit_pos_cluster[6][i_layer][0] != -999.0 && vec_Dt_digit_pos_cluster[6][i_layer][1] != -999.0)
         {
             vec_dir_vec_circle[i_layer].SetXYZ(vec_dir_vec_circle_notempty[i_layer_notempty_check].X(),vec_dir_vec_circle_notempty[i_layer_notempty_check].Y(),vec_dir_vec_circle_notempty[i_layer_notempty_check].Z());
+            Double_t length_vec = vec_dir_vec_circle[i_layer].Mag();
+            if(length_vec > 0.0)
+            {
+                vec_dir_vec_circle[i_layer] *= -1.0/length_vec;
+            }
             i_layer_notempty_check++;
 
             //printf("vec_dir_vec_circle[i_layer].X: %4.3f, vec_dir_vec_circle[i_layer].Y: %4.3f, vec_dir_vec_circle[i_layer].Z: %4.3f \n",vec_dir_vec_circle[i_layer].X(),vec_dir_vec_circle[i_layer].Y(),vec_dir_vec_circle[i_layer].Z());
@@ -2382,8 +2386,8 @@ void TBase_TRD_Calib::Calibrate()
     
     }
 
-    //for(Long64_t i_event = 0; i_event < 72000; i_event++)
-    for(Long64_t i_event = 0; i_event < file_entries_total; i_event++)
+    for(Long64_t i_event = 0; i_event < 1000; i_event++)
+    //for(Long64_t i_event = 0; i_event < file_entries_total; i_event++)
     {
         if(i_event % 100 == 0) printf("i_event: %lld out of %lld \n",i_event,file_entries_total);
         if (!input_SE->GetEntry( i_event )) return 0; // take the event -> information is stored in event
@@ -2396,7 +2400,8 @@ void TBase_TRD_Calib::Calibrate()
             AS_Track      = AS_Event ->getTrack( i_track ); // take the track
             TLorentzVector TLV_part = AS_Track ->get_TLV_part();
             Float_t pT_track        = TLV_part.Pt();
-            if(pT_track < 3.5) continue; // 3.5
+            //if(pT_track < 3.5) continue; // 3.5
+            if(pT_track < 1.5) continue; // 3.5
 
             Double_t nsigma_TPC_e   = AS_Track ->getnsigma_e_TPC();
             Double_t nsigma_TPC_pi  = AS_Track ->getnsigma_pi_TPC();
@@ -2508,7 +2513,7 @@ void TBase_TRD_Calib::Calibrate()
             if(N_good_layers < 3) continue;
 
             //printf("N_good_layers: %d \n",N_good_layers);
-            printf("i_event: %d, i_track: %d \n",i_event,i_track);
+            printf("i_event: %lld, i_track: %d \n",i_event,i_track);
 
 
             Double_t impact_angle[6] = {0.0};
@@ -2623,7 +2628,8 @@ void TBase_TRD_Calib::Calibrate()
 
                         printf("i_layer: %d \n",i_layer);
 
-                        //printf("vec_dir_vec_circle[i_layer].X: %4.3f, vec_dir_vec_circle[i_layer].Y: %4.3f, vec_dir_vec_circle[i_layer].Z: %4.3f \n",vec_dir_vec_circle[i_layer].X(),vec_dir_vec_circle[i_layer].Y(),vec_dir_vec_circle[i_layer].Z());
+                        printf("Global straight line dir: {%4.3f, %4.3f, %4.3f} \n",vec_TV3_tracklet_vectors[6].X(),vec_TV3_tracklet_vectors[6].Y(),vec_TV3_tracklet_vectors[6].Z());
+                        printf("Circle dir: {%4.3f, %4.3f, %4.3f} \n",vec_dir_vec_circle[i_layer].X(),vec_dir_vec_circle[i_layer].Y(),vec_dir_vec_circle[i_layer].Z());
 
                         delta_x_local_global_circle[i_layer] = vec_dir_vec_circle[i_layer].Dot(vec_TV3_TRD_center[arr_layer_detector[i_layer]][0]);
                         //Double_t proj_radial = TV3_delta.Dot(vec_TV3_TRD_center[arr_layer_detector[i_layerB]][2]);    looks like this isn't used
@@ -2647,9 +2653,10 @@ void TBase_TRD_Calib::Calibrate()
 
 
                         Double_t delta_x_local_tracklet = vec_TV3_tracklet_vectors[i_layer].Dot(vec_TV3_TRD_center[arr_layer_detector[i_layer]][0]);
+
                         Double_t sign_angle        = 1.0;
                         Double_t sign_angle_circle = 1.0;
-                        if(delta_x_local_tracklet < delta_x_local_global[i_layer]) sign_angle               = -1.0;
+                        if(delta_x_local_tracklet < delta_x_local_global[i_layer])        sign_angle        = -1.0;
                         if(delta_x_local_tracklet < delta_x_local_global_circle[i_layer]) sign_angle_circle = -1.0;
 
                         printf("delta_x_local_tracklet: %4.3f, delta_x_local_global: %4.3f, delta_x_local_global_circle: %4.3f \n",delta_x_local_tracklet,delta_x_local_global[i_layer],delta_x_local_global_circle[i_layer]);
