@@ -180,6 +180,11 @@ private:
 
     vector<TPolyLine*> vec_TPL_circle_tracklets;
 
+    //things for Draw_2D_circle
+
+    Double_t par_circle[3] = {0.0,0.0,0.0};
+    vector<Double_t> vec_phi;
+
 public:
     TBase_TRD_Calib();
     ~TBase_TRD_Calib();
@@ -217,7 +222,7 @@ public:
     void make_plots_ADC(Int_t i_track);
     void Calibrate();
     void Track_Tracklets(); // for online tracklets
-    void Draw_2D_circle_3points(vector<TVector2>);
+    void Draw_2D_circle();
 
     ClassDef(TBase_TRD_Calib, 1)
 };
@@ -229,7 +234,7 @@ public:
 TBase_TRD_Calib::TBase_TRD_Calib()
 {
     //outputfile = new TFile("./TRD_Calib.root","RECREATE");
-    outputfile = new TFile("./TRD_Calib_circle.root","RECREATE");
+    outputfile = new TFile("./TRD_Calib_circle_56.root","RECREATE");
 
     Init_QA();
 
@@ -1038,8 +1043,6 @@ Int_t TBase_TRD_Calib::get_2D_global_circle_fit()
 
     Double_t pStart[3]; //= {1,1,1,1};
 
-    TPolyLine* tpl_circle = new TPolyLine();
-
     Double_t x1 = vec_TV2_points[0].X();
     Double_t y1 = vec_TV2_points[0].Y();
     Double_t x2 = vec_TV2_points[1].X();
@@ -1097,35 +1100,19 @@ Int_t TBase_TRD_Calib::get_2D_global_circle_fit()
 
     Double_t parFit_circ[3];
 
-    for(int i = 0; i <3; ++i)
+    for(Int_t i_par = 0; i_par <3; ++i_par)
     {
-        parFit_circ[i] = min->GetParameter(i);
+        parFit_circ[i_par] = min->GetParameter(i_par);
         //parFit[i] = pStart[i];
+    }
+
+    for(Int_t i_par = 0; i_par <3; ++i_par)
+    {
+        par_circle[i_par] = parFit_circ[i_par];
     }
 
     //printf("amin: %4.3f \n",amin);
     tracklets_min_circle = amin;
-
-    //Draw the fitted circle
-
-
-    Double_t delta_i_y = parFit_circ[2]/20000.0;
-    for(Double_t i_sign = -1.0; i_sign <= +1.0; i_sign += 2.0)
-    {
-        for(Double_t i_y = ((parFit_circ[1] - parFit_circ[2]) + delta_i_y); i_y < ((parFit_circ[1] + parFit_circ[2]) - delta_i_y); (i_y += delta_i_y))
-        {
-            Double_t i_x = i_sign*TMath::Sqrt(TMath::Power(parFit_circ[2],2.0) - TMath::Power(i_y - parFit_circ[1],2.0)) + parFit_circ[0];
-            tpl_circle ->SetNextPoint(i_x,i_y);
-            //printf("point: {%4.3f, %4.3f} \n",i_x,i_y);
-        }
-    }
-
-
-    tpl_circle ->SetLineStyle(1);
-    tpl_circle ->SetLineWidth(3);
-    //tpl_circle ->SetLineColor(kTeal+2);
-    tpl_circle ->SetLineColor(kBlue);
-    tpl_circle ->DrawClone("l");
 
 
     // Calculate direction vectors from 2D circle fit
@@ -1134,7 +1121,7 @@ Int_t TBase_TRD_Calib::get_2D_global_circle_fit()
     circle_center_vector.SetX(parFit_circ[0]);
     circle_center_vector.SetY(parFit_circ[1]);
 
-    vector<Double_t> vec_phi;
+    vec_phi.resize(i_layer_notempty);
     for(Int_t i_point = 0; i_point < i_layer_notempty; i_point++)
     {
         dir_vector = vec_TV2_points[i_point];
@@ -1142,19 +1129,10 @@ Int_t TBase_TRD_Calib::get_2D_global_circle_fit()
         Double_t phi_val = dir_vector.Phi();
         vec_phi.push_back(phi_val);
 
-        //Double_t x_val  =  parFit_circ[0] + parFit_circ[2] * TMath::Cos(phi_val);
-        //Double_t y_val  =  parFit_circ[1] + parFit_circ[2] * TMath::Sin(phi_val);
-
         //printf("i_point: %d, point: {%4.3f, %4.3f}, pos: {%4.3f, %4.3f}, phi: %4.3f \n",i_point,vec_TV2_points[i_point].X(),vec_TV2_points[i_point].Y(),x_val,y_val,phi_val);
     }
 
     Double_t delta_phi = -(vec_phi[1] - vec_phi[0])/1000.0;
-
-    for(Int_t i_line = 0; i_line < (Int_t)vec_TPL_circle_tracklets.size(); i_line++)
-    {
-        delete vec_TPL_circle_tracklets[i_line];
-    }
-    vec_TPL_circle_tracklets.clear();
 
     vec_dir_vec_circle.resize(6);
 
@@ -1163,15 +1141,13 @@ Int_t TBase_TRD_Calib::get_2D_global_circle_fit()
         vec_dir_vec_circle[i_layer].SetXYZ(-999.0,-999.0,-999.0);   //because i maybe need it to have all 6 dimensions in Calibrate
     }
 
-    //vector<TVector3> vec_dir_vec_circle_notempty;           //this one will have only n_notempty dimensions
+    //this one will have only n_notempty dimensions
     vec_dir_vec_circle_notempty.resize(i_layer_notempty);
 
     for(Int_t i_point = 0; i_point < i_layer_notempty; i_point++)
     //for(Int_t i_point = 0; i_point < 6; i_point++)
 
     {
-        vec_TPL_circle_tracklets.push_back(new TPolyLine());
-
         Double_t phi_val = vec_phi[i_point];
 
         Double_t x_val   =  parFit_circ[0] + parFit_circ[2] * TMath::Cos(phi_val);
@@ -1182,21 +1158,6 @@ Int_t TBase_TRD_Calib::get_2D_global_circle_fit()
 
         //TVector3 dir_vec_circle;               //maybe i can use this one
 
-#if 0   // old TVector3
-        dir_vec_circle.SetX(x_valB - x_val);
-        dir_vec_circle.SetY(y_valB - y_val);
-        dir_vec_circle.SetZ(0.0);
-
-        if(dir_vec_circle.Mag() > 0.0)
-        {
-            dir_vec_circle *= 6.0/dir_vec_circle.Mag();     
-
-            vec_TPL_circle_tracklets[i_point] ->SetNextPoint(x_val,y_val);
-            vec_TPL_circle_tracklets[i_point] ->SetNextPoint(x_val + dir_vec_circle.X(),y_val + dir_vec_circle.Y());
-        }
-
-#endif
-
         vec_dir_vec_circle_notempty[i_point].SetX(x_valB - x_val);
         vec_dir_vec_circle_notempty[i_point].SetY(y_valB - y_val);
         vec_dir_vec_circle_notempty[i_point].SetZ(0.0);
@@ -1206,15 +1167,7 @@ Int_t TBase_TRD_Calib::get_2D_global_circle_fit()
         if(vec_dir_vec_circle_notempty[i_point].Mag() > 0.0)
         {
             vec_dir_vec_circle_notempty[i_point] *= 6.0/vec_dir_vec_circle_notempty[i_point].Mag();
-
-            vec_TPL_circle_tracklets[i_point] ->SetNextPoint(x_val,y_val);
-            vec_TPL_circle_tracklets[i_point] ->SetNextPoint(x_val + vec_dir_vec_circle_notempty[i_point].X(),y_val + vec_dir_vec_circle_notempty[i_point].Y());
         }
-
-
-        vec_TPL_circle_tracklets[i_point] ->SetLineColor(kCyan+1);
-        vec_TPL_circle_tracklets[i_point] ->SetLineWidth(5);
-        vec_TPL_circle_tracklets[i_point] ->Draw("");
     }
 
     Int_t i_layer_notempty_check = 0;
@@ -1240,6 +1193,7 @@ Int_t TBase_TRD_Calib::get_2D_global_circle_fit()
 
     }
 
+    delete min;
     return 1;
 }
 //----------------------------------------------------------------------------------------
@@ -2386,7 +2340,7 @@ void TBase_TRD_Calib::Calibrate()
     
     }
 
-    for(Long64_t i_event = 0; i_event < 5000; i_event++)
+    for(Long64_t i_event = 0; i_event < 50000; i_event++)
     //for(Long64_t i_event = 0; i_event < file_entries_total; i_event++)
     {
         if(i_event % 20 == 0) printf("i_event: %lld out of %lld \n",i_event,file_entries_total);
@@ -2510,7 +2464,7 @@ void TBase_TRD_Calib::Calibrate()
             {
                 if(vec_tracklet_fit_points[i_layer][0][0] > -999.0 && vec_tracklet_fit_points[i_layer][1][0] > -999.0) N_good_layers++;
             }
-            if(N_good_layers < 3) continue;
+            if(N_good_layers < 5) continue;
 
             //printf("N_good_layers: %d \n",N_good_layers);
             //printf("i_event: %lld, i_track: %d \n",i_event,i_track);
@@ -2953,57 +2907,89 @@ void TBase_TRD_Calib::Draw_offline_tracklets()
 
 
 //----------------------------------------------------------------------------------------
-#if 0
-void TBase_TRD_Calib::Draw_2D_circle_3points(vector<TVector2> vec_TV2_points)
+void TBase_TRD_Calib::Draw_2D_circle()
 {
     // Calculate the circle parameters based on the input points
     // http://www.ambrsoft.com/trigocalc/circle3d.htm
     // (x - a)^2 + (y - b)^2  = R^2
 
-    printf("TBase_TRD_Calib::Draw_2D_circle_3points \n");
+    printf("TBase_TRD_Calib::Draw_2D_circle() \n");
+
+    //Draw the fitted circle
 
     TPolyLine* tpl_circle = new TPolyLine();
 
-    Double_t x1 = vec_TV2_points[0].X();
-    Double_t y1 = vec_TV2_points[0].Y();
-    Double_t x2 = vec_TV2_points[1].X();
-    Double_t y2 = vec_TV2_points[1].Y();
-    Double_t x3 = vec_TV2_points[2].X();
-    Double_t y3 = vec_TV2_points[2].Y();
+    Double_t delta_i_y = par_circle[2]/20000.0;
 
-
-    Double_t A_help = x1*(y2 - y3) - y1*(x2 - x3) + x2*y3 - x3*y2;
-    Double_t B_help = (x1*x1 + y1*y1)*(y3 - y2) + (x2*x2 + y2*y2)*(y1 - y3) + (x3*x3 + y3*y3)*(y2 - y1);
-    Double_t C_help = (x1*x1 + y1*y1)*(x2 - x3) + (x2*x2 + y2*y2)*(x3 - x1) + (x3*x3 + y3*y3)*(x1 - x2);
-    Double_t D_help = (x1*x1 + y1*y1)*(x3*y2 - x2*y3) + (x2*x2 + y2*y2)*(x1*y3 - x3*y1) + (x3*x3 + y3*y3)*(x2*y1 - x1*y2);
-
-    if(A_help != 0.0)
+    for(Double_t i_sign = -1.0; i_sign <= +1.0; i_sign += 2.0)
     {
-
-        Double_t a_param = -B_help/(2*A_help);
-        Double_t b_param = -C_help/(2*A_help);
-        Double_t R_param = TMath::Sqrt(TMath::Power(x1 - a_param,2.0) + TMath::Power(y1 - b_param,2.0));
-
-        //printf("pointA: {%4.3f, %4.3f}, pointB: {%4.3f, %4.3f}, pointC: {%4.3f, %4.3f}, circle(a,b,R): {%4.3f, %4.3f, %4.3f} \n",x1,y1,x2,y2,x3,y3,a_param,b_param,R_param);
-
-        Double_t delta_i_y = R_param/200.0;
-        for(Double_t i_sign = -1.0; i_sign <= +1.0; i_sign += 2.0)
+        for(Double_t i_y = ((par_circle[1] - par_circle[2]) + delta_i_y); i_y < ((par_circle[1] + par_circle[2]) - delta_i_y); (i_y += delta_i_y))
         {
-            for(Double_t i_y = (b_param - R_param); i_y < (b_param + R_param); (i_y += delta_i_y))
-            {
-                Double_t i_x = i_sign*TMath::Sqrt(TMath::Power(R_param,2.0) - TMath::Power(i_y - b_param,2.0)) + a_param;
-                tpl_circle ->SetNextPoint(i_x,i_y);
-                //printf("point: {%4.3f, %4.3f} \n",i_x,i_y);
-            }
+            Double_t i_x = i_sign*TMath::Sqrt(TMath::Power(par_circle[2],2.0) - TMath::Power(i_y - par_circle[1],2.0)) + par_circle[0];
+            tpl_circle ->SetNextPoint(i_x,i_y);
+            //printf("point: {%4.3f, %4.3f} \n",i_x,i_y);
+        }
+    }
+
+    tpl_circle ->SetLineStyle(1);
+    tpl_circle ->SetLineWidth(3);
+    //tpl_circle ->SetLineColor(kTeal+2);
+    tpl_circle ->SetLineColor(kBlue);
+    tpl_circle ->DrawClone("l");
+
+    Int_t i_layer_notempty = 0;
+    for(Int_t i_layer = 0; i_layer < 6; i_layer++)
+    {
+        if(vec_Dt_digit_pos_cluster[6][i_layer][0] != -999.0 && vec_Dt_digit_pos_cluster[6][i_layer][1] != -999.0)
+        {
+            i_layer_notempty++;
+        }
+    }
+
+    vec_phi.resize(i_layer_notempty);
+
+    Double_t delta_phi = -(vec_phi[1] - vec_phi[0])/1000.0;
+
+    for(Int_t i_line = 0; i_line < (Int_t)vec_TPL_circle_tracklets.size(); i_line++)
+    {
+        delete vec_TPL_circle_tracklets[i_line];
+    }
+    vec_TPL_circle_tracklets.clear();
+
+    vec_dir_vec_circle_notempty.resize(i_layer_notempty);
+
+    for (Int_t i_point = 0; i_point < i_layer_notempty; ++i_point)
+    {
+        vec_TPL_circle_tracklets.push_back(new TPolyLine());
+
+        Double_t phi_val = vec_phi[i_point];
+
+        Double_t x_val   =  par_circle[0] + par_circle[2] * TMath::Cos(phi_val);
+        Double_t y_val   =  par_circle[1] + par_circle[2] * TMath::Sin(phi_val);
+
+        Double_t x_valB  =  par_circle[0] + par_circle[2] * TMath::Cos(phi_val + delta_phi);
+        Double_t y_valB  =  par_circle[1] + par_circle[2] * TMath::Sin(phi_val + delta_phi);
+
+        vec_dir_vec_circle_notempty[i_point].SetX(x_valB - x_val);
+        vec_dir_vec_circle_notempty[i_point].SetY(y_valB - y_val);
+        vec_dir_vec_circle_notempty[i_point].SetZ(0.0);
+
+        if(vec_dir_vec_circle_notempty[i_point].Mag() > 0.0)
+        {
+            vec_dir_vec_circle_notempty[i_point] *= 6.0/vec_dir_vec_circle_notempty[i_point].Mag();
+
+            vec_TPL_circle_tracklets[i_point] ->SetNextPoint(x_val,y_val);
+            vec_TPL_circle_tracklets[i_point] ->SetNextPoint(x_val + vec_dir_vec_circle_notempty[i_point].X(),y_val + vec_dir_vec_circle_notempty[i_point].Y());
         }
 
-        tpl_circle ->SetLineStyle(1);
-        tpl_circle ->SetLineWidth(3);
-        tpl_circle ->SetLineColor(kTeal+2);
-        tpl_circle ->DrawClone("l");
+
+        vec_TPL_circle_tracklets[i_point] ->SetLineColor(kCyan+1);
+        vec_TPL_circle_tracklets[i_point] ->SetLineWidth(5);
+        vec_TPL_circle_tracklets[i_point] ->Draw("");
+
     }
 }
-#endif
+
 //----------------------------------------------------------------------------------------
 
 
