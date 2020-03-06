@@ -488,6 +488,8 @@ Int_t TGUI_TRD_Calib::Draw_2D_track()
     TPM_cluster ->Draw("");
 
     Base_TRD_Calib ->get_2D_global_circle_fit();
+    Base_TRD_Calib ->Draw_2D_circle();
+
     Base_TRD_Calib ->Draw_tracklets_line_2D(i_track);
 
     return 1;
