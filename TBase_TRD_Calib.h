@@ -2386,10 +2386,10 @@ void TBase_TRD_Calib::Calibrate()
     
     }
 
-    for(Long64_t i_event = 0; i_event < 1000; i_event++)
+    for(Long64_t i_event = 0; i_event < 5000; i_event++)
     //for(Long64_t i_event = 0; i_event < file_entries_total; i_event++)
     {
-        if(i_event % 100 == 0) printf("i_event: %lld out of %lld \n",i_event,file_entries_total);
+        if(i_event % 20 == 0) printf("i_event: %lld out of %lld \n",i_event,file_entries_total);
         if (!input_SE->GetEntry( i_event )) return 0; // take the event -> information is stored in event
 
         UShort_t NumTracks = AS_Event ->getNumTracks(); // number of tracks in this event
@@ -2428,7 +2428,7 @@ void TBase_TRD_Calib::Calibrate()
             //--------------------------
             // Offline tracklet loop
             UShort_t  fNumOfflineTracklets = AS_Track ->getNumOfflineTracklets();
-            if(fNumOfflineTracklets > 3)
+            if(fNumOfflineTracklets > 2)
             {
                 for(Int_t i_tracklet = 0; i_tracklet < fNumOfflineTracklets; i_tracklet++) // layers
                 {
@@ -2501,7 +2501,7 @@ void TBase_TRD_Calib::Calibrate()
 
 
             if(vec_tracklet_fit_points[6][0][0] == -999.0  && vec_tracklet_fit_points[6][1][0] == -999.0) continue; // no global fit available
-            if(tracklets_min[6] > 7.5) continue;
+            if(tracklets_min[6] > 7.5) continue;  // 7.5
 
             //printf("Track with pT: %4.3f used for calibration \n",pT_track);
 
@@ -2513,7 +2513,7 @@ void TBase_TRD_Calib::Calibrate()
             if(N_good_layers < 3) continue;
 
             //printf("N_good_layers: %d \n",N_good_layers);
-            printf("i_event: %lld, i_track: %d \n",i_event,i_track);
+            //printf("i_event: %lld, i_track: %d \n",i_event,i_track);
 
 
             Double_t impact_angle[6] = {0.0};
@@ -2568,7 +2568,7 @@ void TBase_TRD_Calib::Calibrate()
                             if(impact_angle[i_layerB] > TMath::Pi()*0.5) impact_angle[i_layerB] -= TMath::Pi();
                             //printf("i_layerB: %d, 3D_Angle_on_TRD(TPC track): %4.3f, 2D_impact_angle: %4.3f \n",i_layerB,Angle_on_TRD*TMath::RadToDeg(),impact_angle[i_layerB]*TMath::RadToDeg());
                             impact_angle[i_layerB] = 0.5*TMath::Pi() - sign_direction_impactB*impact_angle[i_layerB];
-                            printf("impact_angle: %4.3f \n",impact_angle[i_layerB]);
+                            //printf("impact_angle: %4.3f \n",impact_angle[i_layerB]);
 
 
                             //---------------------------
@@ -2623,13 +2623,13 @@ void TBase_TRD_Calib::Calibrate()
 
                         //-----impact angle for circle global fit HERE---------
 
-                        if (tracklets_min_circle == 0.0 && tracklets_min_circle > 7.0) continue;
+                        if(tracklets_min_circle == 0.0 || tracklets_min_circle > 4.0) continue;
                         //printf("test 3.2 \n");
 
-                        printf("i_layer: %d \n",i_layer);
+                        //printf("i_layer: %d \n",i_layer);
 
-                        printf("Global straight line dir: {%4.3f, %4.3f, %4.3f} \n",vec_TV3_tracklet_vectors[6].X(),vec_TV3_tracklet_vectors[6].Y(),vec_TV3_tracklet_vectors[6].Z());
-                        printf("Circle dir: {%4.3f, %4.3f, %4.3f} \n",vec_dir_vec_circle[i_layer].X(),vec_dir_vec_circle[i_layer].Y(),vec_dir_vec_circle[i_layer].Z());
+                        //printf("Global straight line dir: {%4.3f, %4.3f, %4.3f} \n",vec_TV3_tracklet_vectors[6].X(),vec_TV3_tracklet_vectors[6].Y(),vec_TV3_tracklet_vectors[6].Z());
+                        //printf("Circle dir: {%4.3f, %4.3f, %4.3f} \n",vec_dir_vec_circle[i_layer].X(),vec_dir_vec_circle[i_layer].Y(),vec_dir_vec_circle[i_layer].Z());
 
                         delta_x_local_global_circle[i_layer] = vec_dir_vec_circle[i_layer].Dot(vec_TV3_TRD_center[arr_layer_detector[i_layer]][0]);
                         //Double_t proj_radial = TV3_delta.Dot(vec_TV3_TRD_center[arr_layer_detector[i_layerB]][2]);    looks like this isn't used
@@ -2644,7 +2644,7 @@ void TBase_TRD_Calib::Calibrate()
                         if(impact_angle_circle[i_layer] > TMath::Pi()*0.5) impact_angle_circle[i_layer] -= TMath::Pi();
                         //printf("i_layerB: %d, 3D_Angle_on_TRD(TPC track): %4.3f, 2D_impact_angle: %4.3f \n",i_layerB,Angle_on_TRD*TMath::RadToDeg(),impact_angle[i_layerB]*TMath::RadToDeg());
                         impact_angle_circle[i_layer] = 0.5*TMath::Pi() - sign_direction_impact_circle*impact_angle_circle[i_layer];
-                        printf("impact_angle_circle: %4.3f \n",impact_angle_circle[i_layer]);
+                        //printf("impact_angle_circle: %4.3f \n",impact_angle_circle[i_layer]);
 
 
                         //-----------------------------------------------------
@@ -2659,7 +2659,7 @@ void TBase_TRD_Calib::Calibrate()
                         if(delta_x_local_tracklet < delta_x_local_global[i_layer])        sign_angle        = -1.0;
                         if(delta_x_local_tracklet < delta_x_local_global_circle[i_layer]) sign_angle_circle = -1.0;
 
-                        printf("delta_x_local_tracklet: %4.3f, delta_x_local_global: %4.3f, delta_x_local_global_circle: %4.3f \n",delta_x_local_tracklet,delta_x_local_global[i_layer],delta_x_local_global_circle[i_layer]);
+                        //printf("delta_x_local_tracklet: %4.3f, delta_x_local_global: %4.3f, delta_x_local_global_circle: %4.3f \n",delta_x_local_tracklet,delta_x_local_global[i_layer],delta_x_local_global_circle[i_layer]);
 
 
                         //calculate Delta angle for straight line
@@ -2667,14 +2667,14 @@ void TBase_TRD_Calib::Calibrate()
                         if(Delta_angle > TMath::Pi()*0.5)  Delta_angle -= TMath::Pi();
                         if(Delta_angle < -TMath::Pi()*0.5) Delta_angle += TMath::Pi();
 
-                        printf("Delta_angle: %4.3f \n",Delta_angle);
+                        //printf("Delta_angle: %4.3f \n",Delta_angle);
 
 
                         //same for delta angle tracklet vs circle
                         Double_t Delta_angle_circle  = sign_angle_circle*vec_dir_vec_circle[i_layer].Angle(vec_TV3_tracklet_vectors[i_layer]);
                         if(Delta_angle_circle > TMath::Pi()*0.5)  Delta_angle_circle -= TMath::Pi();
                         if(Delta_angle_circle < -TMath::Pi()*0.5) Delta_angle_circle += TMath::Pi();
-                        printf("Delta_angle_circle: %4.3f \n",Delta_angle_circle);
+                        //printf("Delta_angle_circle: %4.3f \n",Delta_angle_circle);
 
 
 
