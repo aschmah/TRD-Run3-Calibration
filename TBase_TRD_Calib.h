@@ -1121,18 +1121,37 @@ Int_t TBase_TRD_Calib::get_2D_global_circle_fit()
     circle_center_vector.SetX(parFit_circ[0]);
     circle_center_vector.SetY(parFit_circ[1]);
 
+    //printf("parFit_circ[0]: %4.3f, parFit_circ[1]: %4.3f \n",parFit_circ[0],parFit_circ[1]);
+
     vec_phi.resize(i_layer_notempty);
+
+    for (Int_t i_layer = 0; i_layer < i_layer_notempty; i_layer++)
+    {
+        vec_phi[i_layer] = 0.0;
+    }
+
+    //printf("i_layer_notempty: %d,  \n",i_layer_notempty);
+
     for(Int_t i_point = 0; i_point < i_layer_notempty; i_point++)
     {
         dir_vector = vec_TV2_points[i_point];
+
+        //printf("dir_vector.X(): %4.3f, dir_vector.Y(): %4.3f \n",dir_vector.X(),dir_vector.Y());
+
         dir_vector -= circle_center_vector;
         Double_t phi_val = dir_vector.Phi();
-        vec_phi.push_back(phi_val);
 
-        //printf("i_point: %d, point: {%4.3f, %4.3f}, pos: {%4.3f, %4.3f}, phi: %4.3f \n",i_point,vec_TV2_points[i_point].X(),vec_TV2_points[i_point].Y(),x_val,y_val,phi_val);
+        //printf("phi_val: %4.3f \n",phi_val);
+
+        //vec_phi.push_back(phi_val);
+        vec_phi[i_point] = phi_val;
+
+        //printf("i_point: %d, vec_phi[i_point]: %4.3f, \n",i_point,vec_phi[i_point]);
     }
 
     Double_t delta_phi = -(vec_phi[1] - vec_phi[0])/1000.0;
+
+    //printf("delta_phi: %4.3f, vec_phi[1]: %4.3f, vec_phi[0]: %4.3f  \n",delta_phi,vec_phi[1],vec_phi[0]);
 
     vec_dir_vec_circle.resize(6);
 
@@ -1148,6 +1167,7 @@ Int_t TBase_TRD_Calib::get_2D_global_circle_fit()
     //for(Int_t i_point = 0; i_point < 6; i_point++)
 
     {
+        //printf("from here \n");
         Double_t phi_val = vec_phi[i_point];
 
         Double_t x_val   =  parFit_circ[0] + parFit_circ[2] * TMath::Cos(phi_val);
@@ -1155,12 +1175,18 @@ Int_t TBase_TRD_Calib::get_2D_global_circle_fit()
 
         Double_t x_valB  =  parFit_circ[0] + parFit_circ[2] * TMath::Cos(phi_val + delta_phi);
         Double_t y_valB  =  parFit_circ[1] + parFit_circ[2] * TMath::Sin(phi_val + delta_phi);
+        //printf("x_val: %4.3f, x_valB: %4.3f, y_val: %4.3f, y_valB: %4.3f \n",x_val,x_valB,y_val,y_valB);
+
 
         //TVector3 dir_vec_circle;               //maybe i can use this one
 
         vec_dir_vec_circle_notempty[i_point].SetX(x_valB - x_val);
         vec_dir_vec_circle_notempty[i_point].SetY(y_valB - y_val);
         vec_dir_vec_circle_notempty[i_point].SetZ(0.0);
+
+        //printf("vec_dir_vec_circle_notempty[i_point].X: %4.3f, vec_dir_vec_circle_notempty[i_point].Y: %4.3f, vec_dir_vec_circle_notempty[i_point].Z: %4.3f \n",vec_dir_vec_circle_notempty[i_point].X(),vec_dir_vec_circle_notempty[i_point].Y(),vec_dir_vec_circle_notempty[i_point].Z());
+        //printf("to here; what happened?? \n");
+
 
         //printf("x_val: %4.3f, x_valB: %4.3f, y_val: %4.3f, y_valB: %4.3f \n",x_val,x_valB,y_val,y_valB);  probably correct
 
@@ -2340,7 +2366,7 @@ void TBase_TRD_Calib::Calibrate()
     
     }
 
-    for(Long64_t i_event = 0; i_event < 50000; i_event++)
+    for(Long64_t i_event = 0; i_event < 10000; i_event++)
     //for(Long64_t i_event = 0; i_event < file_entries_total; i_event++)
     {
         if(i_event % 20 == 0) printf("i_event: %lld out of %lld \n",i_event,file_entries_total);
