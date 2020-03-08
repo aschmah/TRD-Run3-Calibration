@@ -1,5 +1,8 @@
 static Int_t i_detector_global = 0;
 static vector<TProfile*> vec_tp_Delta_vs_impact;
+static vector<TProfile*> vec_tp_Delta_vs_impact_line;
+static vector<TProfile*> vec_tp_Delta_vs_impact_circle;
+
 static vector< vector<TProfile*> > vec_tp_Delta_vs_impact_all;
 static const Double_t l_drift = 0.03; // m 0.0335
 static const Double_t B_field = 0.5; // T = kg * s^-2 * A^-1
@@ -335,8 +338,10 @@ private:
     TGTextButton *Button_exit;
     TGTextButton *Button_load;
     TGTextButton *Button_save;
-    TGTextButton *Button_minimize_Single;
-    TGTextButton *Button_minimize;
+    TGTextButton *Button_minimize_Single_line;
+    TGTextButton *Button_minimize_line;
+    TGTextButton *Button_minimize_Single_circle;
+    TGTextButton *Button_minimize_circle;
     TGTextButton *Button_draw_data;
     TGTextButton *Button_draw3D_track;
     TGTextButton *Button_Calibrate;
@@ -367,6 +372,8 @@ private:
     vector<TPolyMarker3D*> vec_TPM3D_single_track_digit;
     TPolyMarker3D* TPM3D_single;
 
+    Int_t circ_line_flag = 0;
+
 public:
     GUI_Sim_drift();
     virtual ~GUI_Sim_drift();
@@ -374,6 +381,10 @@ public:
     Int_t LoadData();
     Int_t Do_Minimize_Single();
     Int_t Do_Minimize();
+
+    void set_line_flag();
+    void set_circle_flag();
+
     Int_t Draw_data();
     Int_t Draw3D_track();
     Int_t Calibrate();
@@ -387,7 +398,7 @@ public:
 
 
 //---------------------------------------------------------------------------------
-GUI_Sim_drift::GUI_Sim_drift() : TGMainFrame(gClient->GetRoot(), 100, 100)
+GUI_Sim_drift::GUI_Sim_drift() : TGMainFrame(gClient->GetRoot(), 200, 100)
 {
     //-------------------------------------
     cout << "GUI_Sim_drift started" << endl;
@@ -402,6 +413,8 @@ GUI_Sim_drift::GUI_Sim_drift() : TGMainFrame(gClient->GetRoot(), 100, 100)
 
     vec_tg_chamber_ExB_vs_runid.resize(540);
     vec_tp_Delta_vs_impact.resize(540);
+    vec_tp_Delta_vs_impact_line.resize(540);
+    vec_tp_Delta_vs_impact_circle.resize(540);
     vec_tp_Delta_vs_impact_all.resize(3); // pos+neg,neg,pos
     vec_tp_Delta_vs_impact_all[0].resize(540);
     vec_tp_Delta_vs_impact_all[1].resize(540);
@@ -452,14 +465,28 @@ GUI_Sim_drift::GUI_Sim_drift() : TGMainFrame(gClient->GetRoot(), 100, 100)
     hframe_Main[0]->AddFrame(Button_save, new TGLayoutHints(kLHintsCenterX,5,5,3,4));
 
     // minimize button
-    Button_minimize = new TGTextButton(hframe_Main[0], "&Minimize ",10);
-    Button_minimize->Connect("Clicked()", "GUI_Sim_drift", this, "Do_Minimize()");
-    hframe_Main[0]->AddFrame(Button_minimize, new TGLayoutHints(kLHintsCenterX,5,5,3,4));
+    Button_minimize_line = new TGTextButton(hframe_Main[0], "&Minimize line ",10);
+    Button_minimize_line->Connect("Clicked()", "GUI_Sim_drift", this, "set_line_flag()");
+    Button_minimize_line->Connect("Clicked()", "GUI_Sim_drift", this, "Do_Minimize()");
+    hframe_Main[0]->AddFrame(Button_minimize_line, new TGLayoutHints(kLHintsCenterX,5,5,3,4));
 
     // minimize button for a single chamber
-    Button_minimize_Single = new TGTextButton(hframe_Main[0], "&Minimize single ",10);
-    Button_minimize_Single->Connect("Clicked()", "GUI_Sim_drift", this, "Do_Minimize_Single()");
-    hframe_Main[0]->AddFrame(Button_minimize_Single, new TGLayoutHints(kLHintsCenterX,5,5,3,4));
+    Button_minimize_Single_line = new TGTextButton(hframe_Main[0], "&Minimize single line ",10);
+    Button_minimize_Single_line->Connect("Clicked()", "GUI_Sim_drift", this, "set_line_flag()");
+    Button_minimize_Single_line->Connect("Clicked()", "GUI_Sim_drift", this, "Do_Minimize_Single()");
+    hframe_Main[0]->AddFrame(Button_minimize_Single_line, new TGLayoutHints(kLHintsCenterX,5,5,3,4));
+
+    // minimize button for circle
+    Button_minimize_circle = new TGTextButton(hframe_Main[0], "&Minimize circle ",10);
+    Button_minimize_circle->Connect("Clicked()", "GUI_Sim_drift", this, "set_circle_flag()");
+    Button_minimize_circle->Connect("Clicked()", "GUI_Sim_drift", this, "Do_Minimize()");
+    hframe_Main[0]->AddFrame(Button_minimize_circle, new TGLayoutHints(kLHintsCenterX,5,5,3,4));
+
+    // minimize button for a single chamber for circle
+    Button_minimize_Single_circle = new TGTextButton(hframe_Main[0], "&Minimize single circle ",10);
+    Button_minimize_Single_circle->Connect("Clicked()", "GUI_Sim_drift", this, "set_circle_flag()");
+    Button_minimize_Single_circle->Connect("Clicked()", "GUI_Sim_drift", this, "Do_Minimize_Single()");
+    hframe_Main[0]->AddFrame(Button_minimize_Single_circle, new TGLayoutHints(kLHintsCenterX,5,5,3,4));
 
 
     // draw 3D button
@@ -533,7 +560,7 @@ GUI_Sim_drift::GUI_Sim_drift() : TGMainFrame(gClient->GetRoot(), 100, 100)
 
 
 
-    Frame_Main ->Resize(550,400); // size of frame
+    Frame_Main ->Resize(1000,400); // size of frame
     Frame_Main ->MapSubwindows();
     Frame_Main ->MapWindow();
     Frame_Main ->Move(850,750); // position of frame
@@ -542,7 +569,7 @@ GUI_Sim_drift::GUI_Sim_drift() : TGMainFrame(gClient->GetRoot(), 100, 100)
 
     LoadData();
     Draw_helix_line_diff();
-    Draw_offline_trkl_diff();
+    //Draw_offline_trkl_diff();     not needed at the moment
 }
 //---------------------------------------------------------------------------------
 
@@ -556,7 +583,19 @@ GUI_Sim_drift::~GUI_Sim_drift()
 }
 //---------------------------------------------------------------------------------
 
+void GUI_Sim_drift::set_line_flag()
+{
+    circ_line_flag = 1;
+    printf("circ_line_flag = %d \n",circ_line_flag);
+    //return circ_line_flag;
+}
 
+void GUI_Sim_drift::set_circle_flag()
+{
+    circ_line_flag = 2;
+    printf("circ_line_flag = %d \n",circ_line_flag);
+    //return circ_line_flag;
+}
 
 //---------------------------------------------------------------------------------
 Int_t GUI_Sim_drift::LoadData()
@@ -575,9 +614,9 @@ Int_t GUI_Sim_drift::LoadData()
     //input_data[0]     = TFile::Open("./Data/TRD_Calib_TPC_impact.root");
     //input_data[1] = TFile::Open("./Data/TRD_Calib_All_170k_neg.root");
     //input_data[2] = TFile::Open("./Data/TRD_Calib_All_170k_pos.root");
-    input_data[0]     = TFile::Open("./Data/TRD_Calib_circles.root");
+    input_data[0]     = TFile::Open("./Data/TRD_Calib_circle_56.root");
 
-    for(Int_t i_charge = 0; i_charge < 3; i_charge++)
+    for(Int_t i_charge = 0; i_charge < 3; i_charge++)      // this should be circles only
     {
         for(Int_t TRD_detector = 0; TRD_detector < 547; TRD_detector++)
         {
@@ -607,16 +646,17 @@ Int_t GUI_Sim_drift::LoadData()
     }
     */
 
-    //get delta vs impact CIRCLE hists
+    //get delta vs impact LINE and CIRCLE hists
     for(Int_t i_det = 0; i_det < 540; i_det++)
     {
-        vec_tp_Delta_vs_impact[i_det] = (TProfile*)input_data[0]->Get(Form("Delta_impact_circle/vec_th1d_Delta_vs_impact_circle_%d",i_det));
+        vec_tp_Delta_vs_impact_line[i_det] = (TProfile*)input_data[0]->Get(Form("vec_th1d_Delta_vs_impact_%d",i_det));
+        vec_tp_Delta_vs_impact_circle[i_det] = (TProfile*)input_data[0]->Get(Form("Delta_impact_circle/vec_th1d_Delta_vs_impact_circle_%d",i_det));
     }
 
     TFile* input_vdrift_A = TFile::Open("./Data/vdrift_vs_det_265338.root");
     can_vdrift_A = (TCanvas*)input_vdrift_A->Get("tg_vdrift_vs_det_can");
     can_vdrift_A->SetName("tg_vdrift_vs_det_can_A");
-    can_vdrift_A ->Draw();
+    //can_vdrift_A ->Draw(); //not to get confused with 2 tg_vdrift_vs_det_can plots - comment one of them
     tg_vdrift_vs_det_A = (TGraph*)can_vdrift_A->FindObject("tg_vdrift_vs_det");
     tg_vdrift_vs_det_A ->SetName("tg_vdrift_vs_det_A");
 
@@ -802,8 +842,31 @@ Int_t GUI_Sim_drift::Do_Minimize_Single()
 
     Pixel_t green;
     gClient->GetColorByName("green", green);
-    Button_minimize_Single->ChangeBackground(green);
 
+    //printf("circ_line_flag = %d \n",circ_line_flag);
+
+
+    if (circ_line_flag == 1)
+    {
+        Button_minimize_Single_line->ChangeBackground(green);
+        printf("it's a line \n");
+
+    }
+
+    if (circ_line_flag == 2)
+    {
+        Button_minimize_Single_circle->ChangeBackground(green);
+        printf("it's a circle \n");
+
+    }
+
+    if (circ_line_flag != 1 && circ_line_flag != 2)
+    {
+        printf("it's not a line neither a circle \n");
+        return 0;
+    }
+
+    
     Int_t i_detector = arr_NEntry_det->GetNumberEntry()->GetNumber();
 
     Double_t det = -1.0;
@@ -820,6 +883,17 @@ Int_t GUI_Sim_drift::Do_Minimize_Single()
     //-------------------------------------------------
     // Minimization
     i_detector_global = i_detector;
+
+    if (circ_line_flag == 1)
+    {
+        vec_tp_Delta_vs_impact[i_detector_global] = vec_tp_Delta_vs_impact_line[i_detector_global];
+    }
+
+    if (circ_line_flag == 2)
+    {
+        vec_tp_Delta_vs_impact[i_detector_global] = vec_tp_Delta_vs_impact_circle[i_detector_global];
+    }
+
     TVirtualFitter *min = TVirtualFitter::Fitter(0,2);
     min->SetFCN(Chi2_TRD_vDrift);
     Double_t pStart[2] = {-7.5*TMath::DegToRad(),1.0}; // B-field, E-field, v_drift, vD_drift (1.7 instead of 1.56)
@@ -877,15 +951,39 @@ Int_t GUI_Sim_drift::Do_Minimize_Single()
 
 
 //---------------------------------------------------------------------------------
-// minimize all chambers
+// minimize all chambers - line
 //---------------------------------------------------------------------------------
 #if 1
 Int_t GUI_Sim_drift::Do_Minimize()
 {
 
+    //printf("circ_line_flag = %d \n",circ_line_flag);
+
+
     Pixel_t green;
     gClient->GetColorByName("green", green);
-    Button_minimize->ChangeBackground(green);
+
+    if (circ_line_flag == 1)
+    {
+        Button_minimize_line->ChangeBackground(green);
+        printf("it's a line \n");
+
+    }
+
+    if (circ_line_flag == 2)
+    {
+        Button_minimize_circle->ChangeBackground(green);
+        printf("it's a circle \n");
+
+    }
+
+    if (circ_line_flag != 1 && circ_line_flag != 2)
+    {
+        printf("it's not a line neither a circle \n");
+        return 0;
+    }
+
+    //Button_minimize->ChangeBackground(green);
      printf("test 0.1 \n");
      //Int_t i_detector = arr_NEntry_det->GetNumberEntry()->GetNumber();
 
@@ -923,19 +1021,19 @@ Int_t GUI_Sim_drift::Do_Minimize()
         HV_anode_in   = -1.0;
         E_field       = -1.0;
 
-        printf("test 1.01 \n");
+        //printf("test 1.01 \n");
 
         //tg_vdrift_vs_det_A ->GetPoint(i_detector,det,v_drift_in_A);
-        printf("test 1.1 \n");
+        //printf("test 1.1 \n");
         tg_vdrift_vs_det   ->GetPoint(i_detector,det,v_drift_in);
-        printf("test 1.2 \n");
+        //printf("test 1.2 \n");
         tg_HV_drift_vs_det ->GetPoint(i_detector,det,HV_drift_in);
-        printf("test 1.3 \n");
+        //printf("test 1.3 \n");
         tg_HV_anode_vs_det ->GetPoint(i_detector,det,HV_anode_in);
-        printf("test 1.4 \n");
+        //printf("test 1.4 \n");
         E_field = 1.0*(HV_drift_in/l_drift); // V/cm = kg * m * s^-3 * A^-1
 
-        printf("test 1 \n");
+        //printf("test 1 \n");
 
         vec_vOCDB_fit[i_detector] = v_drift_in;
         vec_vOCDB_fit_A[i_detector] = v_drift_in_A;
@@ -956,6 +1054,16 @@ Int_t GUI_Sim_drift::Do_Minimize()
         // Minimization
 
         i_detector_global = i_detector;
+
+        if (circ_line_flag == 1)
+        {
+            vec_tp_Delta_vs_impact[i_detector_global] = vec_tp_Delta_vs_impact_line[i_detector_global];
+        }
+
+        if (circ_line_flag == 2)
+        {
+            vec_tp_Delta_vs_impact[i_detector_global] = vec_tp_Delta_vs_impact_circle[i_detector_global];
+        }
 
         Int_t N = vec_tp_Delta_vs_impact[i_detector_global]->GetEntries();
         printf("N_points = %d \n",N);
