@@ -374,6 +374,8 @@ private:
 
     Int_t circ_line_flag = 0;
 
+    TFile* outputfile;
+
 public:
     GUI_Sim_drift();
     virtual ~GUI_Sim_drift();
@@ -401,6 +403,9 @@ public:
 GUI_Sim_drift::GUI_Sim_drift() : TGMainFrame(gClient->GetRoot(), 200, 100)
 {
     //-------------------------------------
+    outputfile = new TFile("./TRD_Calib_vDfit_and_LAfit.root","RECREATE");
+
+
     cout << "GUI_Sim_drift started" << endl;
     TGaxis::SetMaxDigits(3);
     gStyle->SetOptTitle(0);
@@ -1172,8 +1177,8 @@ Int_t GUI_Sim_drift::Do_Minimize()
     tg_v_fit_vs_det ->SetMarkerColor(kRed);
     tg_v_fit_vs_det ->SetLineColor(kRed);
     tg_v_fit_vs_det ->SetMarkerSize(1.0);
-    //tg_v_fit_vs_det ->GetXaxis()->SetTitle("drift velocity from OCDB, cm/us");
-    //tg_v_fit_vs_det ->GetYaxis()->SetTitle("drift velocity: data fit results, cm/us");
+    tg_v_fit_vs_det ->GetXaxis()->SetTitle("drift velocity from OCDB, cm/us");
+    tg_v_fit_vs_det ->GetYaxis()->SetTitle("drift velocity: data fit results, cm/us");
     tg_v_fit_vs_det ->Draw();
 
     //can_vdrift       ->Modify();
@@ -1185,7 +1190,7 @@ Int_t GUI_Sim_drift::Do_Minimize()
     tg_vfit_vs_vOCDB  ->SetMarkerStyle(20);
     //tg_vfit_vs_vOCDB  ->SetLineColor(kRed);
     tg_vfit_vs_vOCDB  ->SetMarkerSize(0.5);
-    tg_vfit_vs_vOCDB  ->GetXaxis()->SetTitle("drift velocity from OCDB, cm/us");
+    tg_vfit_vs_vOCDB  ->GetXaxis()->SetTitle("Detector ID");
     tg_vfit_vs_vOCDB  ->GetYaxis()->SetTitle("drift velocity: data fit results, cm/us");
     tg_vfit_vs_vOCDB  ->Draw("AP");
     tg_vfit_vs_vOCDB  ->GetXaxis()->SetLimits(0.0,2.2);
@@ -1241,6 +1246,12 @@ Int_t GUI_Sim_drift::Do_Minimize()
     }
     printf("------------------------------------- \n");
     printf(" \n");
+
+    printf("Write data to output file \n");
+    outputfile->cd();
+    tg_v_fit_vs_det         ->Write();
+    tg_LA_factor_fit_vs_det ->Write();
+    printf("All data written \n");
 
     return 1;
 

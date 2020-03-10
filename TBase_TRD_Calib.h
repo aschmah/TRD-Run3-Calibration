@@ -2972,7 +2972,7 @@ void TBase_TRD_Calib::Draw_2D_circle()
         }
     }
 
-    vec_phi.resize(i_layer_notempty);
+    //vec_phi.resize(i_layer_notempty);
 
     Double_t delta_phi = -(vec_phi[1] - vec_phi[0])/1000.0;
 
