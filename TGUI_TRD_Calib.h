@@ -40,6 +40,7 @@ private:
     TGTextButton *Button_draw3D_online_tracklets;
     TGTextButton *Button_draw3D_offline_tracklets;
     TGTextButton *Button_Calibrate;
+    TGTextButton *Button_Calibrate_on_trkl;
     TGTextButton *Button_Track_Tracklets;
     TGTextButton *Button_draw2D_track;
 
@@ -76,6 +77,8 @@ public:
     Int_t Draw_online_tracklets();
     Int_t Draw_offline_tracklets();
     Int_t Calibrate();
+    Int_t Calibrate_on_trkl();
+
     Int_t Track_Tracklets();
     ClassDef(TGUI_TRD_Calib, 0)
 };
@@ -205,6 +208,11 @@ TGUI_TRD_Calib::TGUI_TRD_Calib() : TGMainFrame(gClient->GetRoot(), 100, 100)
     Button_Calibrate = new TGTextButton(hframe_Main[3], "&Calibrate ",10);
     Button_Calibrate->Connect("Clicked()", "TGUI_TRD_Calib", this, "Calibrate()");
     hframe_Main[3]->AddFrame(Button_Calibrate, new TGLayoutHints(kLHintsCenterX,5,5,3,4));
+
+    // draw button
+    Button_Calibrate_on_trkl = new TGTextButton(hframe_Main[3], "&Calibrate_on_trkl ",10);
+    Button_Calibrate_on_trkl->Connect("Clicked()", "TGUI_TRD_Calib", this, "Calibrate_on_trkl()");
+    hframe_Main[3]->AddFrame(Button_Calibrate_on_trkl, new TGLayoutHints(kLHintsCenterX,5,5,3,4));
 
     // draw button
     Button_Track_Tracklets = new TGTextButton(hframe_Main[3], "&TrackTracklets ",10);
@@ -374,6 +382,20 @@ Int_t TGUI_TRD_Calib::Calibrate()
 }
 //---------------------------------------------------------------------------------
 
+
+//---------------------------------------------------------------------------------
+Int_t TGUI_TRD_Calib::Calibrate_on_trkl()
+{
+    printf("TGUI_TRD_Calib::Calibrate() \n");
+    Pixel_t green;
+    gClient->GetColorByName("green", green);
+    Button_Calibrate->ChangeBackground(green);
+
+    Base_TRD_Calib ->Calibrate_on_trkl();
+
+    return 1;
+}
+//---------------------------------------------------------------------------------
 
 
 //---------------------------------------------------------------------------------
@@ -666,5 +688,3 @@ Int_t TGUI_TRD_Calib::Draw3D_track()
     return 1;
 }
 //---------------------------------------------------------------------------------
-
-

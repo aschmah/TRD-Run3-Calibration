@@ -403,7 +403,9 @@ public:
 GUI_Sim_drift::GUI_Sim_drift() : TGMainFrame(gClient->GetRoot(), 200, 100)
 {
     //-------------------------------------
-    outputfile = new TFile("./TRD_Calib_vDfit_and_LAfit.root","RECREATE");
+    //outputfile = new TFile("./TRD_Calib_vDfit_and_LAfit.root","RECREATE");
+    outputfile = new TFile("./TRD_Calib_vDfit_and_LAfit_online_trkl.root","RECREATE");
+
 
 
     cout << "GUI_Sim_drift started" << endl;
@@ -619,7 +621,9 @@ Int_t GUI_Sim_drift::LoadData()
     //input_data[0]     = TFile::Open("./Data/TRD_Calib_TPC_impact.root");
     //input_data[1] = TFile::Open("./Data/TRD_Calib_All_170k_neg.root");
     //input_data[2] = TFile::Open("./Data/TRD_Calib_All_170k_pos.root");
-    input_data[0]     = TFile::Open("./Data/TRD_Calib_circle_56.root");
+    //input_data[0]     = TFile::Open("./Data/TRD_Calib_circle_56.root");
+    input_data[0]     = TFile::Open("./Data/TRD_Calib_on_trkl.root");
+
 
     for(Int_t i_charge = 0; i_charge < 3; i_charge++)      // this should be circles only
     {
@@ -654,7 +658,8 @@ Int_t GUI_Sim_drift::LoadData()
     //get delta vs impact LINE and CIRCLE hists
     for(Int_t i_det = 0; i_det < 540; i_det++)
     {
-        vec_tp_Delta_vs_impact_line[i_det] = (TProfile*)input_data[0]->Get(Form("vec_th1d_Delta_vs_impact_%d",i_det));
+        //disabled for online tracklets
+        //vec_tp_Delta_vs_impact_line[i_det] = (TProfile*)input_data[0]->Get(Form("vec_th1d_Delta_vs_impact_%d",i_det));
         vec_tp_Delta_vs_impact_circle[i_det] = (TProfile*)input_data[0]->Get(Form("Delta_impact_circle/vec_th1d_Delta_vs_impact_circle_%d",i_det));
     }
 
@@ -1617,7 +1622,6 @@ Int_t GUI_Sim_drift::Draw_data()
      tg_Delta_alpha_fit->SetLineWidth(2);
      tg_Delta_alpha_fit->Draw("same");
 
-
 #if 0
     TGraph* tg_Delta_vs_impact_single = calc_Delta_alpha(B_field,E_field,v_drift_use,vD_use,LA_use);
     tg_Delta_vs_impact_single ->SetLineColor(kGreen+1);
@@ -1664,7 +1668,6 @@ Int_t GUI_Sim_drift::Draw_data()
     HistName += NoP;
     plotTopLegend((char*)HistName.Data(),0.24,0.91,0.045,kBlack,0.0,42,1,1); // char* label,Float_t x=-1,Float_t y=-1, Float_t size=0.06,Int_t color=1,Float_t angle=0.0, Int_t font = 42, Int_t NDC = 1, Int_t align = 1
 
-
     if(fCheckBox_sel[1]->GetState() == kButtonDown) // fit
     {
         HistName = "";
@@ -1679,12 +1682,11 @@ Int_t GUI_Sim_drift::Draw_data()
         plotTopLegend((char*)HistName.Data(),0.24,0.85,0.045,kBlack,0.0,42,1,1); // char* label,Float_t x=-1,Float_t y=-1, Float_t size=0.06,Int_t color=1,Float_t angle=0.0, Int_t font = 42, Int_t NDC = 1, Int_t align = 1
     }
 
-
     printf("detector: %d, v_drift: %4.3f, HV_drift: %4.3f \n",i_detector,v_drift_in,HV_drift_in);
 
 
     PlotLine(70.0,110.0,0.0,0.0,kBlack,2,2); // (Double_t x1_val, Double_t x2_val, Double_t y1_val, Double_t y2_val, Int_t Line_Col, Int_t LineWidth, Int_t LineStyle)
-    PlotLine(90.0,90.0,-13.5,13.5,kBlack,2,2); // (Double_t x1_val, Double_t x2_val, Double_t y1_val, Double_t y2_val, Int_t Line_Col, Int_t LineWidth, Int_t LineStyle)
+    //PlotLine(90.0,90.0,-13.5,13.5,kBlack,2,2); // (Double_t x1_val, Double_t x2_val, Double_t y1_val, Double_t y2_val, Int_t Line_Col, Int_t LineWidth, Int_t LineStyle)
 
     can_delta_vs_angle ->GetCanvas()->cd(1)->Modified();
     can_delta_vs_angle ->GetCanvas()->cd(1)->Update();
