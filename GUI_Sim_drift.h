@@ -658,7 +658,7 @@ Int_t GUI_Sim_drift::LoadData()
     //get delta vs impact LINE and CIRCLE hists
     for(Int_t i_det = 0; i_det < 540; i_det++)
     {
-        //disabled for online tracklets
+        //disabled for online tracklets - ENABLE LATER
         //vec_tp_Delta_vs_impact_line[i_det] = (TProfile*)input_data[0]->Get(Form("vec_th1d_Delta_vs_impact_%d",i_det));
         vec_tp_Delta_vs_impact_circle[i_det] = (TProfile*)input_data[0]->Get(Form("Delta_impact_circle/vec_th1d_Delta_vs_impact_circle_%d",i_det));
     }
@@ -944,7 +944,15 @@ Int_t GUI_Sim_drift::Do_Minimize_Single()
 
     LA_fit       = parFit[0];
     vD_ratio_fit = parFit[1];
-    if(vD_ratio_fit != 0.0) v_fit = vD_set/vD_ratio_fit;
+
+
+    //if(vD_ratio_fit != 0.0) v_fit = vD_set/vD_ratio_fit;  //IF WE Want ot use 1.56
+
+    if(vD_ratio_fit != 0.0 && v_drift_in > 0.0) //IF WANT TO USE vD from OCDB AS vD_set
+    {
+        v_fit = v_drift_in/vD_ratio_fit;   //IF WANT TO USE vD from OCDB AS vD_set
+    }
+    else v_fit = -1.0;
 
     printf("LA_fit: %4.3f, vD_ratio_fit: %4.3f \n",LA_fit,vD_ratio_fit);
 
@@ -1152,9 +1160,13 @@ Int_t GUI_Sim_drift::Do_Minimize()
 
             i_point = i_point+1;
 
-            if(vec_vD_ratio_fit[i_detector] != 0.0)
+            //if(vec_vD_ratio_fit[i_detector] != 0.0) //IF WANT TO USE 1.56 AS vD_set
+            if(vec_vD_ratio_fit[i_detector] != 0.0 && v_drift_in > 0.0) //IF WANT TO USE vD from OCDB AS vD_set
+
             {
-                vec_v_fit[i_detector] = vD_set/vec_vD_ratio_fit[i_detector];
+                //vec_v_fit[i_detector] = vD_set/vec_vD_ratio_fit[i_detector];   //IF WANT TO USE 1.56 AS vD_set
+                vec_v_fit[i_detector] = v_drift_in/vec_vD_ratio_fit[i_detector];   //IF WANT TO USE vD from OCDB AS vD_set
+
             }
             else vec_v_fit[i_detector] = -1.0;
 
