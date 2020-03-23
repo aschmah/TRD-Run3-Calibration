@@ -1024,6 +1024,13 @@ Int_t TBase_TRD_Calib::get_2D_global_circle_fit()
         }
     }
 
+    vec_phi.resize(i_layer_notempty);
+
+    for (Int_t i_layer = 0; i_layer < i_layer_notempty; i_layer++)
+    {
+        vec_phi[i_layer] = 0.0;
+    }
+
     //n_layer_notempty = i_layer_notempty-1;  ?? check later
 
     if (i_layer_notempty-1 < 2)
@@ -1133,13 +1140,6 @@ Int_t TBase_TRD_Calib::get_2D_global_circle_fit()
     circle_center_vector.SetY(parFit_circ[1]);
 
     //printf("parFit_circ[0]: %4.3f, parFit_circ[1]: %4.3f \n",parFit_circ[0],parFit_circ[1]);
-
-    vec_phi.resize(i_layer_notempty);
-
-    for (Int_t i_layer = 0; i_layer < i_layer_notempty; i_layer++)
-    {
-        vec_phi[i_layer] = 0.0;
-    }
 
     //printf("i_layer_notempty: %d,  \n",i_layer_notempty);
 
@@ -1776,10 +1776,8 @@ void TBase_TRD_Calib::Draw_tracklets_line_2D(Int_t i_track)
         vec_TPL_off_trkl[i_offl_trkl] ->DrawClone("l");
     }
 #endif
-
-    printf("test 0 \n");
+    ;
     select_online_tracklets();
-    printf("test after select_online_tracklets \n");
 
     vec_TPL_online_tracklets_selected.clear();
     vec_TPL_online_tracklets_selected.resize(6);
@@ -3648,8 +3646,6 @@ void TBase_TRD_Calib::Draw_2D_circle()
         }
     }
 
-    //vec_phi.resize(i_layer_notempty);
-
     Double_t delta_phi = -(vec_phi[1] - vec_phi[0])/1000.0;
 
     for(Int_t i_line = 0; i_line < (Int_t)vec_TPL_circle_tracklets.size(); i_line++)
@@ -3683,7 +3679,6 @@ void TBase_TRD_Calib::Draw_2D_circle()
             vec_TPL_circle_tracklets[i_point] ->SetNextPoint(x_val,y_val);
             vec_TPL_circle_tracklets[i_point] ->SetNextPoint(x_val + vec_dir_vec_circle_notempty[i_point].X(),y_val + vec_dir_vec_circle_notempty[i_point].Y());
         }
-
 
         vec_TPL_circle_tracklets[i_point] ->SetLineColor(kCyan+1);
         vec_TPL_circle_tracklets[i_point] ->SetLineWidth(5);
