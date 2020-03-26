@@ -68,6 +68,7 @@ private:
     Long64_t Event_active = 0;
     Double_t tracklets_min[7] = {-1.0};
     Double_t tracklets_min_circle = -1.0;
+    Double_t tracklets_min_online_circle = -1.0;
 
     TChain* input_SE;
     TString JPsi_TREE   = "Tree_AS_Event";
@@ -188,6 +189,8 @@ private:
 
     Double_t par_circle[3] = {0.0,0.0,0.0};
     vector<Double_t> vec_phi;
+    Double_t par_circle_online[3] = {0.0,0.0,0.0};
+
 
 public:
     TBase_TRD_Calib();
@@ -231,6 +234,7 @@ public:
     void Calibrate_on_trkl();
     void Track_Tracklets(); // for online tracklets
     void Draw_2D_circle();
+    void Draw_2D_online_circle();
 
     ClassDef(TBase_TRD_Calib, 1)
 };
@@ -480,6 +484,7 @@ void TBase_TRD_Calib::Init_QA()
 {
     printf("TBase_TRD_Calib::Init_QA() \n");
     TFile* inputfile_QA = TFile::Open("/home/ceres/schmah/ALICE/TRD_Run3_calib/QA_out_year_2016_V2.root");
+    // TFile* inputfile_QA = TFile::Open("/home/jasonb/Documents/masters/calibration/QA_out_year_2016_V2.root");
     tg_HV_drift_vs_det = (TGraph*)inputfile_QA->Get("tg_HV_drift_vs_det");
     tg_HV_anode_vs_det = (TGraph*)inputfile_QA->Get("tg_HV_anode_vs_det");;
     tg_vdrift_vs_det   = (TGraph*)inputfile_QA->Get("tg_vdrift_vs_det");;
@@ -1683,6 +1688,134 @@ Int_t TBase_TRD_Calib::select_online_tracklets()
             //printf("vec_online_tracklet_points[%d][0][0] after: %4.3f \n",TRD_layer,vec_online_tracklet_points[TRD_layer][0][0]);
         }
     }
+    // cout << "this is the track: " << TV3_offset.X() << ' ' << TV3_offset.Y() << endl;
+    // we will be fitting to vec_online_tracklet_points[layer_i][0][xy_i]
+
+    vec_TV2_points.resize(6);
+
+    Int_t i_layer_notempty = 0;
+
+    for (Int_t i_layer = 0; i_layer < 6; i_layer++)
+    {
+        Double_t online_tracklet_X = vec_online_tracklet_points[i_layer][0][0];
+        Double_t online_tracklet_Y = vec_online_tracklet_points[i_layer][0][1];
+        if (online_tracklet_X != -999.0 && online_tracklet_Y != -999.0)
+        {
+            vec_TV2_points[i_layer].SetX(online_tracklet_X);
+            vec_TV2_points[i_layer].SetY(online_tracklet_Y);
+            i_layer_notempty++;
+        }
+
+        // cout << "tracklet points layer: " << i_layer << endl;
+        // cout << "X: " << vec_online_tracklet_points[i_layer][0][0] << endl;
+        // cout << "Y: " << vec_online_tracklet_points[i_layer][0][1] << endl;
+    } 
+
+
+    //n_layer_notempty = i_layer_notempty-1;  ?? check later
+
+    if (i_layer_notempty < 3)
+    {
+        // printf("!!! less than 3 points to fit online circle - you got bad circle !!! \n");
+        return 0;
+    }
+
+    Double_t p0[3] = {10,20,1};
+    tracklets_min_online_circle = -1.0;
+
+    TVirtualFitter *min = TVirtualFitter::Fitter(0,3);
+
+    min->SetFCN(sum_distance_circ_point_2D);
+
+    Double_t arglist_A[1] = {-1};
+    Double_t arglist_B[1] = {0};
+    Double_t arglist_C[1] = {-1};
+
+    //print all information of minimization procedure
+    Double_t arglist_D[1] = {3};
+
+    
+    min->ExecuteCommand("SET PRIntout",arglist_D,1); // http://www.fresco.org.uk/minuit/cern/node18.html
+    //min->ExecuteCommand("SHOw FCNvalue",arglist_A,1);
+    min->ExecuteCommand("SET NOWarnings",arglist_B,1);
+    //min->ExecuteCommand("SET PRINT",arglist_C,1);
+
+
+    Double_t arglist[10];
+    arglist[0] = 3;
+
+    Double_t pStart[3]; //= {1,1,1,1};
+
+    Double_t x1 = vec_TV2_points[0].X();
+    Double_t y1 = vec_TV2_points[0].Y();
+    Double_t x2 = vec_TV2_points[1].X();
+    Double_t y2 = vec_TV2_points[1].Y();
+    Double_t x3 = vec_TV2_points[2].X();
+    Double_t y3 = vec_TV2_points[2].Y();
+
+
+    Double_t A_help = x1*(y2 - y3) - y1*(x2 - x3) + x2*y3 - x3*y2;
+    Double_t B_help = (x1*x1 + y1*y1)*(y3 - y2) + (x2*x2 + y2*y2)*(y1 - y3) + (x3*x3 + y3*y3)*(y2 - y1);
+    Double_t C_help = (x1*x1 + y1*y1)*(x2 - x3) + (x2*x2 + y2*y2)*(x3 - x1) + (x3*x3 + y3*y3)*(x1 - x2);
+    Double_t D_help = (x1*x1 + y1*y1)*(x3*y2 - x2*y3) + (x2*x2 + y2*y2)*(x1*y3 - x3*y1) + (x3*x3 + y3*y3)*(x2*y1 - x1*y2);
+
+    //printf("A_help: {%4.3f, %4.3f}, B_help: {%4.3f, %4.3f}, C_help: {%4.3f, %4.3f}  \n",A_help,B_help,C_help);
+
+    Double_t a_param = 0.0;
+    Double_t b_param = 0.0;
+    Double_t R_param = 0.0;
+
+
+    if(A_help != 0.0)
+    {
+        a_param = -B_help/(2*A_help);
+        b_param = -C_help/(2*A_help);
+        R_param = TMath::Sqrt(TMath::Power(x1 - a_param,2.0) + TMath::Power(y1 - b_param,2.0));
+    }
+
+    //printf("pointA: {%4.3f, %4.3f}, pointB: {%4.3f, %4.3f}, pointC: {%4.3f, %4.3f}, circle(a,b,R): {%4.3f, %4.3f, %4.3f} \n",x1,y1,x2,y2,x3,y3,a_param,b_param,R_param);
+
+    pStart[0] = a_param;
+    pStart[1] = b_param;
+    pStart[2] = R_param;
+
+
+    //cout << "pStart[0]" << pStart[0] << endl;
+    //cout << "pStart[1]" << pStart[1] << endl;
+    //cout << "pStart[2]" << pStart[2] << endl;
+
+    min->SetParameter(0,"a_param",pStart[0],0.01,0,0);
+    min->SetParameter(1,"b_param",pStart[1],0.01,0,0);
+    min->SetParameter(2,"R_param",pStart[2],0.01,0,0);
+
+    arglist[0] = 1000; // number of function calls
+    arglist[1] = 0.001; // tolerance
+
+    //min->ExecuteCommand("MIGRAD",arglist,2);
+    //min->ExecuteCommand("MINOS",arglist,2);
+    min->ExecuteCommand("MINIMIZE",arglist,2);
+
+    //if (minos) min->ExecuteCommand("MINOS",arglist,0);
+    Int_t nvpar,nparx;
+    Double_t amin,edm, errdef;
+    min->GetStats(amin,edm,errdef,nvpar,nparx);
+    tracklets_min_online_circle = amin;
+    //min->PrintResults(1,amin);
+
+    Double_t parFit_circ[3];
+
+    for(Int_t i_par = 0; i_par <3; ++i_par)
+    {
+        parFit_circ[i_par] = min->GetParameter(i_par);
+        //parFit[i] = pStart[i];
+    }
+
+    for(Int_t i_par = 0; i_par <3; ++i_par)
+    {
+        par_circle_online[i_par] = parFit_circ[i_par];
+    }
+
+    delete min;
     return 1;
 }
 
@@ -1809,11 +1942,12 @@ void TBase_TRD_Calib::Draw_tracklets_line_2D(Int_t i_track)
     HistName += Event_active;
     HistName += ", tr. ";
     HistName += i_track;
-    HistName += Form(", min: (%4.3f, %4.3f, %4.3f, %4.3f, %4.3f, %4.3f, gl. %4.3f, circle_gl. %4.3f)",tracklets_min[0],tracklets_min[1],tracklets_min[2],tracklets_min[3],tracklets_min[4],tracklets_min[5],tracklets_min[6],tracklets_min_circle);
+    HistName += Form(", min: (%4.3f, %4.3f, %4.3f, %4.3f, %4.3f, %4.3f, gl. %4.3f, circle_gl. %4.3f, online_circle_gl. %4.3f)",
+        tracklets_min[0],tracklets_min[1],tracklets_min[2],tracklets_min[3],tracklets_min[4],tracklets_min[5],tracklets_min[6],tracklets_min_circle, tracklets_min_online_circle);
 
     //sprintf(NoP,"%4.0f",(Double_t)i_detector);
     //HistName += NoP;
-    plotTopLegend((char*)HistName.Data(),0.1,0.96,0.03,kBlack,0.0,42,1,1); // char* label,Float_t x=-1,Float_t y=-1, Float_t size=0.06,Int_t color=1,Float_t angle=0.0, Int_t font = 42, Int_t NDC = 1, Int_t align = 1
+    plotTopLegend((char*)HistName.Data(),0.1,0.96,0.025,kBlack,0.0,42,1,1); // char* label,Float_t x=-1,Float_t y=-1, Float_t size=0.06,Int_t color=1,Float_t angle=0.0, Int_t font = 42, Int_t NDC = 1, Int_t align = 1
 
     HistName = Form("det: (%d, %d, %d, %d, %d, %d)",arr_layer_detector[0],arr_layer_detector[1],arr_layer_detector[2],arr_layer_detector[3],arr_layer_detector[4],arr_layer_detector[5]);
     plotTopLegend((char*)HistName.Data(),0.24,0.92,0.03,kBlack,0.0,42,1,1); // char* label,Float_t x=-1,Float_t y=-1, Float_t size=0.06,Int_t color=1,Float_t angle=0.0, Int_t font = 42, Int_t NDC = 1, Int_t align = 1
@@ -2148,6 +2282,7 @@ void TBase_TRD_Calib::Init_tree(TString SEList)
 {
     cout << "Initialize tree" << endl;
     TString pinputdir = "/misc/alidata120/alice_u/schmah/TRD_offline_calib/Data/";
+    // TString pinputdir = "/home/jasonb/Documents/masters/calibration/";
     //TString pinputdir = "/home/ceres/berdnikova/TRD-Run3-Calibration/";
 
     AS_Event = new Ali_AS_Event();
@@ -3690,6 +3825,91 @@ void TBase_TRD_Calib::Draw_2D_circle()
         vec_TPL_circle_tracklets[i_point] ->Draw("");
 
     }
+}
+
+
+void TBase_TRD_Calib::Draw_2D_online_circle()
+{
+    // Calculate the circle parameters based on the input points
+    // http://www.ambrsoft.com/trigocalc/circle3d.htm
+    // (x - a)^2 + (y - b)^2  = R^2
+
+    // Draw the fitted circle
+
+    TPolyLine* tpl_circle = new TPolyLine();
+
+    Double_t delta_i_y = par_circle_online[2]/20000.0;
+
+    for(Double_t i_sign = -1.0; i_sign <= +1.0; i_sign += 2.0)
+    {
+        for(Double_t i_y = ((par_circle_online[1] - par_circle_online[2]) + delta_i_y); i_y < ((par_circle_online[1] + par_circle_online[2]) - delta_i_y); (i_y += delta_i_y))
+        {
+            Double_t i_x = i_sign*TMath::Sqrt(TMath::Power(par_circle_online[2],2.0) - TMath::Power(i_y - par_circle_online[1],2.0)) + par_circle_online[0];
+            tpl_circle ->SetNextPoint(i_x,i_y);
+            //printf("point: {%4.3f, %4.3f} \n",i_x,i_y);
+        }
+    }
+
+    tpl_circle ->SetLineStyle(1);
+    tpl_circle ->SetLineWidth(3);
+    //tpl_circle ->SetLineColor(kTeal+2);
+    tpl_circle ->SetLineColor(kGreen);
+    tpl_circle ->DrawClone("l");
+
+    //reset online circle fit points to remove possibility of being drawn falsely
+    par_circle_online[0], par_circle_online[1], par_circle_online[2] = 0.0, 0.0, 0.0;
+
+    // Int_t i_layer_notempty = 0;
+    // for(Int_t i_layer = 0; i_layer < 6; i_layer++)
+    // {
+    //     if(vec_Dt_digit_pos_cluster[6][i_layer][0] != -999.0 && vec_Dt_digit_pos_cluster[6][i_layer][1] != -999.0)
+    //     {
+    //         i_layer_notempty++;
+    //     }
+    // }
+
+    //vec_phi.resize(i_layer_notempty);
+
+    // Double_t delta_phi = -(vec_phi[1] - vec_phi[0])/1000.0;
+
+    // for(Int_t i_line = 0; i_line < (Int_t)vec_TPL_circle_tracklets.size(); i_line++)
+    // {
+    //     delete vec_TPL_circle_tracklets[i_line];
+    // }
+    // vec_TPL_circle_tracklets.clear();
+
+    // vec_dir_vec_circle_notempty.resize(i_layer_notempty);
+
+    // for (Int_t i_point = 0; i_point < i_layer_notempty; ++i_point)
+    // {
+    //     vec_TPL_circle_tracklets.push_back(new TPolyLine());
+
+    //     Double_t phi_val = vec_phi[i_point];
+
+    //     Double_t x_val   =  par_circle_online[0] + par_circle_online[2] * TMath::Cos(phi_val);
+    //     Double_t y_val   =  par_circle_online[1] + par_circle_online[2] * TMath::Sin(phi_val);
+
+    //     Double_t x_valB  =  par_circle_online[0] + par_circle_online[2] * TMath::Cos(phi_val + delta_phi);
+    //     Double_t y_valB  =  par_circle_online[1] + par_circle_online[2] * TMath::Sin(phi_val + delta_phi);
+
+    //     vec_dir_vec_circle_notempty[i_point].SetX(x_valB - x_val);
+    //     vec_dir_vec_circle_notempty[i_point].SetY(y_valB - y_val);
+    //     vec_dir_vec_circle_notempty[i_point].SetZ(0.0);
+
+    //     if(vec_dir_vec_circle_notempty[i_point].Mag() > 0.0)
+    //     {
+    //         vec_dir_vec_circle_notempty[i_point] *= 6.0/vec_dir_vec_circle_notempty[i_point].Mag();
+
+    //         vec_TPL_circle_tracklets[i_point] ->SetNextPoint(x_val,y_val);
+    //         vec_TPL_circle_tracklets[i_point] ->SetNextPoint(x_val + vec_dir_vec_circle_notempty[i_point].X(),y_val + vec_dir_vec_circle_notempty[i_point].Y());
+    //     }
+
+
+    //     vec_TPL_circle_tracklets[i_point] ->SetLineColor(kCyan+1);
+    //     vec_TPL_circle_tracklets[i_point] ->SetLineWidth(5);
+    //     vec_TPL_circle_tracklets[i_point] ->Draw("");
+
+    // }
 }
 
 //----------------------------------------------------------------------------------------

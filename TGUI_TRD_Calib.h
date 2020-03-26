@@ -513,6 +513,7 @@ Int_t TGUI_TRD_Calib::Draw_2D_track()
     Base_TRD_Calib ->Draw_2D_circle();
 
     Base_TRD_Calib ->Draw_tracklets_line_2D(i_track);
+    Base_TRD_Calib ->Draw_2D_online_circle();
 
     return 1;
 }
