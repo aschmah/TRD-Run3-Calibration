@@ -67,6 +67,8 @@ private:
 
     TGraph* vdrift_fit;
     TGraph* LA_fit;
+    TVector3 tv3_dir_online;
+    Double_t tv3_dirs_online[6][2] = {0.0};
 
     Long64_t Event_active = 0;
     Double_t tracklets_min[7] = {-1.0};
@@ -1689,6 +1691,8 @@ Int_t TBase_TRD_Calib::select_online_tracklets()
                 vec_online_tracklet_points[TRD_layer][1][1] = TV3_offset[1] + scale_factor_length*TV3_dir[1];
 
                 draw_corrected_online_det_numbers[TRD_layer] = i_det_tracklet;
+                tv3_dirs_online[TRD_layer][0] = TV3_dir[0];
+                tv3_dirs_online[TRD_layer][1] = TV3_dir[1];
                 // for (int iter = 0; iter <=6; iter++){
                 //     cout << draw_corrected_online_det_numbers[iter] << endl;
                 // }
@@ -3870,7 +3874,7 @@ void TBase_TRD_Calib::Draw_corrected_online_tracklets()
     {
         if(vec_online_tracklet_points[i_layer][0][0] > -999.0 && vec_online_tracklet_points[i_layer][1][0] > -999.0)
         {
-            
+            //extract LA and drift v parameters for detector from root file
             Int_t detector = draw_corrected_online_det_numbers[i_layer];
             Double_t det_LA = LA_fit->Eval(detector);
             Double_t det_vdrift = vdrift_fit->Eval(detector);
@@ -3878,30 +3882,34 @@ void TBase_TRD_Calib::Draw_corrected_online_tracklets()
             delta_x_local_global_circle[i_layer] = vec_dir_vec_circle[i_layer].Dot(vec_TV3_TRD_center[arr_layer_detector[i_layer]][0]);
             Double_t sign_direction_impact_circle = TMath::Sign(1.0,delta_x_local_global_circle[i_layer]);
             impact_angle_circle[i_layer] = vec_dir_vec_circle[i_layer].Angle(vec_TV3_TRD_center[arr_layer_detector[i_layer]][2]);
-            // cout << "original angle: " << impact_angle_circle[i_layer] << endl;
             if(impact_angle_circle[i_layer] > TMath::Pi()*0.5) impact_angle_circle[i_layer] -= TMath::Pi();
-            // cout << "next angle: " << impact_angle_circle[i_layer] << endl;
             impact_angle_circle[i_layer] = 0.5*TMath::Pi() - sign_direction_impact_circle*impact_angle_circle[i_layer];
+            
             Int_t sector = detector/30;
             
             cout << "detector: " << detector << "   " << "sector number: " << sector << endl;
             cout << "impact angle: " << impact_angle_circle[i_layer]*TMath::RadToDeg() << endl;
 
+            //transform local impact angle into a global angle
             Double_t rotation_amount = (90 -(sector*20 + 10))*TMath::DegToRad();
-
             impact_angle_circle[i_layer] -= rotation_amount;
 
             cout << "rotation amount: " << rotation_amount*TMath::RadToDeg() << "   " << \
                 "corrected impact angle: " << impact_angle_circle[i_layer]*TMath::RadToDeg() << endl;
             cout << "LA = " << det_LA << " " << "driftv = " << det_vdrift << endl << endl;
 
-            // Double_t drift_vel_ratio = det_vdrift;
-            Double_t drift_vel_ratio = det_vdrift/1.546;
+            Double_t drift_vel_ratio = 1.546/det_vdrift;
+            det_LA = 0.16133 - det_LA;
+            // det_LA = -1*det_LA;
+            // det_LA = 0;
+            // drift_vel_ratio = 1.5;
             Double_t scale_length = 3.0;
             static const Double_t TRD_anode_plane = 0.0335;
 
-            Double_t x_dir = TMath::Cos(impact_angle_circle[i_layer]);
-            Double_t y_dir = TMath::Sin(impact_angle_circle[i_layer]);
+            // Double_t x_dir = TMath::Cos(tv3_dir_online[0]);
+            // Double_t y_dir = TMath::Sin(tv3_dir_online[1]);
+            Double_t x_dir = tv3_dirs_online[i_layer][0];
+            Double_t y_dir = tv3_dirs_online[i_layer][1];
             Double_t slope = 10000000.0;
             if(x_dir != 0.0) slope = y_dir/x_dir;
 
