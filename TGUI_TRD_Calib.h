@@ -38,6 +38,7 @@ private:
     TGTextButton *Button_draw3D;
     TGTextButton *Button_draw3D_track;
     TGTextButton *Button_draw3D_online_tracklets;
+    TGTextButton *Button_draw_corrected_online_tracklets;
     TGTextButton *Button_draw3D_offline_tracklets;
     TGTextButton *Button_Calibrate;
     TGTextButton *Button_Calibrate_on_trkl;
@@ -74,6 +75,7 @@ public:
     Int_t Draw3D();
     Int_t Draw3D_track();
     Int_t Draw_2D_track();
+    Int_t Draw_corrected_online_tracklets();
     Int_t Draw_online_tracklets();
     Int_t Draw_offline_tracklets();
     Int_t Calibrate();
@@ -223,6 +225,10 @@ TGUI_TRD_Calib::TGUI_TRD_Calib() : TGMainFrame(gClient->GetRoot(), 100, 100)
     Button_draw2D_track = new TGTextButton(hframe_Main[3], "&Draw 2D ",10);
     Button_draw2D_track->Connect("Clicked()", "TGUI_TRD_Calib", this, "Draw_2D_track()");
     hframe_Main[3]->AddFrame(Button_draw2D_track, new TGLayoutHints(kLHintsCenterX,5,5,3,4));
+
+    Button_draw_corrected_online_tracklets = new TGTextButton(hframe_Main[3], "&Draw Online ",10);
+    Button_draw_corrected_online_tracklets->Connect("Clicked()", "TGUI_TRD_Calib", this, "Draw_corrected_online_tracklets()");
+    hframe_Main[3]->AddFrame(Button_draw_corrected_online_tracklets, new TGLayoutHints(kLHintsCenterX,5,5,3,4));
 
 
     Frame_Main ->AddFrame(hframe_Main[3], new TGLayoutHints(kLHintsCenterX,2,2,2,2));
@@ -389,7 +395,7 @@ Int_t TGUI_TRD_Calib::Calibrate_on_trkl()
     printf("TGUI_TRD_Calib::Calibrate() \n");
     Pixel_t green;
     gClient->GetColorByName("green", green);
-    Button_Calibrate->ChangeBackground(green);
+    Button_Calibrate_on_trkl->ChangeBackground(green);
 
     Base_TRD_Calib ->Calibrate_on_trkl();
 
@@ -533,6 +539,18 @@ Int_t TGUI_TRD_Calib::Draw_online_tracklets()
 }
 //---------------------------------------------------------------------------------
 
+
+Int_t TGUI_TRD_Calib::Draw_corrected_online_tracklets()
+{
+    Int_t i_track = arr_NEntry_ana_params[1]->GetNumberEntry()->GetNumber();
+
+    Pixel_t green;
+    gClient->GetColorByName("green", green);
+    Button_draw_corrected_online_tracklets->ChangeBackground(green);
+    Base_TRD_Calib ->Draw_corrected_online_tracklets();
+
+    return 1;
+}
 
 
 //---------------------------------------------------------------------------------

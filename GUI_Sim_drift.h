@@ -623,6 +623,8 @@ Int_t GUI_Sim_drift::LoadData()
     //input_data[2] = TFile::Open("./Data/TRD_Calib_All_170k_pos.root");
     //input_data[0]     = TFile::Open("./Data/TRD_Calib_circle_56.root");
     input_data[0]     = TFile::Open("./Data/TRD_Calib_on_trkl.root");
+    // input_data[0]     = TFile::Open("./Data/TRD_Calib_on_trkl_online.root");
+
 
 
     for(Int_t i_charge = 0; i_charge < 3; i_charge++)      // this should be circles only
@@ -712,6 +714,7 @@ Int_t GUI_Sim_drift::LoadData()
     Int_t run_id_use = 265525;
     tg_ExB_vs_det = new TGraph();
     TFile* input_OCDB_ExB = TFile::Open("/misc/alidata120/alice_u/schmah/TRD_QA/OCDB_out/TRD_ExB_values_y2016.root");
+    // TFile* input_OCDB_ExB = TFile::Open("./Data/TRD_ExB_values_y2016.root");
     for(Int_t det = 0; det < 540; det++)
     {
         HistName = "vec_tg_chamber_ExB_vs_runid_";
@@ -1629,10 +1632,10 @@ Int_t GUI_Sim_drift::Draw_data()
         //tg_delta_vs_angle[5][i_vD] ->Draw("same");
     }
     */
-
-     tg_Delta_alpha_fit->SetLineColor(kRed);
-     tg_Delta_alpha_fit->SetLineWidth(2);
-     tg_Delta_alpha_fit->Draw("same");
+    
+    tg_Delta_alpha_fit->SetLineColor(kRed);
+    tg_Delta_alpha_fit->SetLineWidth(2);
+    tg_Delta_alpha_fit->Draw("same");
 
 #if 0
     TGraph* tg_Delta_vs_impact_single = calc_Delta_alpha(B_field,E_field,v_drift_use,vD_use,LA_use);
@@ -1640,12 +1643,12 @@ Int_t GUI_Sim_drift::Draw_data()
     tg_Delta_vs_impact_single ->SetLineWidth(2);
     tg_Delta_vs_impact_single ->Draw("same");
 #endif
-
+ 
     vec_tp_Delta_vs_impact[i_detector] ->SetLineColor(kBlack);
     vec_tp_Delta_vs_impact[i_detector] ->SetLineWidth(2);
     vec_tp_Delta_vs_impact[i_detector] ->SetLineStyle(1);
     vec_tp_Delta_vs_impact[i_detector] ->Draw("same hl");
-
+ 
     /*
     if(fCheckBox_sel[3]->GetState() == kButtonDown) // slider
     {
@@ -1679,7 +1682,7 @@ Int_t GUI_Sim_drift::Draw_data()
     sprintf(NoP,"%4.1f",HV_drift_in);
     HistName += NoP;
     plotTopLegend((char*)HistName.Data(),0.24,0.91,0.045,kBlack,0.0,42,1,1); // char* label,Float_t x=-1,Float_t y=-1, Float_t size=0.06,Int_t color=1,Float_t angle=0.0, Int_t font = 42, Int_t NDC = 1, Int_t align = 1
-
+    
     if(fCheckBox_sel[1]->GetState() == kButtonDown) // fit
     {
         HistName = "";

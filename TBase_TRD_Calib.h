@@ -65,6 +65,9 @@ private:
     TGraph* tg_HV_anode_vs_det;
     TGraph* tg_vdrift_vs_det;
 
+    TGraph* vdrift_fit;
+    TGraph* LA_fit;
+
     Long64_t Event_active = 0;
     Double_t tracklets_min[7] = {-1.0};
     Double_t tracklets_min_circle = -1.0;
@@ -96,6 +99,7 @@ private:
     TEveLine* vec_tracklets_line = NULL;
     vector<TPolyLine*> vec_tracklets_line_2D;
     vector<TPolyLine*> vec_TPL_online_tracklets_selected;
+    vector<TPolyLine*> vec_TPL_online_tracklets_selected_corrected;
 
     TPolyLine* TPL_helix;
 
@@ -173,6 +177,8 @@ private:
     vector<Int_t> vec_layer_in_fit;
     vector< vector< vector<Double_t> > > vec_tracklet_fit_points;
     vector< vector< vector<Double_t> > > vec_online_tracklet_points;
+    vector< vector< vector<Double_t> > > vec_corrected_online_tracklet_points;
+    Int_t draw_corrected_online_det_numbers[6] = {0};
     vector<TProfile*> vec_tp_Delta_vs_impact;
     vector<TH2D*> vec_TH2D_Delta_vs_impact;
     vector<TProfile*> vec_tp_Delta_vs_impact_circle;
@@ -213,6 +219,7 @@ public:
     void Draw_tracklets_line_2D(Int_t i_track);
     void Draw_neighbor_tracks(Int_t i_track);
     void Draw_online_tracklets();
+    void Draw_corrected_online_tracklets();
     void Draw_offline_tracklets();
     TGLViewer* Draw_TRD();
     void set_dca_to_track(Double_t dca_r, Double_t dca_z) {max_dca_r_to_track = dca_r; max_dca_z_to_track = dca_z;}
@@ -1600,12 +1607,15 @@ Int_t TBase_TRD_Calib::select_online_tracklets()
     Int_t    N_TRD_tracklets_online = AS_Event ->getNumTracklets();
 
     vec_online_tracklet_points.resize(6); // layer
+    vec_corrected_online_tracklet_points.resize(6);
     for(Int_t i_layer = 0; i_layer < 6; i_layer++)
     {
         vec_online_tracklet_points[i_layer].resize(2);
+        vec_corrected_online_tracklet_points[i_layer].resize(2);
         for(Int_t i_startstop = 0; i_startstop < 2; i_startstop++)
         {
             vec_online_tracklet_points[i_layer][i_startstop].resize(2); // x,y,z
+            vec_corrected_online_tracklet_points[i_layer][i_startstop].resize(2);
             for(Int_t i_xy = 0; i_xy < 2; i_xy++)
             {
                 vec_online_tracklet_points[i_layer][i_startstop][i_xy] = -999.0;
@@ -1652,9 +1662,9 @@ Int_t TBase_TRD_Calib::select_online_tracklets()
 
         Double_t impact_angle = TV3_dir.Angle(vec_TV3_TRD_center[i_det_tracklet][2]);
         if(impact_angle > TMath::Pi()*0.5) impact_angle -= TMath::Pi();
-
+        
         Double_t dist = distance_circ_point_2D(TV3_offset[0],TV3_offset[1],par_circle);
-
+        
         if (dist<3)
 
         // X,Y of beginning; X,Y of end
@@ -1677,6 +1687,17 @@ Int_t TBase_TRD_Calib::select_online_tracklets()
                 vec_online_tracklet_points[TRD_layer][0][1] = TV3_offset[1];
                 vec_online_tracklet_points[TRD_layer][1][0] = TV3_offset[0] + scale_factor_length*TV3_dir[0];
                 vec_online_tracklet_points[TRD_layer][1][1] = TV3_offset[1] + scale_factor_length*TV3_dir[1];
+
+                draw_corrected_online_det_numbers[TRD_layer] = i_det_tracklet;
+                // for (int iter = 0; iter <=6; iter++){
+                //     cout << draw_corrected_online_det_numbers[iter] << endl;
+                // }
+                vec_corrected_online_tracklet_points[TRD_layer][0][0] = TV3_offset[0];
+                vec_corrected_online_tracklet_points[TRD_layer][0][1] = TV3_offset[1];
+                vec_corrected_online_tracklet_points[TRD_layer][1][0] = TV3_offset[0];
+                vec_corrected_online_tracklet_points[TRD_layer][1][1] = TV3_offset[1];
+                // vec_corrected_online_tracklet_points[TRD_layer][1][0] = TV3_offset[0] + scale_factor_length*TV3_dir[0];
+                // vec_corrected_online_tracklet_points[TRD_layer][1][1] = TV3_offset[1] + scale_factor_length*TV3_dir[1];
 
                 //Float_t points[6] =
                 //{
@@ -1719,7 +1740,7 @@ Int_t TBase_TRD_Calib::select_online_tracklets()
         // printf("!!! less than 3 points to fit online circle - you got bad circle !!! \n");
         return 0;
     }
-
+    
     Double_t p0[3] = {10,20,1};
     tracklets_min_online_circle = -1.0;
 
@@ -1735,7 +1756,7 @@ Int_t TBase_TRD_Calib::select_online_tracklets()
     Double_t arglist_D[1] = {3};
 
     
-    min->ExecuteCommand("SET PRIntout",arglist_D,1); // http://www.fresco.org.uk/minuit/cern/node18.html
+    min->ExecuteCommand("SET PRIntout",arglist_A,1); // http://www.fresco.org.uk/minuit/cern/node18.html
     //min->ExecuteCommand("SHOw FCNvalue",arglist_A,1);
     min->ExecuteCommand("SET NOWarnings",arglist_B,1);
     //min->ExecuteCommand("SET PRINT",arglist_C,1);
@@ -1813,6 +1834,113 @@ Int_t TBase_TRD_Calib::select_online_tracklets()
     for(Int_t i_par = 0; i_par <3; ++i_par)
     {
         par_circle_online[i_par] = parFit_circ[i_par];
+    }
+
+
+    //tangents
+    TVector2 dir_vector;
+    TVector2 circle_center_vector;
+    circle_center_vector.SetX(parFit_circ[0]);
+    circle_center_vector.SetY(parFit_circ[1]);
+
+    //printf("parFit_circ[0]: %4.3f, parFit_circ[1]: %4.3f \n",parFit_circ[0],parFit_circ[1]);
+
+    //printf("i_layer_notempty: %d,  \n",i_layer_notempty);
+
+    for(Int_t i_point = 0; i_point < i_layer_notempty; i_point++)
+    {
+        dir_vector = vec_TV2_points[i_point];
+
+        //printf("dir_vector.X(): %4.3f, dir_vector.Y(): %4.3f \n",dir_vector.X(),dir_vector.Y());
+
+        dir_vector -= circle_center_vector;
+        Double_t phi_val = dir_vector.Phi();
+
+        //printf("phi_val: %4.3f \n",phi_val);
+
+        //vec_phi.push_back(phi_val);
+        vec_phi[i_point] = phi_val;
+
+        //printf("i_point: %d, vec_phi[i_point]: %4.3f, \n",i_point,vec_phi[i_point]);
+    }
+
+    Double_t delta_phi = -(vec_phi[1] - vec_phi[0])/1000.0;
+
+    //printf("delta_phi: %4.3f, vec_phi[1]: %4.3f, vec_phi[0]: %4.3f  \n",delta_phi,vec_phi[1],vec_phi[0]);
+
+    vec_dir_vec_circle.resize(6);
+
+    for (Int_t i_layer = 0; i_layer <6; ++i_layer)
+    {
+        vec_dir_vec_circle[i_layer].SetXYZ(-999.0,-999.0,-999.0);   //because i maybe need it to have all 6 dimensions in Calibrate
+    }
+
+    //this one will have only n_notempty dimensions
+    vec_dir_vec_circle_notempty.resize(i_layer_notempty);
+
+    for(Int_t i_point = 0; i_point < i_layer_notempty; i_point++)
+    //for(Int_t i_point = 0; i_point < 6; i_point++)
+
+    {
+        //printf("from here \n");
+        Double_t phi_val = vec_phi[i_point];
+
+        Double_t x_val   =  parFit_circ[0] + parFit_circ[2] * TMath::Cos(phi_val);
+        Double_t y_val   =  parFit_circ[1] + parFit_circ[2] * TMath::Sin(phi_val);
+
+        Double_t x_valB  =  parFit_circ[0] + parFit_circ[2] * TMath::Cos(phi_val + delta_phi);
+        Double_t y_valB  =  parFit_circ[1] + parFit_circ[2] * TMath::Sin(phi_val + delta_phi);
+        //printf("x_val: %4.3f, x_valB: %4.3f, y_val: %4.3f, y_valB: %4.3f \n",x_val,x_valB,y_val,y_valB);
+
+
+        //TVector3 dir_vec_circle;               //maybe i can use this one
+
+        vec_dir_vec_circle_notempty[i_point].SetX(x_valB - x_val);
+        vec_dir_vec_circle_notempty[i_point].SetY(y_valB - y_val);
+        vec_dir_vec_circle_notempty[i_point].SetZ(0.0);
+
+        //printf("vec_dir_vec_circle_notempty[i_point].X: %4.3f, vec_dir_vec_circle_notempty[i_point].Y: %4.3f, vec_dir_vec_circle_notempty[i_point].Z: %4.3f \n",vec_dir_vec_circle_notempty[i_point].X(),vec_dir_vec_circle_notempty[i_point].Y(),vec_dir_vec_circle_notempty[i_point].Z());
+        //printf("to here; what happened?? \n");
+
+
+        // printf("x_val: %4.3f, x_valB: %4.3f, y_val: %4.3f, y_valB: %4.3f \n",x_val,x_valB,y_val,y_valB);  probably correct
+
+        if(vec_dir_vec_circle_notempty[i_point].Mag() > 0.0)
+        {
+            vec_dir_vec_circle_notempty[i_point] *= 6.0/vec_dir_vec_circle_notempty[i_point].Mag();
+        }
+    }
+
+    Int_t i_layer_notempty_check = 0;
+
+    //hope it's gonna work (if it's needed at all)
+    for (Int_t i_layer = 0; i_layer < 6; ++i_layer)
+    {
+        if(vec_Dt_digit_pos_cluster[6][i_layer][0] != -999.0 && vec_Dt_digit_pos_cluster[6][i_layer][1] != -999.0)
+        {
+            vec_dir_vec_circle[i_layer].SetXYZ(vec_dir_vec_circle_notempty[i_layer_notempty_check].X(),vec_dir_vec_circle_notempty[i_layer_notempty_check].Y(),vec_dir_vec_circle_notempty[i_layer_notempty_check].Z());
+            Double_t length_vec = vec_dir_vec_circle[i_layer].Mag();
+            if(length_vec > 0.0)
+            {
+                vec_dir_vec_circle[i_layer] *= -1.0/length_vec;
+            }
+            i_layer_notempty_check++;
+
+            // printf("vec_dir_vec_circle[i_layer].X: %4.3f, vec_dir_vec_circle[i_layer].Y: %4.3f, vec_dir_vec_circle[i_layer].Z: %4.3f \n",vec_dir_vec_circle[i_layer].X(),vec_dir_vec_circle[i_layer].Y(),vec_dir_vec_circle[i_layer].Z());
+
+        }
+        // printf("vec_dir_vec_circle[i_layer].X: %4.3f, vec_dir_vec_circle[i_layer].Y: %4.3f, vec_dir_vec_circle[i_layer].Z: %4.3f \n",vec_dir_vec_circle[i_layer].X(),vec_dir_vec_circle[i_layer].Y(),vec_dir_vec_circle[i_layer].Z());
+
+    // Double_t impact_angle = TV3_dir.Angle(vec_TV3_TRD_center[i_det_tracklet][2]);
+    // impact_angle_circle[i_layer] = vec_dir_vec_circle[i_layer].Angle(vec_TV3_TRD_center[arr_layer_detector[i_layer]][2]);  //i need something like that for circles
+
+    // //printf("test 3.4 \n");
+
+    // if(impact_angle_circle[i_layer] > TMath::Pi()*0.5) impact_angle_circle[i_layer] -= TMath::Pi();
+    // //printf("i_layerB: %d, 3D_Angle_on_TRD(TPC track): %4.3f, 2D_impact_angle: %4.3f \n",i_layerB,Angle_on_TRD*TMath::RadToDeg(),impact_angle[i_layerB]*TMath::RadToDeg());
+    // impact_angle_circle[i_layer] = 0.5*TMath::Pi() - sign_direction_impact_circle*impact_angle_circle[i_layer];
+    // //printf("impact_angle_circle: %4.3f \n",impact_angle_circle[i_layer]);
+
     }
 
     delete min;
@@ -2279,8 +2407,8 @@ TGLViewer* TBase_TRD_Calib::Draw_TRD()
 void TBase_TRD_Calib::Init_tree(TString SEList)
 {
     cout << "Initialize tree" << endl;
-    TString pinputdir = "/misc/alidata120/alice_u/schmah/TRD_offline_calib/Data/";
-    // TString pinputdir = "/home/jasonb/Documents/masters/calibration/";
+    // TString pinputdir = "/misc/alidata120/alice_u/schmah/TRD_offline_calib/Data/";
+    TString pinputdir = "/home/jasonb/Documents/masters/calibration/";
     //TString pinputdir = "/home/ceres/berdnikova/TRD-Run3-Calibration/";
 
     AS_Event = new Ali_AS_Event();
@@ -3293,6 +3421,8 @@ void TBase_TRD_Calib::Calibrate_on_trkl()
             make_clusters(i_track);
             //get_straight_line_fit(i_track);
             //get_tracklets_fit(i_track);
+
+            //select_online_tracklets() uses offline circle fit to determine nearby tracklets
             get_2D_global_circle_fit();  // i will get dir_vec_circle (not needed?) and vec_TPL_circle_tracklets[i_point] (basically i_layer)
             select_online_tracklets();  // function to select onl tracklets close to something
 
@@ -3505,13 +3635,13 @@ void TBase_TRD_Calib::Calibrate_on_trkl()
                         //printf("       ======================> i_event: %lld, i_track: %d \n",i_event,i_track);
                     }
                     //printf("detector: %d, track: %d, impact angle: %4.3f, Delta angle: %4.3f \n",detector,i_track,impact_angle[i_layer]*TMath::RadToDeg(),Delta_angle*TMath::RadToDeg());
-
+                
                 }
             }
         }
     }
 
-    //printf("test 7 \n");
+    // printf("test 7 \n");
 
 #if 0
     // copy all that for circle angle histos
@@ -3638,7 +3768,7 @@ void TBase_TRD_Calib::Calibrate_on_trkl()
                 for(Int_t i_layer = 0; i_layer < 6; i_layer++)
                 {
                     Int_t i_detector = i_layer + 6*i_stack + 30*i_sector;
-                    printf("detector: %d \n",i_detector);
+                    // printf("detector: %d \n",i_detector);
                     vec_tp_Delta_vs_impact_circle[i_detector] ->SetLineColor(arr_color_layer[i_layer]);
                     vec_tp_Delta_vs_impact_circle[i_detector] ->SetLineWidth(2);
                     vec_tp_Delta_vs_impact_circle[i_detector] ->SetLineStyle(1);
@@ -3722,6 +3852,105 @@ void TBase_TRD_Calib::Draw_online_tracklets()
 //----------------------------------------------------------------------------------------
 
 
+void TBase_TRD_Calib::Draw_corrected_online_tracklets()
+{
+    // printf("TBase_TRD_Calib::Draw_online_tracklets() \n");
+    TFile* calibration_params = TFile::Open("./TRD_Calib_vDfit_and_LAfit_online_trkl.root");
+    vdrift_fit = (TGraph*)calibration_params->Get(";1");
+    LA_fit = (TGraph*)calibration_params->Get(";2");
+        
+    vec_TPL_online_tracklets_selected_corrected.clear();
+    vec_TPL_online_tracklets_selected_corrected.resize(6);
+
+    Double_t impact_angle_circle[6] = {0.0};
+    Double_t delta_x_local_global_circle[6] = {0.0}; 
+
+        // create TPL for selected online tracklets and draw them
+    for(Int_t i_layer = 0; i_layer < 6; i_layer++) // 6 layers of online tracklets
+    {
+        if(vec_online_tracklet_points[i_layer][0][0] > -999.0 && vec_online_tracklet_points[i_layer][1][0] > -999.0)
+        {
+            
+            Int_t detector = draw_corrected_online_det_numbers[i_layer];
+            Double_t det_LA = LA_fit->Eval(detector);
+            Double_t det_vdrift = vdrift_fit->Eval(detector);
+
+            delta_x_local_global_circle[i_layer] = vec_dir_vec_circle[i_layer].Dot(vec_TV3_TRD_center[arr_layer_detector[i_layer]][0]);
+            Double_t sign_direction_impact_circle = TMath::Sign(1.0,delta_x_local_global_circle[i_layer]);
+            impact_angle_circle[i_layer] = vec_dir_vec_circle[i_layer].Angle(vec_TV3_TRD_center[arr_layer_detector[i_layer]][2]);
+            // cout << "original angle: " << impact_angle_circle[i_layer] << endl;
+            if(impact_angle_circle[i_layer] > TMath::Pi()*0.5) impact_angle_circle[i_layer] -= TMath::Pi();
+            // cout << "next angle: " << impact_angle_circle[i_layer] << endl;
+            impact_angle_circle[i_layer] = 0.5*TMath::Pi() - sign_direction_impact_circle*impact_angle_circle[i_layer];
+            cout << "impact angle: " << impact_angle_circle[i_layer]*TMath::RadToDeg() << endl;
+            Int_t sector = detector/30;
+            // = (Int_t)(i_det/30);
+            cout << "detector: " << detector << "   " << "sector number: " << sector << endl;
+            Double_t rotation_amount = (90 -(sector*20 + 10))*TMath::DegToRad();
+            cout << "rotation amount: " << rotation_amount*TMath::RadToDeg() << endl;
+
+            impact_angle_circle[i_layer] -= rotation_amount;
+
+            // cout << detector << ": LA =   " << det_LA << endl;
+            // Double_t drift_vel_ratio = det_vdrift;
+            Double_t drift_vel_ratio = det_vdrift/1.546;
+            Double_t scale_length = 3.0;
+            static const Double_t TRD_anode_plane = 0.0335;
+
+            Double_t x_dir = TMath::Cos(impact_angle_circle[i_layer]);
+            Double_t y_dir = TMath::Sin(impact_angle_circle[i_layer]);
+            Double_t slope = 10000000.0;
+            if(x_dir != 0.0) slope = y_dir/x_dir;
+
+            Double_t Lorentz_tan   = TMath::Tan(det_LA);
+            Double_t Lorentz_slope = 10000000.0;
+            if(Lorentz_tan != 0.0) {
+                Lorentz_slope = 1.0/Lorentz_tan;
+            } 
+            else {
+                cout << "its equal to 0.0" << endl;
+            }
+
+            Double_t x_anode_hit = TRD_anode_plane/slope;
+            Double_t y_anode_hit = TRD_anode_plane;
+
+            Double_t x_Lorentz_anode_hit = TRD_anode_plane/Lorentz_slope;
+            Double_t y_Lorentz_anode_hit = TRD_anode_plane;
+
+            Double_t x_Lorentz_drift_hit = x_Lorentz_anode_hit;
+            Double_t y_Lorentz_drift_hit = TRD_anode_plane - TRD_anode_plane*drift_vel_ratio;
+
+            Double_t impact_angle_track = TMath::ATan2(y_anode_hit,x_anode_hit);
+
+            // cout << "circle: " << impact_angle_circle[i_layer]*TMath::RadToDeg() << "  track: " << impact_angle_track << endl;
+
+            Double_t Delta_x_Lorentz_drift_hit = x_anode_hit - x_Lorentz_drift_hit;
+            Double_t Delta_y_Lorentz_drift_hit = y_anode_hit - y_Lorentz_drift_hit;
+            Double_t impact_angle_rec = TMath::ATan2(Delta_y_Lorentz_drift_hit, Delta_x_Lorentz_drift_hit);
+
+            Double_t x_deflection = scale_length*TMath::Cos(impact_angle_rec);
+            Double_t y_deflection = scale_length*TMath::Sin(impact_angle_rec);
+            // Double_t Delta_angle = -(impact_angle_track - impact_angle_rec);
+
+            vec_corrected_online_tracklet_points[i_layer][1][0] += x_deflection;
+            vec_corrected_online_tracklet_points[i_layer][1][1] += y_deflection;
+
+            vec_TPL_online_tracklets_selected_corrected[i_layer] = new TPolyLine();
+            vec_TPL_online_tracklets_selected_corrected[i_layer] ->SetNextPoint(vec_corrected_online_tracklet_points[i_layer][0][0],vec_corrected_online_tracklet_points[i_layer][0][1]);
+            vec_TPL_online_tracklets_selected_corrected[i_layer] ->SetNextPoint(vec_corrected_online_tracklet_points[i_layer][1][0],vec_corrected_online_tracklet_points[i_layer][1][1]);
+            vec_TPL_online_tracklets_selected_corrected[i_layer] ->SetLineStyle(9);
+            vec_TPL_online_tracklets_selected_corrected[i_layer] ->SetLineColor(kPink);
+            vec_TPL_online_tracklets_selected_corrected[i_layer] ->SetLineWidth(3);
+            vec_TPL_online_tracklets_selected_corrected[i_layer] ->DrawClone("l");
+            printf("i_layer tracklets online: %d \n", i_layer);
+            
+        }
+        else
+        {
+            // printf("TBase_TRD_Calib::Draw_tracklets_line(%d), i_layer: %d has no entry \n",i_track,i_layer);
+        }
+    }
+}
 
 //----------------------------------------------------------------------------------------
 void TBase_TRD_Calib::Draw_offline_tracklets()
