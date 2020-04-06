@@ -3858,6 +3858,7 @@ void TBase_TRD_Calib::Draw_online_tracklets()
 //----------------------------------------------------------------------------------------
 
 
+//----------------------------------------------------------------------------------------
 void TBase_TRD_Calib::Draw_corrected_online_tracklets()
 {
     // printf("TBase_TRD_Calib::Draw_online_tracklets() \n");
@@ -3892,7 +3893,7 @@ void TBase_TRD_Calib::Draw_corrected_online_tracklets()
             
             //transform local impact angle into a global angle
             Double_t global_rotation = (90 -(sector*20 + 10))*TMath::DegToRad();
-            impact_angle_circle[i_layer] -= global_rotation;
+            // impact_angle_circle[i_layer] -= global_rotation;
 
 
             //transform impact to tracklet//
@@ -3904,11 +3905,12 @@ void TBase_TRD_Calib::Draw_corrected_online_tracklets()
 
             //transform tracklet to impact//
             Double_t scale_length = 8.0;
-            Double_t TRD_anode_plane = 1;
+            Double_t TRD_anode_plane = 3.35;
 
             //inverse transformations
             Double_t drift_vel_ratio = det_vdrift/1.546; 
-            det_LA = -1*det_LA;
+            drift_vel_ratio = 1.546/det_vdrift;
+            // det_LA = -1*det_LA;
 
             Double_t x_dir = tv3_dirs_online[i_layer][0];
             Double_t y_dir = tv3_dirs_online[i_layer][1];
@@ -3953,27 +3955,62 @@ void TBase_TRD_Calib::Draw_corrected_online_tracklets()
 
 
             //Method 2
-            Double_t impact_angle_rec = TMath::ATan(y_dir/x_dir) + det_LA;
-            Double_t drift_shift = TRD_anode_plane - TRD_anode_plane*drift_vel_ratio;
-            impact_angle_rec = TMath::ATan((TRD_anode_plane - drift_shift) / (TRD_anode_plane / TMath::Tan(impact_angle_rec)));
+            // Double_t impact_angle_rec = TMath::ATan(y_dir/x_dir) + det_LA;
+            // Double_t drift_shift = TRD_anode_plane - TRD_anode_plane*drift_vel_ratio;
+            // impact_angle_rec = TMath::ATan((TRD_anode_plane - drift_shift) / (TRD_anode_plane / TMath::Tan(impact_angle_rec)));
+
+            // Double_t x_deflection = scale_length*TMath::Cos(impact_angle_rec);
+            // Double_t y_deflection = scale_length*TMath::Sin(impact_angle_rec);
+
+            //method 3
+            Double_t trkl_impact_angle = TMath::ATan(y_dir/x_dir) + global_rotation;
+            if (trkl_impact_angle < 0) trkl_impact_angle = 2*TMath::Pi() + trkl_impact_angle;
+
+            Double_t LA_corrected_trkl_impact_angle = trkl_impact_angle;
+            Double_t impact_angle_rec;
+            Double_t drift_shift = TRD_anode_plane*drift_vel_ratio - TRD_anode_plane;
+
+            if (trkl_impact_angle > 90*TMath::DegToRad()) {
+                cout << endl << TRD_anode_plane + drift_shift << " " << -TMath::Tan(LA_corrected_trkl_impact_angle) << endl;
+                impact_angle_rec = TMath::ATan(((TRD_anode_plane + drift_shift) * -TMath::Tan(LA_corrected_trkl_impact_angle)) / \
+                    (TRD_anode_plane));
+                impact_angle_rec = TMath::Pi() - impact_angle_rec;
+                cout << endl << "after driftv: " << impact_angle_rec*TMath::RadToDeg() << endl;
+                impact_angle_rec += det_LA;
+            } 
+            else {
+                // impact_angle_rec = TMath::ATan((TRD_anode_plane) / \
+                //     ((TRD_anode_plane - drift_shift) / TMath::Tan(LA_corrected_trkl_impact_angle)));
+                impact_angle_rec = TMath::ATan((TRD_anode_plane) / \
+                    ((TRD_anode_plane + drift_shift) / TMath::Tan(LA_corrected_trkl_impact_angle)));
+                cout << endl << "after driftv: " << impact_angle_rec*TMath::RadToDeg() << endl;
+                impact_angle_rec -= det_LA;
+            }
+
+            
+            impact_angle_rec -= global_rotation;
+
+            // if (impact_angle_rec < 0) impact_angle_rec = 2*TMath::Pi() + impact_angle_rec;
 
             Double_t x_deflection = scale_length*TMath::Cos(impact_angle_rec);
             Double_t y_deflection = scale_length*TMath::Sin(impact_angle_rec);
-
 
             //apply correction
             vec_corrected_online_tracklet_points[i_layer][1][0] -= x_deflection;
             vec_corrected_online_tracklet_points[i_layer][1][1] -= y_deflection;
 
             //debug info
-            cout << endl << "detector: " << detector << "   " << "sector number: " << sector << endl;
-            cout << "impact angle: " << impact_angle_circle[i_layer]*TMath::RadToDeg() << endl;
+            cout << "detector: " << detector << " | " << "sector number: " << sector << \
+                " | " << "global rotation: " << global_rotation*TMath::RadToDeg() << endl;
+            cout << "after LA: " << LA_corrected_trkl_impact_angle*TMath::RadToDeg() << endl;
+            cout << "local impact angle: " << impact_angle_circle[i_layer]*TMath::RadToDeg() << \
+                " | " << "global impact angle: " << (impact_angle_circle[i_layer] - global_rotation)*TMath::RadToDeg() << endl;
 
-            cout << "rotation amount: " << global_rotation*TMath::RadToDeg() << "   " << \
-                "corrected impact angle: " << impact_angle_circle[i_layer]*TMath::RadToDeg() << endl;
-            cout << "LA = " << det_LA*TMath::RadToDeg() << " " << "driftv = " << det_vdrift << endl;
+            cout << "local tracklet angle: " << trkl_impact_angle*TMath::RadToDeg() << \
+                " | " << "global tracklet angle: " << TMath::ATan(y_dir/x_dir)*TMath::RadToDeg() << endl;
+            
+            cout << "LA = " << det_LA*TMath::RadToDeg() << " | " << "driftv = " << det_vdrift << endl;
 
-            cout << "tracklet angle: " << TMath::ATan(y_dir/x_dir)*TMath::RadToDeg() << endl;
             cout << "recon tracklet angle: " << impact_angle_rec*TMath::RadToDeg() << endl;
 
             //draw
@@ -3993,6 +4030,8 @@ void TBase_TRD_Calib::Draw_corrected_online_tracklets()
         }
     }
 }
+//----------------------------------------------------------------------------------------
+
 
 //----------------------------------------------------------------------------------------
 void TBase_TRD_Calib::Draw_offline_tracklets()
