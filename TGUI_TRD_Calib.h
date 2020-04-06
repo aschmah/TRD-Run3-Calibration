@@ -540,17 +540,34 @@ Int_t TGUI_TRD_Calib::Draw_online_tracklets()
 //---------------------------------------------------------------------------------
 
 
+
+//---------------------------------------------------------------------------------
 Int_t TGUI_TRD_Calib::Draw_corrected_online_tracklets()
 {
-    Int_t i_track = arr_NEntry_ana_params[1]->GetNumberEntry()->GetNumber();
-
     Pixel_t green;
     gClient->GetColorByName("green", green);
     Button_draw_corrected_online_tracklets->ChangeBackground(green);
+
+    Base_TRD_Calib ->drawing_online_tracklets_flag = 1;
+    
+    Int_t i_track = arr_NEntry_ana_params[1]->GetNumberEntry()->GetNumber();
+
+    vector< vector<TVector3> > vec_TV3_digit_pos_cluster = Base_TRD_Calib ->make_clusters(i_track); // layer, merged time bin
+
+
+    Base_TRD_Calib ->Draw_2D_track(i_track);
+    Base_TRD_Calib ->get_2D_global_circle_fit();
+    Base_TRD_Calib ->Draw_2D_circle();
+
+    Base_TRD_Calib ->Draw_tracklets_line_2D(i_track);
+    Base_TRD_Calib ->Draw_2D_online_circle();
+
     Base_TRD_Calib ->Draw_corrected_online_tracklets();
 
     return 1;
 }
+//---------------------------------------------------------------------------------
+
 
 
 //---------------------------------------------------------------------------------

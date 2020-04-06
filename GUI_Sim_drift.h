@@ -40,13 +40,15 @@ TGraph* calc_Delta_alpha(Double_t Lorentz_angle, Double_t drift_vel_ratio)
         Double_t slope = 10000000.0;
         if(x_dir != 0.0) slope = y_dir/x_dir;
 
-        Double_t Lorentz_tan   = TMath::Tan(Lorentz_angle);
+        // Double_t Lorentz_tan   = TMath::Tan(Lorentz_angle_diff+0.001);
+        Double_t Lorentz_tan   = TMath::Tan(Lorentz_angle); //lorents angle dif + 0.0000001
         Double_t Lorentz_slope = 10000000.0;
         if(Lorentz_tan != 0.0) Lorentz_slope = 1.0/Lorentz_tan;
 
         Double_t x_anode_hit = TRD_anode_plane/slope;
         Double_t y_anode_hit = TRD_anode_plane;
-
+        
+        //There is a 90 deg rotation here
         Double_t x_Lorentz_anode_hit = TRD_anode_plane/Lorentz_slope;
         Double_t y_Lorentz_anode_hit = TRD_anode_plane;
 
@@ -713,8 +715,8 @@ Int_t GUI_Sim_drift::LoadData()
 
     Int_t run_id_use = 265525;
     tg_ExB_vs_det = new TGraph();
-    TFile* input_OCDB_ExB = TFile::Open("/misc/alidata120/alice_u/schmah/TRD_QA/OCDB_out/TRD_ExB_values_y2016.root");
-    // TFile* input_OCDB_ExB = TFile::Open("./Data/TRD_ExB_values_y2016.root");
+    // TFile* input_OCDB_ExB = TFile::Open("/misc/alidata120/alice_u/schmah/TRD_QA/OCDB_out/TRD_ExB_values_y2016.root");
+    TFile* input_OCDB_ExB = TFile::Open("./Data/TRD_ExB_values_y2016.root");
     for(Int_t det = 0; det < 540; det++)
     {
         HistName = "vec_tg_chamber_ExB_vs_runid_";
@@ -1168,6 +1170,7 @@ Int_t GUI_Sim_drift::Do_Minimize()
 
             {
                 //vec_v_fit[i_detector] = vD_set/vec_vD_ratio_fit[i_detector];   //IF WANT TO USE 1.56 AS vD_set
+                v_drift_in = 1.546;
                 vec_v_fit[i_detector] = v_drift_in/vec_vD_ratio_fit[i_detector];   //IF WANT TO USE vD from OCDB AS vD_set
 
             }
@@ -1644,11 +1647,25 @@ Int_t GUI_Sim_drift::Draw_data()
     tg_Delta_vs_impact_single ->Draw("same");
 #endif
  
+    if (circ_line_flag == 1 || circ_line_flag ==2)
+    {
+    printf("i_detector: %d \n",i_detector);
     vec_tp_Delta_vs_impact[i_detector] ->SetLineColor(kBlack);
     vec_tp_Delta_vs_impact[i_detector] ->SetLineWidth(2);
     vec_tp_Delta_vs_impact[i_detector] ->SetLineStyle(1);
     vec_tp_Delta_vs_impact[i_detector] ->Draw("same hl");
- 
+    }
+
+    if (circ_line_flag != 1 && circ_line_flag != 2)
+    {
+    printf("i_detector: %d \n",i_detector);
+    vec_tp_Delta_vs_impact_circle[i_detector] ->SetLineColor(kBlack);
+    vec_tp_Delta_vs_impact_circle[i_detector] ->SetLineWidth(2);
+    vec_tp_Delta_vs_impact_circle[i_detector] ->SetLineStyle(1);
+    vec_tp_Delta_vs_impact_circle[i_detector] ->Draw("same hl");
+    }
+
+
     /*
     if(fCheckBox_sel[3]->GetState() == kButtonDown) // slider
     {
