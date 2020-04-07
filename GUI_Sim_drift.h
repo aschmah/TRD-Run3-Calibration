@@ -27,7 +27,7 @@ static const Double_t fudge_LorentzAngle = 1.0;
 
 //----------------------------------------------------------------------------------------
 // New version
-TGraph* calc_Delta_alpha(Double_t Lorentz_angle, Double_t drift_vel_ratio)
+TGraph* calc_Delta_alpha(Double_t Lorentz_angle_diff, Double_t drift_vel_ratio)
 {
     TGraph* TG_Delta_alpha_vs_impact_angle = new TGraph();
 
@@ -40,15 +40,13 @@ TGraph* calc_Delta_alpha(Double_t Lorentz_angle, Double_t drift_vel_ratio)
         Double_t slope = 10000000.0;
         if(x_dir != 0.0) slope = y_dir/x_dir;
 
-        // Double_t Lorentz_tan   = TMath::Tan(Lorentz_angle_diff+0.001);
-        Double_t Lorentz_tan   = TMath::Tan(Lorentz_angle); //lorents angle dif + 0.0000001
+        Double_t Lorentz_tan   = TMath::Tan(Lorentz_angle_diff+0.001);
         Double_t Lorentz_slope = 10000000.0;
         if(Lorentz_tan != 0.0) Lorentz_slope = 1.0/Lorentz_tan;
 
         Double_t x_anode_hit = TRD_anode_plane/slope;
         Double_t y_anode_hit = TRD_anode_plane;
-        
-        //There is a 90 deg rotation here
+
         Double_t x_Lorentz_anode_hit = TRD_anode_plane/Lorentz_slope;
         Double_t y_Lorentz_anode_hit = TRD_anode_plane;
 
@@ -168,11 +166,11 @@ void Chi2_TRD_vDrift(Int_t &, Double_t *, Double_t & sum, Double_t * par, Int_t 
     //Double_t vD_use      = par[3];
     //Double_t LA_use      = par[4];
 
-    Double_t LA_use       = par[0];
+    Double_t LA_diff_use  = par[0];
     Double_t vD_ratio_use = par[1];
 
     //TGraph* tg_Delta_vs_impact_single = calc_Delta_alpha(B_field_use,E_field_use,v_drift_use,vD_use,LA_use);
-    TGraph* tg_Delta_vs_impact_single = calc_Delta_alpha(LA_use,vD_ratio_use);
+    TGraph* tg_Delta_vs_impact_single = calc_Delta_alpha(LA_diff_use,vD_ratio_use);
 
     for(Int_t i_bin = 1; i_bin <= vec_tp_Delta_vs_impact[i_detector_global]->GetNbinsX(); i_bin++)
     {
@@ -307,6 +305,7 @@ private:
     vector< Double_t> vec_LA_factor_fit;
 
     vector< Double_t> vec_LA_fit;
+    vector< Double_t> vec_LA_diff_fit;
     vector< Double_t> vec_vD_ratio_fit;
 
 
@@ -317,6 +316,7 @@ private:
     Double_t LA_factor;
     Double_t LA_fit = -7.5;
     Double_t vD_ratio_fit = 1.0;
+    Double_t LA_diff_fit = 0.0;
 
 
     TRootEmbeddedCanvas *fCanvas_HV_vs_time        = NULL;
@@ -911,13 +911,13 @@ Int_t GUI_Sim_drift::Do_Minimize_Single()
 
     TVirtualFitter *min = TVirtualFitter::Fitter(0,2);
     min->SetFCN(Chi2_TRD_vDrift);
-    Double_t pStart[2] = {-7.5*TMath::DegToRad(),1.0}; // B-field, E-field, v_drift, vD_drift (1.7 instead of 1.56)
+    //Double_t pStart[2] = {-7.5*TMath::DegToRad(),1.0}; // B-field, E-field, v_drift, vD_drift (1.7 instead of 1.56)
     //Double_t pStart[5] = {B_field,HV_drift_in/l_drift,v_drift_in,1.56,0.134}; // B-field, E-field, v_drift, vD_drift (1.7 instead of 1.56)
     //Double_t pStart[4] = {B_field,HV_drift_in/l_drift,1.48,1.56}; // B-field, E-field, v_drift, vD_drift (1.7 instead of 1.56)
-   
+    Double_t pStart[2] = {0.0,1.0}; //LA_diff, vD_ratio
     // 73: 1.48  after fit: 1.269
 
-    min->SetParameter(0,"LA",pStart[0],0.01,0,0);
+    min->SetParameter(0,"LA_diff",pStart[0],0.01,0,0);
     min->SetParameter(1,"Ratio",pStart[1],0.01,0,0);
 
     //min->SetParameter(0,"B_field",pStart[0],0.01,0,0);
@@ -947,7 +947,7 @@ Int_t GUI_Sim_drift::Do_Minimize_Single()
     //E_fit  = parFit[1];
     //LA_factor_fit = parFit[4];
 
-    LA_fit       = parFit[0];
+    LA_diff_fit  = parFit[0];
     vD_ratio_fit = parFit[1];
 
 
@@ -955,11 +955,15 @@ Int_t GUI_Sim_drift::Do_Minimize_Single()
 
     if(vD_ratio_fit != 0.0 && v_drift_in > 0.0) //IF WANT TO USE vD from OCDB AS vD_set
     {
-        v_fit = v_drift_in/vD_ratio_fit;   //IF WANT TO USE vD from OCDB AS vD_set
+        //v_fit = v_drift_in/vD_ratio_fit;   //IF WANT TO USE vD from OCDB AS vD_set
+        v_fit = 1.546/vD_ratio_fit;
     }
+
     else v_fit = -1.0;
 
-    printf("LA_fit: %4.3f, vD_ratio_fit: %4.3f \n",LA_fit,vD_ratio_fit);
+    LA_fit = LA_diff_fit - 0.16133;
+
+    printf("LA_fit: %4.3f, vD_ratio_fit: %4.3f \n",LA_fit*TMath::RadToDeg(),vD_ratio_fit);
 
     //printf("v_drift: %4.3f, vD_drift: %4.3f, E_field: %4.3f, LA_factor: %4.3f \n",parFit[2],parFit[3],parFit[1],parFit[4]);
     //-------------------------------------------------
@@ -1028,6 +1032,7 @@ Int_t GUI_Sim_drift::Do_Minimize()
     vec_LA_factor_fit.resize(ndet);
 
     vec_LA_fit.resize(ndet);
+    vec_LA_diff_fit.resize(ndet);
     vec_vD_ratio_fit.resize(ndet);
 
     TGraph* tg_v_fit_vs_det         = new TGraph();
@@ -1065,6 +1070,7 @@ Int_t GUI_Sim_drift::Do_Minimize()
         vec_LA_factor_fit[i_detector] = 1.0;
 
         vec_LA_fit[i_detector]       = -7.5;
+        vec_LA_diff_fit[i_detector]  = -7.5;
         vec_vD_ratio_fit[i_detector] = 1.0;
 
 
@@ -1097,10 +1103,10 @@ Int_t GUI_Sim_drift::Do_Minimize()
             TVirtualFitter *min = TVirtualFitter::Fitter(0,2);
             min->SetFCN(Chi2_TRD_vDrift);
             //Double_t pStart[5] = {B_field,HV_drift_in/l_drift,v_drift_in,1.56,0.134}; // B-field, E-field, v_drift, vD_drift (1.7 insread of 1.56)
-            Double_t pStart[2] = {-7.5*TMath::DegToRad(),1.0};
+            Double_t pStart[2] = {0.0,1.0};
             //Double_t pStart[4] = {B_field,HV_drift_in/l_drift,v_drift_in-0.1,1.56}; // B-field, E-field, v_drift, vD_drift (1.7 insread of 1.56)
 
-            min->SetParameter(0,"LA",pStart[0],0.01,0,0);
+            min->SetParameter(0,"LA_diff",pStart[0],0.01,0,0);
             min->SetParameter(1,"Ratio",pStart[1],0.01,0,0);
 
             //min->SetParameter(0,"B_field",pStart[0],0.01,0,0);
@@ -1148,10 +1154,10 @@ Int_t GUI_Sim_drift::Do_Minimize()
             //E_fit                              = parFit[1];
             //vec_LA_factor_fit[i_detector]      = parFit[4];
 
-            vec_LA_fit[i_detector]       = parFit[0];
+            vec_LA_diff_fit[i_detector]  = parFit[0];
             vec_vD_ratio_fit[i_detector] = parFit[1];
 
-            printf("det: %d, LA_fit: %4.3f, vD_ratio: %4.3f \n",i_detector,vec_LA_fit[i_detector]*TMath::RadToDeg(),vec_vD_ratio_fit[i_detector]);
+            printf("det: %d, LA_fit: %4.3f, vD_ratio: %4.3f \n",i_detector,vec_LA_diff_fit[i_detector]*TMath::RadToDeg(),vec_vD_ratio_fit[i_detector]);
 
             //printf("v_drift: %4.3f, vD_drift: %4.3f, E_field: %4.3f, LA_factor: %4.3f \n",parFit[2],parFit[3],parFit[1],parFit[4]);
             //-------------------------------------------------
@@ -1170,11 +1176,12 @@ Int_t GUI_Sim_drift::Do_Minimize()
 
             {
                 //vec_v_fit[i_detector] = vD_set/vec_vD_ratio_fit[i_detector];   //IF WANT TO USE 1.56 AS vD_set
-                v_drift_in = 1.546;
-                vec_v_fit[i_detector] = v_drift_in/vec_vD_ratio_fit[i_detector];   //IF WANT TO USE vD from OCDB AS vD_set
+                vec_v_fit[i_detector] = 1.546/vec_vD_ratio_fit[i_detector];   //IF WANT TO USE vD from OCDB AS vD_set
 
             }
             else vec_v_fit[i_detector] = -1.0;
+
+            vec_LA_fit[i_detector] = vec_LA_diff_fit[i_detector] - 0.16133;
 
             tg_v_fit_vs_det          ->SetPoint(i_point,i_detector,vec_v_fit[i_detector]);
             ///tg_vD_fit_vs_det         ->SetPoint(i_point,i_detector,vec_vD_fit[i_detector]);
@@ -1346,8 +1353,9 @@ Int_t GUI_Sim_drift::Draw_data()
     printf("detector: %d, v_drift: %4.3f, HV_drift: %4.3f \n",i_detector,v_drift_in,HV_drift_in);
 
     Double_t vD_use = 1.56;
-    Double_t v_drift_use = v_drift_in;
+    Double_t v_drift_use = 1.546;//= v_drift_in;
     Double_t LA_factor = 1.0;
+    printf("test 1 \n");
     if(fCheckBox_sel[0]->GetState() == kButtonDown) // slider
     {
         printf("Use slider data \n");
@@ -1357,13 +1365,15 @@ Int_t GUI_Sim_drift::Draw_data()
         LA_factor   = LA_slider;
     }
 
-    Double_t LA_use = 0.0;
+    Double_t LA_diff_use = 0.0;
     Double_t vD_ratio_use = 0.0;
+
+    printf("test 2 \n");
 
     if(fCheckBox_sel[1]->GetState() == kButtonDown) // fit
     {
         printf("Use fit data \n");
-        LA_use       = LA_fit;
+        LA_diff_use  = LA_diff_fit;
         vD_ratio_use = vD_ratio_fit;
         //v_drift_use = v_fit;
         //vD_use      = vD_fit;
@@ -1371,8 +1381,10 @@ Int_t GUI_Sim_drift::Draw_data()
         //LA_factor   = LA_factor_fit;
     }
 
-    TGraph* tg_Delta_alpha_fit = calc_Delta_alpha(LA_use,vD_ratio_use);
+    printf("test 3 \n");
 
+    TGraph* tg_Delta_alpha_fit = calc_Delta_alpha(LA_diff_use,vD_ratio_use);
+    printf("test 4 \n");
     /*
     //------------------------------------------------------------------------
     Int_t v_counter = 0;
@@ -1615,6 +1627,7 @@ Int_t GUI_Sim_drift::Draw_data()
     h_frame_delta_vs_angle->GetXaxis()->SetTitle("impact angle (deg.)");
     h_frame_delta_vs_angle->GetYaxis()->SetTitle("#Delta#alpha (deg.)");
 
+    printf("test 5 \n");
     /*
     for(Int_t i_vD = 0; i_vD < (Int_t)tg_delta_vs_angle[0].size(); i_vD++)
     //for(Int_t i_vD = 0; i_vD < (Int_t)1; i_vD++)
@@ -1640,13 +1653,14 @@ Int_t GUI_Sim_drift::Draw_data()
     tg_Delta_alpha_fit->SetLineWidth(2);
     tg_Delta_alpha_fit->Draw("same");
 
+    printf("test 6 \n");
 #if 0
     TGraph* tg_Delta_vs_impact_single = calc_Delta_alpha(B_field,E_field,v_drift_use,vD_use,LA_use);
     tg_Delta_vs_impact_single ->SetLineColor(kGreen+1);
     tg_Delta_vs_impact_single ->SetLineWidth(2);
     tg_Delta_vs_impact_single ->Draw("same");
 #endif
- 
+
     if (circ_line_flag == 1 || circ_line_flag ==2)
     {
     printf("i_detector: %d \n",i_detector);
@@ -1665,7 +1679,7 @@ Int_t GUI_Sim_drift::Draw_data()
     vec_tp_Delta_vs_impact_circle[i_detector] ->Draw("same hl");
     }
 
-
+    printf("test 7 \n");
     /*
     if(fCheckBox_sel[3]->GetState() == kButtonDown) // slider
     {
@@ -1694,12 +1708,14 @@ Int_t GUI_Sim_drift::Draw_data()
     HistName += NoP;
     HistName += ", LA = ";
     sprintf(NoP,"%4.3f",ExB_in);
+    //sprintf(NoP,"%4.3f",LA_diff_in);
     HistName += NoP;
     HistName += ", HV = ";
     sprintf(NoP,"%4.1f",HV_drift_in);
     HistName += NoP;
     plotTopLegend((char*)HistName.Data(),0.24,0.91,0.045,kBlack,0.0,42,1,1); // char* label,Float_t x=-1,Float_t y=-1, Float_t size=0.06,Int_t color=1,Float_t angle=0.0, Int_t font = 42, Int_t NDC = 1, Int_t align = 1
-    
+    printf("test 8 \n");
+
     if(fCheckBox_sel[1]->GetState() == kButtonDown) // fit
     {
         HistName = "";
@@ -1713,6 +1729,8 @@ Int_t GUI_Sim_drift::Draw_data()
         HistName += NoP;
         plotTopLegend((char*)HistName.Data(),0.24,0.85,0.045,kBlack,0.0,42,1,1); // char* label,Float_t x=-1,Float_t y=-1, Float_t size=0.06,Int_t color=1,Float_t angle=0.0, Int_t font = 42, Int_t NDC = 1, Int_t align = 1
     }
+
+    printf("test 9 \n");
 
     printf("detector: %d, v_drift: %4.3f, HV_drift: %4.3f \n",i_detector,v_drift_in,HV_drift_in);
 
