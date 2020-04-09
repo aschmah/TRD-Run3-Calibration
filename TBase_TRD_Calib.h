@@ -69,7 +69,6 @@ private:
 
     TGraph* vdrift_fit;
     TGraph* LA_fit;
-    TVector3 tv3_dir_online;
     Double_t tv3_dirs_online[6][2] = {0.0};
 
     Long64_t Event_active = 0;
@@ -3936,54 +3935,51 @@ void TBase_TRD_Calib::Draw_corrected_online_tracklets()
             //subtract calibration which was already applied
             // det_LA += -0.16133;
 
-            Double_t x_dir = tv3_dirs_online[i_layer][0];
-            Double_t y_dir = tv3_dirs_online[i_layer][1];
+            Double_t x_dir = -tv3_dirs_online[i_layer][0];
+            Double_t y_dir = -tv3_dirs_online[i_layer][1];
 
+            cout << endl;
 
             //method 1
             det_LA = -det_LA;
 
-            x_dir = x_dir*cos(global_rotation) - y_dir*sin(global_rotation);
-            y_dir = x_dir*sin(global_rotation) + y_dir*cos(global_rotation);
+            TVector3 x_vec(1,0,0);
+            TVector3 center = vec_TV3_TRD_center[detector][0];
+            center[0] = -center[0];
+            center[1] = -center[1];
 
-            cout << endl << "tracklet angle: " << TMath::ATan(y_dir/x_dir)*TMath::RadToDeg() << endl;
+            for (int i=0; i<3; i++){
+                cout << center[i] << endl;
+            }
+
+            cout << "detector: " << detector << " | " << "sector number: " << sector << \
+                " | " << "global rotation: " << global_rotation*TMath::RadToDeg() << endl;
+
+            cout << center.Angle(x_vec)*TMath::RadToDeg() << endl;
+            // cout << global_rotation << endl; 
+
+            Double_t x_dir_local = x_dir*cos(global_rotation) - y_dir*sin(global_rotation);
+            Double_t y_dir_local = x_dir*sin(global_rotation) + y_dir*cos(global_rotation);
+
+            cout << "tracklet angle: " << TMath::ATan(y_dir_local/x_dir_local)*TMath::RadToDeg() << endl;
 
             Double_t slope = 10000000.0;
-            if(x_dir != 0.0) slope = y_dir/x_dir;
+            if(x_dir_local != 0.0) slope = y_dir_local/x_dir_local;
 
-            if (y_dir < 0) {cout << "less than 0" << endl; y_dir = -1*y_dir;};
+            if (y_dir_local < 0) {cout << "less than 0" << endl; y_dir_local = -1*y_dir_local;};
 
             Double_t Lorentz_tan   = TMath::Tan(det_LA);
             Double_t Lorentz_slope = 10000000.0;
             if(Lorentz_tan != 0.0) Lorentz_slope = 1.0/Lorentz_tan;
 
-            // Double_t x_anode_hit = TRD_anode_plane/slope;
-            // Double_t y_anode_hit = TRD_anode_plane;
-
             Double_t x_anode_hit = TRD_anode_plane*drift_vel_ratio/slope;
             Double_t y_anode_hit = TRD_anode_plane*drift_vel_ratio;
 
-            // cout << "(x,y) = " << x_anode_hit << endl;
-
-            Double_t drift_shift = TRD_anode_plane*drift_vel_ratio - TRD_anode_plane;
-
-            Double_t x_drift_hit = x_anode_hit - (TRD_anode_plane*drift_vel_ratio/slope);
-            Double_t y_drift_hit = y_anode_hit - (TRD_anode_plane*drift_vel_ratio);
-
-            Double_t x_Lorentz_drift_hit = x_drift_hit;
-            Double_t y_Lorentz_drift_hit = y_drift_hit + (TRD_anode_plane*drift_vel_ratio);
+            Double_t x_Lorentz_drift_hit = x_anode_hit - (TRD_anode_plane*drift_vel_ratio/slope);
+            Double_t y_Lorentz_drift_hit = y_anode_hit;
 
             x_Lorentz_drift_hit = x_Lorentz_drift_hit + TRD_anode_plane*TMath::Tan(det_LA);
             y_Lorentz_drift_hit = y_Lorentz_drift_hit - TRD_anode_plane;
-
-            // Double_t x_Lorentz_anode_hit = TRD_anode_plane/Lorentz_slope;
-            // Double_t y_Lorentz_anode_hit = TRD_anode_plane;
-
-            // Double_t x_Lorentz_drift_hit = x_Lorentz_anode_hit;
-            // Double_t y_Lorentz_drift_hit = -(TRD_anode_plane - TRD_anode_plane*drift_vel_ratio);
-
-            // Double_t x_Lorentz_drift_hit = -(TRD_anode_plane - TRD_anode_plane*drift_vel_ratio)/Lorentz_slope;
-            // Double_t y_Lorentz_drift_hit = -(TRD_anode_plane - TRD_anode_plane*drift_vel_ratio);
 
             Double_t impact_angle_track = TMath::ATan2(y_anode_hit,x_anode_hit);
 
