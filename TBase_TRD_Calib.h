@@ -3957,19 +3957,33 @@ void TBase_TRD_Calib::Draw_corrected_online_tracklets()
             Double_t Lorentz_slope = 10000000.0;
             if(Lorentz_tan != 0.0) Lorentz_slope = 1.0/Lorentz_tan;
 
-            Double_t x_anode_hit = TRD_anode_plane/slope;
-            Double_t y_anode_hit = TRD_anode_plane;
+            // Double_t x_anode_hit = TRD_anode_plane/slope;
+            // Double_t y_anode_hit = TRD_anode_plane;
+
+            Double_t x_anode_hit = TRD_anode_plane*drift_vel_ratio/slope;
+            Double_t y_anode_hit = TRD_anode_plane*drift_vel_ratio;
 
             // cout << "(x,y) = " << x_anode_hit << endl;
 
-            Double_t x_Lorentz_anode_hit = TRD_anode_plane/Lorentz_slope;
-            Double_t y_Lorentz_anode_hit = TRD_anode_plane;
+            Double_t drift_shift = TRD_anode_plane*drift_vel_ratio - TRD_anode_plane;
+
+            Double_t x_drift_hit = x_anode_hit - (TRD_anode_plane*drift_vel_ratio/slope);
+            Double_t y_drift_hit = y_anode_hit - (TRD_anode_plane*drift_vel_ratio);
+
+            Double_t x_Lorentz_drift_hit = x_drift_hit;
+            Double_t y_Lorentz_drift_hit = y_drift_hit + (TRD_anode_plane*drift_vel_ratio);
+
+            x_Lorentz_drift_hit = x_Lorentz_drift_hit + TRD_anode_plane*TMath::Tan(det_LA);
+            y_Lorentz_drift_hit = y_Lorentz_drift_hit - TRD_anode_plane;
+
+            // Double_t x_Lorentz_anode_hit = TRD_anode_plane/Lorentz_slope;
+            // Double_t y_Lorentz_anode_hit = TRD_anode_plane;
 
             // Double_t x_Lorentz_drift_hit = x_Lorentz_anode_hit;
             // Double_t y_Lorentz_drift_hit = -(TRD_anode_plane - TRD_anode_plane*drift_vel_ratio);
-            
-            Double_t x_Lorentz_drift_hit = -(TRD_anode_plane - TRD_anode_plane*drift_vel_ratio)/Lorentz_slope;
-            Double_t y_Lorentz_drift_hit = -(TRD_anode_plane - TRD_anode_plane*drift_vel_ratio);
+
+            // Double_t x_Lorentz_drift_hit = -(TRD_anode_plane - TRD_anode_plane*drift_vel_ratio)/Lorentz_slope;
+            // Double_t y_Lorentz_drift_hit = -(TRD_anode_plane - TRD_anode_plane*drift_vel_ratio);
 
             Double_t impact_angle_track = TMath::ATan2(y_anode_hit,x_anode_hit);
 
