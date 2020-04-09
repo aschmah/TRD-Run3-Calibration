@@ -198,7 +198,8 @@ AliAnalysisGrid* CreateAlienHandler(TString mode="test",Int_t sub=0,TString fnam
 
     //plugin->SetAdditionalLibs("Ali_AS_Event.cxx Ali_AS_Event.h Ali_AS_analysis_TRD_digits.cxx Ali_AS_analysis_TRD_digits.h");
     //plugin->SetAdditionalLibs("Ali_AS_Event.h Ali_AS_Event.cxx Ali_AS_analysis_TRD_digits.h Ali_AS_analysis_TRD_digits.cxx");
-    plugin->SetAdditionalLibs("Ali_AS_analysis_TRD_digits.h Ali_AS_analysis_TRD_digits.cxx");
+    plugin->SetAdditionalLibs("Ali_AS_Event.h Ali_AS_EventLinkDef.h Ali_AS_analysis_TRD_digits.h Ali_AS_analysis_TRD_digits.cxx");
+    //plugin->SetAdditionalLibs("Ali_AS_analysis_TRD_digits.h Ali_AS_analysis_TRD_digits.cxx");
     //plugin->SetAdditionalLibs("Ali_AS_Event_cxx.so Ali_AS_analysis_TRD_digits_cxx.so"); // doesn't work at all
     // needed if running over a local task, comment out if the task is in AliPhysics
     plugin->SetAnalysisSource("Ali_AS_analysis_TRD_digits.cxx");
