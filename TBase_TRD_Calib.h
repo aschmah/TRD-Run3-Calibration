@@ -3883,7 +3883,7 @@ void TBase_TRD_Calib::Draw_corrected_online_tracklets()
     // printf("TBase_TRD_Calib::Draw_online_tracklets() \n");
     // TFile* calibration_params = TFile::Open("./TRD_Calib_vDfit_and_LAfit_online_trkl_new.root");
     //TRD_Calib_vDfit_and_LAfit_online_trkl(no_LA_diff)
-    TFile* calibration_params = TFile::Open("./TRD_Calib_vDfit_and_LAfit_online_trkl(no_LA_diff).root");
+    TFile* calibration_params = TFile::Open("./TRD_Calib_vDfit_and_LAfit_online_trkl_new_withpre.root");
     vdrift_fit = (TGraph*)calibration_params->Get(";1");
     LA_fit = (TGraph*)calibration_params->Get(";2");
 
@@ -3941,7 +3941,7 @@ void TBase_TRD_Calib::Draw_corrected_online_tracklets()
             cout << endl;
 
             //method 1
-            det_LA = -det_LA;
+            det_LA = det_LA;
 
             TVector3 x_vec(1,0,0);
             TVector3 center = vec_TV3_TRD_center[detector][0];
@@ -3962,7 +3962,8 @@ void TBase_TRD_Calib::Draw_corrected_online_tracklets()
             Double_t y_dir_local = x_dir*sin(global_rotation) + y_dir*cos(global_rotation);
 
             cout << "tracklet angle: " << TMath::ATan(y_dir_local/x_dir_local)*TMath::RadToDeg() << endl;
-
+            
+            Double_t pre_corr = -0.16133;
             Double_t slope = 10000000.0;
             if(x_dir_local != 0.0) slope = y_dir_local/x_dir_local;
 
@@ -3975,11 +3976,17 @@ void TBase_TRD_Calib::Draw_corrected_online_tracklets()
             Double_t x_anode_hit = TRD_anode_plane*drift_vel_ratio/slope;
             Double_t y_anode_hit = TRD_anode_plane*drift_vel_ratio;
 
-            Double_t x_Lorentz_drift_hit = x_anode_hit - (TRD_anode_plane*drift_vel_ratio/slope);
-            Double_t y_Lorentz_drift_hit = y_anode_hit;
+            //with pre corr.
+            Double_t x_Lorentz_drift_hit = TMath::Tan(pre_corr)*TRD_anode_plane*drift_vel_ratio + \
+                TMath::Tan(det_LA)*TRD_anode_plane;
+            Double_t y_Lorentz_drift_hit = TRD_anode_plane - TRD_anode_plane*drift_vel_ratio;
 
-            x_Lorentz_drift_hit = x_Lorentz_drift_hit + TRD_anode_plane*TMath::Tan(det_LA);
-            y_Lorentz_drift_hit = y_Lorentz_drift_hit - TRD_anode_plane;
+            //without pre corr.
+            // Double_t x_Lorentz_drift_hit = x_anode_hit - (TRD_anode_plane*drift_vel_ratio/slope);
+            // Double_t y_Lorentz_drift_hit = y_anode_hit;
+
+            // x_Lorentz_drift_hit = x_Lorentz_drift_hit + TRD_anode_plane*TMath::Tan(det_LA);
+            // y_Lorentz_drift_hit = y_Lorentz_drift_hit - TRD_anode_plane;
 
             Double_t impact_angle_track = TMath::ATan2(y_anode_hit,x_anode_hit);
 

@@ -25,8 +25,67 @@ static const Double_t fudge_Hdrift = 1.0;  // 0.6
 static const Double_t fudge_LorentzAngle = 1.0;
 
 
+//-------------- version with LA_pre_corr
+#if 1
+//TGraph* Create_TRD_Delta_alpha_vs_impact_angle(Double_t Lorentz_angle, Double_t drift_vel_ratio, Double_t Lorentz_angle_pre_corr)
+TGraph* calc_Delta_alpha(Double_t Lorentz_angle, Double_t drift_vel_ratio, Double_t Lorentz_angle_pre_corr)
+{
+    TGraph* TG_Delta_alpha_vs_impact_angle = new TGraph();
+
+    Int_t i_point = 0;
+    for(Double_t impact_angle = 65.0*TMath::DegToRad(); impact_angle < 115.0*TMath::DegToRad(); impact_angle += 1.0*TMath::DegToRad())
+    {
+
+        // Direction vector of incoming track
+        Double_t x_dir = TMath::Cos(impact_angle);
+        Double_t y_dir = TMath::Sin(impact_angle);
+
+        // Slope of incoming track
+        Double_t slope = 10000000.0;
+        if(x_dir != 0.0) slope = y_dir/x_dir;
+
+        // Slope of Lorentz angle
+        Double_t Lorentz_tan   = TMath::Tan(Lorentz_angle);
+        Double_t Lorentz_slope = 10000000.0;
+        if(Lorentz_tan != 0.0) Lorentz_slope = 1.0/Lorentz_tan;
+
+        // Hit point of incoming track with anode plane
+        Double_t x_anode_hit = TRD_anode_plane/slope;
+        Double_t y_anode_hit = TRD_anode_plane;
+
+        // Hit point at anode plane of Lorentz angle shifted cluster from the entrance
+        Double_t x_Lorentz_anode_hit = TRD_anode_plane/Lorentz_slope;
+        Double_t y_Lorentz_anode_hit = TRD_anode_plane;
+
+        // Cluster location within drift cell of cluster from entrance after drift velocity ratio is applied
+        Double_t x_Lorentz_drift_hit = x_Lorentz_anode_hit;
+        Double_t y_Lorentz_drift_hit = TRD_anode_plane - TRD_anode_plane*drift_vel_ratio;
+
+        // Reconstructed hit of first cluster at chamber entrance after pre Lorentz angle correction
+        // Double_t x_Lorentz_drift_hit_pre_corr = x_Lorentz_anode_hit - y_Lorentz_drift_hit*TMath::Tan(Lorentz_angle_pre_corr);
+        Double_t x_Lorentz_drift_hit_pre_corr = x_Lorentz_anode_hit - (TRD_anode_plane - y_Lorentz_drift_hit)*TMath::Tan(Lorentz_angle_pre_corr);       
+        Double_t y_Lorentz_drift_hit_pre_corr = TRD_anode_plane - TRD_anode_plane*drift_vel_ratio;
+
+        Double_t impact_angle_track = TMath::ATan2(y_anode_hit,x_anode_hit);
+
+        Double_t Delta_x_Lorentz_drift_hit = x_anode_hit - x_Lorentz_drift_hit_pre_corr;
+        Double_t Delta_y_Lorentz_drift_hit = y_anode_hit - y_Lorentz_drift_hit_pre_corr;
+        Double_t impact_angle_rec   = TMath::ATan2(Delta_y_Lorentz_drift_hit,Delta_x_Lorentz_drift_hit);
+
+        Double_t Delta_angle = -(impact_angle_track - impact_angle_rec);
+        TG_Delta_alpha_vs_impact_angle ->SetPoint(i_point,impact_angle*TMath::RadToDeg(),Delta_angle*TMath::RadToDeg());
+        i_point++;
+        //printf("impact_angle: %4.3f, impact_angle_track: %4.3f, impact_angle_rec: %4.3f, Delta: {%4.3f, %4.3f}, x_anode_hit: %4.3f, x_Lorentz_drift_hit: %4.3f \n",impact_angle*TMath::RadToDeg(),impact_angle_track*TMath::RadToDeg(),impact_angle_rec*TMath::RadToDeg(),Delta_x_Lorentz_drift_hit,Delta_y_Lorentz_drift_hit,x_anode_hit,x_Lorentz_drift_hit);
+    }
+
+    return TG_Delta_alpha_vs_impact_angle;
+}
+//----------------------------------------------------------------------------------------
+#endif
+
 //----------------------------------------------------------------------------------------
 // New version
+#if 0
 TGraph* calc_Delta_alpha(Double_t Lorentz_angle_diff, Double_t drift_vel_ratio)
 {
     TGraph* TG_Delta_alpha_vs_impact_angle = new TGraph();
@@ -68,7 +127,7 @@ TGraph* calc_Delta_alpha(Double_t Lorentz_angle_diff, Double_t drift_vel_ratio)
     return TG_Delta_alpha_vs_impact_angle;
 }
 
-
+#endif
 
 #if 0
 //----------------------------------------------------------------------------------------
@@ -166,11 +225,12 @@ void Chi2_TRD_vDrift(Int_t &, Double_t *, Double_t & sum, Double_t * par, Int_t 
     //Double_t vD_use      = par[3];
     //Double_t LA_use      = par[4];
 
-    Double_t LA_diff_use  = par[0];
+    Double_t LA_use  = par[0];
     Double_t vD_ratio_use = par[1];
+    Double_t Lorentz_angle_pre_corr = -0.16133;
 
     //TGraph* tg_Delta_vs_impact_single = calc_Delta_alpha(B_field_use,E_field_use,v_drift_use,vD_use,LA_use);
-    TGraph* tg_Delta_vs_impact_single = calc_Delta_alpha(LA_diff_use,vD_ratio_use);
+    TGraph* tg_Delta_vs_impact_single = calc_Delta_alpha(LA_use,vD_ratio_use,Lorentz_angle_pre_corr);
 
     for(Int_t i_bin = 1; i_bin <= vec_tp_Delta_vs_impact[i_detector_global]->GetNbinsX(); i_bin++)
     {
@@ -406,7 +466,7 @@ GUI_Sim_drift::GUI_Sim_drift() : TGMainFrame(gClient->GetRoot(), 200, 100)
 {
     //-------------------------------------
     //outputfile = new TFile("./TRD_Calib_vDfit_and_LAfit.root","RECREATE");
-    outputfile = new TFile("./TRD_Calib_vDfit_and_LAfit_online_trkl.root","RECREATE");
+    outputfile = new TFile("./TRD_Calib_vDfit_and_LAfit_online_trkl_new_withpre.root","RECREATE");
 
 
 
@@ -911,13 +971,13 @@ Int_t GUI_Sim_drift::Do_Minimize_Single()
 
     TVirtualFitter *min = TVirtualFitter::Fitter(0,2);
     min->SetFCN(Chi2_TRD_vDrift);
-    //Double_t pStart[2] = {-7.5*TMath::DegToRad(),1.0}; // B-field, E-field, v_drift, vD_drift (1.7 instead of 1.56)
+    Double_t pStart[2] = {-7.5*TMath::DegToRad(),1.0}; // B-field, E-field, v_drift, vD_drift (1.7 instead of 1.56)
     //Double_t pStart[5] = {B_field,HV_drift_in/l_drift,v_drift_in,1.56,0.134}; // B-field, E-field, v_drift, vD_drift (1.7 instead of 1.56)
     //Double_t pStart[4] = {B_field,HV_drift_in/l_drift,1.48,1.56}; // B-field, E-field, v_drift, vD_drift (1.7 instead of 1.56)
-    Double_t pStart[2] = {0.0,1.0}; //LA_diff, vD_ratio
+    //Double_t pStart[2] = {0.0,1.0}; //LA_diff, vD_ratio
     // 73: 1.48  after fit: 1.269
 
-    min->SetParameter(0,"LA_diff",pStart[0],0.01,0,0);
+    min->SetParameter(0,"LA",pStart[0],0.01,0,0);
     min->SetParameter(1,"Ratio",pStart[1],0.01,0,0);
 
     //min->SetParameter(0,"B_field",pStart[0],0.01,0,0);
@@ -947,7 +1007,7 @@ Int_t GUI_Sim_drift::Do_Minimize_Single()
     //E_fit  = parFit[1];
     //LA_factor_fit = parFit[4];
 
-    LA_diff_fit  = parFit[0];
+    LA_fit  = parFit[0];
     vD_ratio_fit = parFit[1];
 
 
@@ -961,7 +1021,7 @@ Int_t GUI_Sim_drift::Do_Minimize_Single()
 
     else v_fit = -1.0;
 
-    LA_fit = LA_diff_fit - 0.16133;
+    //LA_fit = LA_diff_fit - 0.16133;
 
     printf("LA_fit: %4.3f, vD_ratio_fit: %4.3f \n",LA_fit*TMath::RadToDeg(),vD_ratio_fit);
 
@@ -1103,10 +1163,10 @@ Int_t GUI_Sim_drift::Do_Minimize()
             TVirtualFitter *min = TVirtualFitter::Fitter(0,2);
             min->SetFCN(Chi2_TRD_vDrift);
             //Double_t pStart[5] = {B_field,HV_drift_in/l_drift,v_drift_in,1.56,0.134}; // B-field, E-field, v_drift, vD_drift (1.7 insread of 1.56)
-            Double_t pStart[2] = {0.0,1.0};
+            Double_t pStart[2] = {-7.5*TMath::DegToRad(),1.0};
             //Double_t pStart[4] = {B_field,HV_drift_in/l_drift,v_drift_in-0.1,1.56}; // B-field, E-field, v_drift, vD_drift (1.7 insread of 1.56)
 
-            min->SetParameter(0,"LA_diff",pStart[0],0.01,0,0);
+            min->SetParameter(0,"LA",pStart[0],0.01,0,0);
             min->SetParameter(1,"Ratio",pStart[1],0.01,0,0);
 
             //min->SetParameter(0,"B_field",pStart[0],0.01,0,0);
@@ -1154,10 +1214,10 @@ Int_t GUI_Sim_drift::Do_Minimize()
             //E_fit                              = parFit[1];
             //vec_LA_factor_fit[i_detector]      = parFit[4];
 
-            vec_LA_diff_fit[i_detector]  = parFit[0];
+            vec_LA_fit[i_detector]  = parFit[0];
             vec_vD_ratio_fit[i_detector] = parFit[1];
 
-            printf("det: %d, LA_fit: %4.3f, vD_ratio: %4.3f \n",i_detector,vec_LA_diff_fit[i_detector]*TMath::RadToDeg(),vec_vD_ratio_fit[i_detector]);
+            printf("det: %d, LA_fit: %4.3f, vD_ratio: %4.3f \n",i_detector,vec_LA_fit[i_detector]*TMath::RadToDeg(),vec_vD_ratio_fit[i_detector]);
 
             //printf("v_drift: %4.3f, vD_drift: %4.3f, E_field: %4.3f, LA_factor: %4.3f \n",parFit[2],parFit[3],parFit[1],parFit[4]);
             //-------------------------------------------------
@@ -1181,7 +1241,7 @@ Int_t GUI_Sim_drift::Do_Minimize()
             }
             else vec_v_fit[i_detector] = -1.0;
 
-            vec_LA_fit[i_detector] = vec_LA_diff_fit[i_detector] - 0.16133;
+            //vec_LA_fit[i_detector] = vec_LA_diff_fit[i_detector] - 0.16133;
 
             tg_v_fit_vs_det          ->SetPoint(i_point,i_detector,vec_v_fit[i_detector]);
             ///tg_vD_fit_vs_det         ->SetPoint(i_point,i_detector,vec_vD_fit[i_detector]);
@@ -1365,15 +1425,16 @@ Int_t GUI_Sim_drift::Draw_data()
         LA_factor   = LA_slider;
     }
 
-    Double_t LA_diff_use = 0.0;
+    Double_t LA_use = 0.0;
     Double_t vD_ratio_use = 0.0;
+    Double_t Lorentz_angle_pre_corr =  -0.16133;
 
     printf("test 2 \n");
 
     if(fCheckBox_sel[1]->GetState() == kButtonDown) // fit
     {
         printf("Use fit data \n");
-        LA_diff_use  = LA_diff_fit;
+        LA_use  = LA_fit;
         vD_ratio_use = vD_ratio_fit;
         //v_drift_use = v_fit;
         //vD_use      = vD_fit;
@@ -1383,7 +1444,7 @@ Int_t GUI_Sim_drift::Draw_data()
 
     printf("test 3 \n");
 
-    TGraph* tg_Delta_alpha_fit = calc_Delta_alpha(LA_diff_use,vD_ratio_use);
+    TGraph* tg_Delta_alpha_fit = calc_Delta_alpha(LA_use,vD_ratio_use,Lorentz_angle_pre_corr);
     printf("test 4 \n");
     /*
     //------------------------------------------------------------------------
