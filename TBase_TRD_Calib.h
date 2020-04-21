@@ -163,9 +163,29 @@ private:
     TEveLine* y_BeamLine;
 
     Int_t Not_installed_TRD_detectors[19] = {402,403,404,405,406,407,432,433,434,435,436,437,462,463,464,465,466,467,538};
-    Int_t Defect_TRD_detectors[84]        = {2,5,17,24,26,30,31,32,36,40,41,43,49,50,59,62,64,78,88,92,93,107,110,111,113,116,119,131,161,
-    165,182,184,188,190,191,215,219,221,223,226,227,233,236,239,241,249,255,265,277,287,302,308,310,311,318,319,320,326,328,335,348,354,368,377,380,
-    386,389,452,455,456,470,474,476,483,484,485,490,491,493,494,500,502,504,506};
+
+    // list from Yvonne
+    // Int_t Defect_TRD_detectors[84]        = {2,5,17,24,26,30,31,32,36,40,41,43,49,50,59,62,64,78,88,92,93,107,110,111,113,116,119,131,161,
+    // 165,182,184,188,190,191,215,219,221,223,226,227,233,236,239,241,249,255,265,277,287,302,308,310,311,318,319,320,326,328,335,348,354,368,377,380,
+    // 386,389,452,455,456,470,474,476,483,484,485,490,491,493,494,500,502,504,506};
+
+    // from Jason's QC (cut max adc [2,3] > 40)
+    // bad adc only
+    // Int_t Defect_TRD_detectors[148] = {2, 15, 17, 27, 31, 32, 36, 40, 43, 47, 49, 50, 51, 55, 59, 64, 88, 92, 116, 119, 123, 125, 129,
+    // 130, 131, 132, 136, 137, 140, 141, 142, 143, 144, 146, 148, 149, 150, 156, 157, 159, 162, 163, 164, 169, 171, 175, 180, 181, 190,
+    // 191, 194, 207, 213, 219, 221, 226, 228, 230, 231, 236, 238, 241, 245, 249, 255, 277, 302, 304, 305, 308, 309, 310, 311, 317, 318,
+    // 319, 320, 323, 326, 328, 335, 348, 365, 368, 371, 377, 386, 389, 391, 395, 397, 400, 401, 402, 403, 404, 405, 406, 407, 413, 417,
+    // 419, 425, 427, 429, 430, 431, 432, 433, 434, 435, 436, 437, 438, 439, 442, 443, 445, 447, 448, 449, 452, 455, 456, 461, 462, 463,
+    // 464, 465, 466, 467, 470, 482, 483, 484, 485, 490, 491, 493, 497, 500, 502, 504, 526, 533, 536, 537, 538};
+
+    // bad adc and bad hv
+    Int_t Defect_TRD_detectors[167] = {2, 5, 8, 12, 15, 17, 26, 27, 29, 30, 31, 32, 36, 40, 43, 47, 49, 50, 51, 55, 59, 64, 88, 92, 113, 116, 119, 123, 125, 129, 130,
+    131, 132, 136, 137, 140, 141, 142, 143, 144, 146, 148, 149, 150, 156, 157, 159, 162, 163, 164, 169, 171, 175, 180, 181, 190, 191,
+    194, 197, 207, 213, 214, 215, 219, 220, 221, 226, 227, 228, 230, 231, 232, 233, 236, 238, 241, 245, 249, 255, 265, 274, 277, 287,
+    302, 304, 305, 308, 309, 310, 311, 317, 318, 319, 320, 323, 326, 328, 335, 348, 365, 368, 371, 377, 386, 389, 391, 395, 397, 400,
+    401, 402, 403, 404, 405, 406, 407, 413, 417, 419, 425, 427, 429, 430, 431, 432, 433, 434, 435, 436, 437, 438, 439, 442, 443, 445,
+    447, 448, 449, 452, 455, 456, 461, 462, 463, 464, 465, 466, 467, 470, 476, 482, 483, 484, 485, 490, 491, 493, 497, 500, 502, 504,
+    520, 526, 533, 536, 537, 538};
 
     Double_t max_dca_z_to_track = 8.0; // in cm
     Double_t max_dca_r_to_track = 1.0; // in cm
@@ -1696,19 +1716,6 @@ Int_t TBase_TRD_Calib::select_online_tracklets()
                 draw_corrected_online_det_numbers[TRD_layer] = i_det_tracklet;
                 tv3_dirs_online[TRD_layer][0] = TV3_dir[0];
                 tv3_dirs_online[TRD_layer][1] = TV3_dir[1];
-
-
-                
-
-
-
-
-
-
-
-
-
-
 
                 // for (int iter = 0; iter <=6; iter++){
                 //     cout << draw_corrected_online_det_numbers[iter] << endl;
@@ -3881,13 +3888,13 @@ void TBase_TRD_Calib::Draw_online_tracklets()
 void TBase_TRD_Calib::Draw_corrected_online_tracklets()
 {
     // printf("TBase_TRD_Calib::Draw_online_tracklets() \n");
+
     // TFile* calibration_params = TFile::Open("./TRD_Calib_vDfit_and_LAfit_online_trkl_new.root");
-    //TRD_Calib_vDfit_and_LAfit_online_trkl(no_LA_diff)
-    TFile* calibration_params = TFile::Open("./TRD_Calib_vDfit_and_LAfit_online_trkl_new_withpre.root");
+    // TFile* calibration_params = TFile::Open("./TRD_Calib_vDfit_and_LAfit_online_trkl_new_withpre.root");
+    TFile* calibration_params = TFile::Open("./TRD_Calib_vDfit_and_LAfit_trkl_morestat.root");
     vdrift_fit = (TGraph*)calibration_params->Get(";1");
     LA_fit = (TGraph*)calibration_params->Get(";2");
 
-    
     vec_TPL_online_tracklets_selected_corrected.clear();
     vec_TPL_online_tracklets_selected_corrected.resize(6);
 
@@ -3901,8 +3908,14 @@ void TBase_TRD_Calib::Draw_corrected_online_tracklets()
         {
             //extract LA and drift v parameters for detector from root file
             Int_t detector = draw_corrected_online_det_numbers[i_layer];
-            Double_t det_LA = LA_fit->Eval(detector);
+            Double_t det_LA = LA_fit->Eval(detector);           //Eval needs to be replaced
             Double_t det_vdrift = vdrift_fit->Eval(detector);
+
+            bool is_defective = find(begin(Defect_TRD_detectors), end(Defect_TRD_detectors), detector) != end(Defect_TRD_detectors);
+            if (is_defective){
+                cout << endl << "detector " << detector << " is broken - skipping" << endl;
+                continue;
+            }
 
             //calculate impact angle (used for debugging)
             delta_x_local_global_circle[i_layer] = vec_dir_vec_circle[i_layer].Dot(vec_TV3_TRD_center[arr_layer_detector[i_layer]][0]);
@@ -3943,19 +3956,19 @@ void TBase_TRD_Calib::Draw_corrected_online_tracklets()
             //method 1
             det_LA = det_LA;
 
-            TVector3 x_vec(1,0,0);
-            TVector3 center = vec_TV3_TRD_center[detector][0];
-            center[0] = -center[0];
-            center[1] = -center[1];
+            // TVector3 x_vec(1,0,0);
+            // TVector3 center = vec_TV3_TRD_center[detector][0];
+            // center[0] = -center[0];
+            // center[1] = -center[1];
 
-            for (int i=0; i<3; i++){
-                cout << center[i] << endl;
-            }
+            // for (int i=0; i<3; i++){
+            //     cout << center[i] << endl;
+            // }
 
             cout << "detector: " << detector << " | " << "sector number: " << sector << \
                 " | " << "global rotation: " << global_rotation*TMath::RadToDeg() << endl;
 
-            cout << center.Angle(x_vec)*TMath::RadToDeg() << endl;
+            // cout << center.Angle(x_vec)*TMath::RadToDeg() << endl;
             // cout << global_rotation << endl; 
 
             Double_t x_dir_local = x_dir*cos(global_rotation) - y_dir*sin(global_rotation);
