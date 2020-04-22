@@ -3954,7 +3954,7 @@ void TBase_TRD_Calib::Draw_corrected_online_tracklets()
             cout << endl;
 
             //method 1
-            det_LA = det_LA;
+            // det_LA = -det_LA;
 
             // TVector3 x_vec(1,0,0);
             // TVector3 center = vec_TV3_TRD_center[detector][0];
@@ -3967,6 +3967,9 @@ void TBase_TRD_Calib::Draw_corrected_online_tracklets()
 
             cout << "detector: " << detector << " | " << "sector number: " << sector << \
                 " | " << "global rotation: " << global_rotation*TMath::RadToDeg() << endl;
+
+            cout << "LA = " << det_LA*TMath::RadToDeg() << " | " << "driftv = " << det_vdrift << endl;
+
 
             // cout << center.Angle(x_vec)*TMath::RadToDeg() << endl;
             // cout << global_rotation << endl; 
@@ -3989,10 +3992,20 @@ void TBase_TRD_Calib::Draw_corrected_online_tracklets()
             Double_t x_anode_hit = TRD_anode_plane*drift_vel_ratio/slope;
             Double_t y_anode_hit = TRD_anode_plane*drift_vel_ratio;
 
+            cout << "(x,y) anode hit: " << x_anode_hit << "  " << y_anode_hit << endl;
+
             //with pre corr.
-            Double_t x_Lorentz_drift_hit = TMath::Tan(pre_corr)*TRD_anode_plane*drift_vel_ratio + \
-                TMath::Tan(det_LA)*TRD_anode_plane;
-            Double_t y_Lorentz_drift_hit = TRD_anode_plane - TRD_anode_plane*drift_vel_ratio;
+            // Double_t x_Lorentz_drift_hit = TMath::Tan(pre_corr)*TRD_anode_plane*drift_vel_ratio - \
+            //     TMath::Tan(det_LA)*TRD_anode_plane;
+            // Double_t y_Lorentz_drift_hit = TRD_anode_plane - TRD_anode_plane*drift_vel_ratio;
+
+            Double_t x_Lorentz_drift_hit = TMath::Tan(pre_corr)*TRD_anode_plane*drift_vel_ratio - \
+            TMath::Tan(det_LA)*TRD_anode_plane;
+            Double_t y_Lorentz_drift_hit = TRD_anode_plane*drift_vel_ratio - TRD_anode_plane;
+
+
+            cout << "(x,y) lorentz drift: " << x_Lorentz_drift_hit << "  " << y_Lorentz_drift_hit << endl;
+
 
             //without pre corr.
             // Double_t x_Lorentz_drift_hit = x_anode_hit - (TRD_anode_plane*drift_vel_ratio/slope);
