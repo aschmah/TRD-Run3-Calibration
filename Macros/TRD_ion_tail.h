@@ -10,7 +10,7 @@ static const Double_t TRD_drift_stop  = 0.03;
 static const Double_t TRD_anode_plane = 0.0335;
 static const Double_t TRD_ampl_stop   = 0.037;
 static const Int_t    N_clusters      = 100;
-static const Double_t step_clusters   = 0.00156; // cm
+static const Double_t step_clusters   = 0.00125; // cm
 
 static vector< vector<Double_t> > vec_pad_pos;
 static vector< vector<Double_t> > vec_cluster_pos;
@@ -237,6 +237,10 @@ TLine* PlotLine(Double_t x1_val, Double_t x2_val, Double_t y1_val, Double_t y2_v
 }
 //----------------------------------------------------------------------------------------
 
+
+
+//----------------------------------------------------------------------------------------
+// Calculates integral of graph between x_start and x_stop
 Double_t calc_integral(TGraph *g, Double_t x_start, Double_t x_stop)
 {
      Double_t area = 0.0;
@@ -273,6 +277,9 @@ Double_t calc_integral(TGraph *g, Double_t x_start, Double_t x_stop)
      
      return area;
 }
+//----------------------------------------------------------------------------------------
+
+
 
 //----------------------------------------------------------------------------------------
 void Draw_TRD_detector_2D()
@@ -320,6 +327,7 @@ void Draw_TRD_detector_2D()
     box_amp->Draw("same");
 
     Double_t pad_pos = -x_range;
+    Int_t i_pad = 0;
     while(pad_pos < x_range)
     {
         TBox* box_pad = new TBox(pad_pos+0.0003,TRD_ampl_stop,pad_pos+pad_width-0.0003,TRD_ampl_stop+0.001);
@@ -332,6 +340,9 @@ void Draw_TRD_detector_2D()
         vec_pad_pos.push_back(vec_start_stop);
 
         pad_pos += pad_width;
+
+        printf("i_pad: %d, pos: {%4.5f, %4.5f} \n",i_pad,vec_start_stop[0],vec_start_stop[1]);
+        i_pad++;
     }
 
     h2D_ADC_xy = new TH2D("h2D_ADC_xy","h2D_ADC_xy",(Int_t)vec_pad_pos.size(),vec_pad_pos[0][0],vec_pad_pos[(Int_t)vec_pad_pos.size()-1][1],24,0.0,0.03);
@@ -353,6 +364,8 @@ TVector2* Create_TRD_track(Double_t impact_angle, Double_t Lorentz_angle, Double
     Double_t y_dir = TMath::Sin(impact_angle);
     Double_t slope = 1.0;
     if(x_dir != 0.0) slope = y_dir/x_dir;
+    x_dir /= y_dir;
+    y_dir /= y_dir;
 
     Double_t Lorentz_tan   = TMath::Tan(Lorentz_angle);
     Double_t Lorentz_slope = 1.0;
@@ -367,7 +380,7 @@ TVector2* Create_TRD_track(Double_t impact_angle, Double_t Lorentz_angle, Double
     for(Int_t i_cluster = 0; i_cluster < N_clusters; i_cluster++)
     {
         Double_t x_val = x_dir*step_clusters*i_cluster;
-        Double_t y_val = TRD_drift_start + y_dir*step_clusters*i_cluster;
+        Double_t y_val = 0.5*step_clusters + TRD_drift_start + y_dir*step_clusters*i_cluster;
 
         if(y_val > TRD_ampl_stop) break;
         TPM_trd_track_clusters ->SetNextPoint(x_val,y_val);
@@ -440,6 +453,7 @@ Int_t Find_pad_index(Double_t x_pos, Double_t &rel_pos_center)
         {
             Double_t center_pos = (pad_start + pad_stop)/2.0;
             rel_pos_center = (x_pos - center_pos)/pad_width;
+            //printf("x_pos: %4.5f, center_pos: %4.5f, rel_pos_center: %4.5f \n",x_pos,center_pos,rel_pos_center);
             return i_pad;
         }
     }
@@ -464,19 +478,20 @@ void Make_ion_tail_convolution()
         Double_t x_pos = vec_cluster_pos[i_cluster][0];
         Double_t y_pos = vec_cluster_pos[i_cluster][1];
 
-        cout << "cluster xy: " << x_pos << "  " << y_pos << endl;
+        if(y_pos > TRD_drift_stop) break;
 
         Double_t rel_pos_center = 0.0;
         Double_t rel_pos_x_start = 0.0;
         Double_t rel_pos_x_stop = 0.0;
 
         Int_t i_pad = Find_pad_index(x_pos,rel_pos_center);
-        printf("i_cluster: %d, pos: {%4.5f, %4.5f}, i_pad: %d, rel_pos_center: %4.5f \n \n",i_cluster,x_pos,y_pos,i_pad,rel_pos_center);
+        printf(" \n");
+        printf("i_cluster: %d, pos: {%4.5f, %4.5f}, i_pad: %d, rel_pos_center: %4.5f \n",i_cluster,x_pos,y_pos,i_pad,rel_pos_center);
 
         for(Int_t i_ion_tail = i_cluster; i_ion_tail >= 0.0; i_ion_tail--)
         {
             Double_t i_time       = i_ion_tail*0.1; // in mus
-            Double_t y_pos_charge = y_pos - i_time*1.56*0.01; // 1.56 cm/mus, one time bin = 0.1 mus
+            Double_t y_pos_charge = y_pos - i_time*1.25*0.01; // 1.56 cm/mus, one time bin = 0.1 mus
 
             cout << "time, ypos charge: " << i_time << "  " << y_pos_charge << endl;
 
@@ -485,12 +500,16 @@ void Make_ion_tail_convolution()
             {
                 Double_t x_pos_charge = x_pos + i_charge_share*pad_width;
                 Double_t rel_pos_center_offset = (Double_t)i_charge_share; // in pad units
-                Double_t rel_pos_center_pad_response = rel_pos_center + rel_pos_center_offset;
+                Double_t rel_pos_center_pad_response = rel_pos_center;
 
                 //printf("x_pos: %4.3f, x_pos_charge: %4.3f, rel_pos_center_offset: %4.3f, rel_pos_center_pad_response: %4.3f \n",x_pos,x_pos_charge,rel_pos_center_offset,rel_pos_center_pad_response);
                 //printf("vec_pad_pos[Find_pad_index(x_pos_charge,rel_pos_x_start)][0]: %4.3f, vec_pad_pos[Find_pad_index(x_pos_charge,rel_pos_x_start)][1]: %4.3f \n",vec_pad_pos[Find_pad_index(x_pos_charge,rel_pos_x_start)][0],vec_pad_pos[Find_pad_index(x_pos_charge,rel_pos_x_start)][1]);
-                prf = calc_integral(tg_pad_response, floor(rel_pos_center_pad_response),ceil(rel_pos_center_pad_response));
-                trf = calc_integral(tg_time_response,0.3 + i_time - 0.01, 0.3 + i_time);
+                trf = calc_integral(tg_time_response,0.3 + i_time - 0.05, 0.3 + i_time + 0.05);
+                //prf = calc_integral(tg_pad_response, floor(rel_pos_center_pad_response),ceil(rel_pos_center_pad_response));
+
+                Double_t low_int_prf = (-0.5 + rel_pos_center_offset) - rel_pos_center_pad_response;
+                Double_t up_int_prf  = (0.5  + rel_pos_center_offset) - rel_pos_center_pad_response;
+                prf = calc_integral(tg_pad_response,low_int_prf,up_int_prf);
 
                 //printf("tg_pad_response->Eval(rel_pos_center_pad_response): %4.3f \n",tg_pad_response->Eval(rel_pos_center_pad_response));
                 //Double_t ADC          = tg_time_response ->Eval(0.3 + i_time)*tg_pad_response->Eval(rel_pos_center_pad_response);
@@ -501,6 +520,8 @@ void Make_ion_tail_convolution()
                 // printf("   i_charge_share: %d, i_ion_tail: %d, i_time: %4.3f, y_pos_charge: %4.5f, ADC: %4.3f \n",i_charge_share,i_ion_tail,i_time,y_pos_charge,ADC);
 
                 h2D_ADC_xy ->Fill(x_pos_charge,y_pos_charge,ADC);
+
+                printf("   - i_charge_share: %d, x_pos_charge: %4.3f, rel_pos_center: %4.3f, rel_pos_center_pad_response: %4.3f, low_int_prf: %4.3f, up_int_prf: %4.3f, prf: %4.3f, trf: %4.3f, ADC: %4.3f \n",i_charge_share,x_pos_charge,rel_pos_center,rel_pos_center_pad_response,low_int_prf,up_int_prf,prf,trf,ADC);
             }
         }
     }
@@ -565,8 +586,8 @@ void Reconstruct_tracklet()
     }
 
     tg_rec_cluster ->SetMarkerSize(0.8);
-    tg_rec_cluster ->SetMarkerStyle(24);
-    tg_rec_cluster ->SetMarkerColor(kGreen);
+    tg_rec_cluster ->SetMarkerStyle(20);
+    tg_rec_cluster ->SetMarkerColor(kGreen+2);
     tg_rec_cluster ->Draw("same p");
 }
 //----------------------------------------------------------------------------------------
