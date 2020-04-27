@@ -12,6 +12,12 @@ static const Double_t TRD_ampl_stop   = 0.037;
 static const Int_t    N_clusters      = 100;
 static const Double_t step_clusters   = 0.00125; // cm
 
+vector<Double_t> recon_points;
+vector<Double_t> primary_points;
+
+TLinearFitter *lf_recon = new TLinearFitter(2);
+TLinearFitter *lf_primary = new TLinearFitter(2);
+
 static vector< vector<Double_t> > vec_pad_pos;
 static vector< vector<Double_t> > vec_cluster_pos;
 
@@ -355,6 +361,7 @@ void Draw_TRD_detector_2D()
 TVector2* Create_TRD_track(Double_t impact_angle, Double_t Lorentz_angle, Double_t drift_vel_ratio, Double_t Lorentz_angle_pre_corr)
 {
     // Lorentz_angle_pre_corr: The Lorentz angle pre correction which was applied for the data used for calibration
+    lf_primary->SetFormula("x ++ 1");
 
     vec_cluster_pos.clear();
     vector<Double_t> vec_pos;
@@ -382,12 +389,21 @@ TVector2* Create_TRD_track(Double_t impact_angle, Double_t Lorentz_angle, Double
         Double_t x_val = x_dir*step_clusters*i_cluster;
         Double_t y_val = 0.5*step_clusters + TRD_drift_start + y_dir*step_clusters*i_cluster;
 
+        //Lorentz angle correction
+
+        Double_t shift = TMath::Tan(Lorentz_angle)*(0.03 - y_val);
+        x_val += shift;
+
+        lf_primary->AddPoint(&x_val,y_val);
+
         if(y_val > TRD_ampl_stop) break;
         TPM_trd_track_clusters ->SetNextPoint(x_val,y_val);
 
         //printf("i_cluster: %d, step_clusters: %4.3f, y_dir*step_clusters*i_cluster: %4.3f, x_val: %4.3f, y_val: %4.3f \n \n",i_cluster,step_clusters,y_dir*step_clusters*i_cluster,x_val,y_val);
         vec_pos[0] = x_val;
         vec_pos[1] = y_val;
+
+        
 
         vec_cluster_pos.push_back(vec_pos);
     }
@@ -485,15 +501,13 @@ void Make_ion_tail_convolution()
         Double_t rel_pos_x_stop = 0.0;
 
         Int_t i_pad = Find_pad_index(x_pos,rel_pos_center);
-        printf(" \n");
-        printf("i_cluster: %d, pos: {%4.5f, %4.5f}, i_pad: %d, rel_pos_center: %4.5f \n",i_cluster,x_pos,y_pos,i_pad,rel_pos_center);
+        // printf(" \n");
+        // printf("i_cluster: %d, pos: {%4.5f, %4.5f}, i_pad: %d, rel_pos_center: %4.5f \n",i_cluster,x_pos,y_pos,i_pad,rel_pos_center);
 
         for(Int_t i_ion_tail = i_cluster; i_ion_tail >= 0.0; i_ion_tail--)
         {
             Double_t i_time       = i_ion_tail*0.1; // in mus
             Double_t y_pos_charge = y_pos - i_time*1.25*0.01; // 1.56 cm/mus, one time bin = 0.1 mus
-
-            cout << "time, ypos charge: " << i_time << "  " << y_pos_charge << endl;
 
 
             for(Int_t i_charge_share = -2; i_charge_share <= 2; i_charge_share++) // two pads on the left and right for charge sharing
@@ -516,12 +530,19 @@ void Make_ion_tail_convolution()
                 //Double_t ADC          = tg_time_response ->Eval(0.3 + i_time)*prf;
 
                 Double_t ADC = trf*prf;
+
+                //compensate for aplification region effect
+                //I think this is correct?
+                if (i_cluster >= 21)
+                {
+                    ADC *= 2;
+                }
                 
                 // printf("   i_charge_share: %d, i_ion_tail: %d, i_time: %4.3f, y_pos_charge: %4.5f, ADC: %4.3f \n",i_charge_share,i_ion_tail,i_time,y_pos_charge,ADC);
 
                 h2D_ADC_xy ->Fill(x_pos_charge,y_pos_charge,ADC);
 
-                printf("   - i_charge_share: %d, x_pos_charge: %4.3f, rel_pos_center: %4.3f, rel_pos_center_pad_response: %4.3f, low_int_prf: %4.3f, up_int_prf: %4.3f, prf: %4.3f, trf: %4.3f, ADC: %4.3f \n",i_charge_share,x_pos_charge,rel_pos_center,rel_pos_center_pad_response,low_int_prf,up_int_prf,prf,trf,ADC);
+                // printf("   - i_charge_share: %d, x_pos_charge: %4.3f, rel_pos_center: %4.3f, rel_pos_center_pad_response: %4.3f, low_int_prf: %4.3f, up_int_prf: %4.3f, prf: %4.3f, trf: %4.3f, ADC: %4.3f \n",i_charge_share,x_pos_charge,rel_pos_center,rel_pos_center_pad_response,low_int_prf,up_int_prf,prf,trf,ADC);
             }
         }
     }
@@ -556,9 +577,11 @@ void Make_ion_tail_convolution()
 
 
 //----------------------------------------------------------------------------------------
-void Reconstruct_tracklet()
+void Reconstruct_tracklet(Double_t Lorentz_angle)
 {
     printf("Reconstruct_tracklet \n");
+
+    lf_recon->SetFormula("x ++ 1");
 
     tg_rec_cluster ->Clear();
 
@@ -583,6 +606,7 @@ void Reconstruct_tracklet()
         else x_pos_weighted = -999.0;
 
         tg_rec_cluster ->SetPoint(i_biny - 1,x_pos_weighted,y_pos);
+        lf_recon->AddPoint(&x_pos_weighted, y_pos);
     }
 
     tg_rec_cluster ->SetMarkerSize(0.8);
@@ -593,3 +617,37 @@ void Reconstruct_tracklet()
 //----------------------------------------------------------------------------------------
 
 
+
+//----------------------------------------------------------------------------------------
+void straight_line_fits()
+{
+    lf_recon->Eval();
+    lf_primary->Eval();
+
+    Double_t parFit_recon[2];
+    for(int i = 0; i < 2; ++i)
+    {
+        parFit_recon[i] = lf_recon->GetParameter(i);
+        cout <<  "recon line: " << parFit_recon[i] << endl;
+    }
+
+    Double_t parFit_primary[2];
+    for(int i = 0; i < 2; ++i)
+    {
+        parFit_primary[i] = lf_primary->GetParameter(i);
+        cout << "primary line: " << parFit_primary[i] << endl;
+    }
+
+    // range [0, 0.01]
+    for(int i = 0; i < 100; ++i)
+    {
+        Double_t x = 0.01/100 * i;
+        Double_t y_recon = parFit_recon[0]*x + parFit_recon[1];
+        Double_t y_primary = parFit_primary[0]*x + parFit_primary[1];
+        // cout << "x val: " << x << endl;
+        // cout << "y vals: " << y_recon << "    " << y_primary << endl;
+
+        cout << "ratio at x = " << x << ": " << y_recon/y_primary << endl;
+    } 
+}
+//----------------------------------------------------------------------------------------
