@@ -639,15 +639,22 @@ void straight_line_fits()
     }
 
     // range [0, 0.01]
-    for(int i = 0; i < 100; ++i)
+    for(int i = 0; i < 1000; ++i)
     {
-        Double_t x = 0.01/100 * i;
+        Double_t x = 0.011/1000 * i;
         Double_t y_recon = parFit_recon[0]*x + parFit_recon[1];
         Double_t y_primary = parFit_primary[0]*x + parFit_primary[1];
         // cout << "x val: " << x << endl;
         // cout << "y vals: " << y_recon << "    " << y_primary << endl;
 
-        cout << "ratio at x = " << x << ": " << y_recon/y_primary << endl;
+        // cout << "ratio at x = " << x << ": " << (0.03 - y_recon)/(0.03 - y_primary) << endl;
     } 
+
+    Double_t x = -parFit_primary[1]/parFit_primary[0];
+    cout << "first cluster ratio: " << (0.03 - (parFit_recon[0]*x + parFit_recon[1]))/(0.03) << endl;
+
+    x = -parFit_recon[1]/parFit_recon[0];
+    cout << "first cluster ratio (upwards): " << 0.03/(0.03 - (parFit_primary[0]*x + parFit_primary[1])) << endl;
+
 }
 //----------------------------------------------------------------------------------------
