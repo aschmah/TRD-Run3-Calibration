@@ -692,26 +692,44 @@ void straight_line_fits(Double_t impact_angle)
 
 
 
+    Double_t x_diff_recon = (TRD_anode_plane - parFit_recon[1]) / parFit_recon[0];
+    Double_t y_diff_recon = TRD_anode_plane - parFit_recon[1];
+
+    Double_t x_diff_prim = (TRD_anode_plane - parFit_primary[1]) / parFit_primary[0];
+    Double_t y_diff_prim = TRD_anode_plane - parFit_primary[1];
+
+    Double_t angle_recon = TMath::ATan2(y_diff_recon, x_diff_recon);
+    Double_t angle_prim = TMath::ATan2(y_diff_prim, x_diff_prim);
+
+    cout << "angles: " << angle_recon*TMath::RadToDeg() << "  " << angle_prim*TMath::RadToDeg() << \
+        "    " << impact_angle*TMath::RadToDeg() << endl;
+
+
+
     Double_t impact_angle_rec   = 180*TMath::DegToRad()-TMath::ATan2(Delta_y,Delta_x);
     Double_t impact_angle_noIT   = 180*TMath::DegToRad()-TMath::ATan2(Delta_y,Delta_x_noIT);
 
 
     printf("Delta_x: %4.3f, impact_angle_rec: %4.3f \n",Delta_x*TMath::RadToDeg(),impact_angle_rec*TMath::RadToDeg());
 
-    Double_t x_dir = TMath::Cos(impact_angle);
-    Double_t y_dir = TMath::Sin(impact_angle);
-    Double_t slope = 1.0;
-    if(x_dir != 0.0) slope = y_dir/x_dir;
-    x_dir /= y_dir;
-    y_dir /= y_dir;
+    // Double_t x_dir = TMath::Cos(impact_angle);
+    // Double_t y_dir = TMath::Sin(impact_angle);
+    // Double_t slope = 1.0;
+    // if(x_dir != 0.0) slope = y_dir/x_dir;
+    // x_dir /= y_dir;
+    // y_dir /= y_dir;
 
-    Double_t x_anode_hit = TRD_anode_plane/slope;
-    Double_t y_anode_hit = TRD_anode_plane;
+    // Double_t x_anode_hit = TRD_anode_plane/slope;
+    // Double_t y_anode_hit = TRD_anode_plane;
 
-    Double_t impact_angle_track = TMath::ATan2(y_anode_hit,x_anode_hit);
+    // Double_t impact_angle_track = TMath::ATan2(y_anode_hit,x_anode_hit);
+
+    Double_t impact_angle_track = impact_angle;
 
 
-    Double_t Delta_angle = -(impact_angle_track - impact_angle_rec);  //??
+    // Double_t Delta_angle = -(impact_angle_track - impact_angle_rec);  //??
+    Double_t Delta_angle = -(impact_angle - angle_recon);
+
 
     printf("impact_angle_track: %4.3f, delta_angle: %4.3f \n",impact_angle_track*TMath::RadToDeg(),Delta_angle*TMath::RadToDeg());
 
