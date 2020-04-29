@@ -650,33 +650,37 @@ void straight_line_fits(Double_t impact_angle)
     for(int i = 0; i < 2; ++i)
     {
         parFit_recon[i] = lf_recon->GetParameter(i);
-        cout <<  "recon line: " << parFit_recon[i] << endl;
+        // cout <<  "recon line: " << parFit_recon[i] << endl;
     }
 
     Double_t parFit_primary[2];
     for(int i = 0; i < 2; ++i)
     {
         parFit_primary[i] = lf_primary->GetParameter(i);
-        cout << "primary line: " << parFit_primary[i] << endl;
+        // cout << "primary line: " << parFit_primary[i] << endl;
     }
 
     // range [0, 0.01]
-    for(int i = 0; i < 100; ++i)
-    {
-        Double_t x = -0.02/100 * i;
-        Double_t y_recon = parFit_recon[0]*x + parFit_recon[1];
-        Double_t y_primary = parFit_primary[0]*x + parFit_primary[1];
-         cout << "x val: " << x << endl;
-         cout << "y vals: " << y_recon << "    " << y_primary << endl;
+    // for(int i = 0; i < 100; ++i)
+    // {
+    //     Double_t x = -0.02/100 * i;
+    //     Double_t y_recon = parFit_recon[0]*x + parFit_recon[1];
+    //     Double_t y_primary = parFit_primary[0]*x + parFit_primary[1];
+    //      cout << "x val: " << x << endl;
+    //      cout << "y vals: " << y_recon << "    " << y_primary << endl;
 
-        // cout << "ratio at x = " << x << ": " << (0.03 - y_recon)/(0.03 - y_primary) << endl;
-    } 
+    //     // cout << "ratio at x = " << x << ": " << (0.03 - y_recon)/(0.03 - y_primary) << endl;
+    // } 
 
-    Double_t x = -parFit_primary[1]/parFit_primary[0];
-    cout << "first cluster ratio: " << (0.03 - (parFit_recon[0]*x + parFit_recon[1]))/(0.03) << endl;
+    // Double_t x = -parFit_primary[1]/parFit_primary[0];
+    // cout << "first cluster ratio: " << (0.03 - (parFit_recon[0]*x + parFit_recon[1]))/(0.03) << endl;
 
-    x = -parFit_recon[1]/parFit_recon[0];
-    cout << "first cluster ratio (upwards): " << 0.03/(0.03 - (parFit_primary[0]*x + parFit_primary[1])) << endl;
+    // x = -parFit_recon[1]/parFit_recon[0];
+    // cout << "first cluster ratio (upwards): " << 0.03/(0.03 - (parFit_primary[0]*x + parFit_primary[1])) << endl;
+
+
+
+
 
     if (parFit_recon[0] != 0)
     {
@@ -688,20 +692,29 @@ void straight_line_fits(Double_t impact_angle)
         Delta_x_noIT = (parFit_primary[1]-TRD_anode_plane)/parFit_primary[0] + parFit_primary[1]/parFit_primary[0];
     }
 
-    //Delta_y = TRD_anode_plane;
+    Delta_y = TRD_anode_plane;
 
 
 
-    Double_t x_diff_recon = (TRD_anode_plane - parFit_recon[1]) / parFit_recon[0];
-    Double_t y_diff_recon = TRD_anode_plane - parFit_recon[1];
+    Double_t angle_recon;
+    Double_t x_diff_recon;
+    Double_t y_diff_recon;
 
-    Double_t x_diff_prim = (TRD_anode_plane - parFit_primary[1]) / parFit_primary[0];
-    Double_t y_diff_prim = TRD_anode_plane - parFit_primary[1];
+    if (parFit_recon[0] != 0)
+    {
+        x_diff_recon = (TRD_anode_plane - parFit_recon[1]) / parFit_recon[0];
+        y_diff_recon = TRD_anode_plane - parFit_recon[1];
+        angle_recon = TMath::ATan2(y_diff_recon, x_diff_recon);
+    }
 
-    Double_t angle_recon = TMath::ATan2(y_diff_recon, x_diff_recon);
-    Double_t angle_prim = TMath::ATan2(y_diff_prim, x_diff_prim);
 
-    cout << "angles: " << angle_recon*TMath::RadToDeg() << "  " << angle_prim*TMath::RadToDeg() << \
+
+    // Double_t x_diff_prim = (TRD_anode_plane - parFit_primary[1]) / parFit_primary[0];
+    // Double_t y_diff_prim = TRD_anode_plane - parFit_primary[1];
+
+    // Double_t angle_prim = TMath::ATan2(y_diff_prim, x_diff_prim);
+
+    cout << "angles: " << angle_recon*TMath::RadToDeg() << "  " << \
         "    " << impact_angle*TMath::RadToDeg() << endl;
 
 
@@ -712,28 +725,33 @@ void straight_line_fits(Double_t impact_angle)
 
     printf("Delta_x: %4.3f, impact_angle_rec: %4.3f \n",Delta_x*TMath::RadToDeg(),impact_angle_rec*TMath::RadToDeg());
 
-    Double_t x_dir = TMath::Cos(impact_angle);
-    Double_t y_dir = TMath::Sin(impact_angle);
-    Double_t slope = 1.0;
-    if(x_dir != 0.0) slope = y_dir/x_dir;
-    x_dir /= y_dir;
-    y_dir /= y_dir;
+    // Double_t x_dir = TMath::Cos(impact_angle);
+    // Double_t y_dir = TMath::Sin(impact_angle);
+    // Double_t slope = 1.0;
+    // if(x_dir != 0.0) slope = y_dir/x_dir;
+    // x_dir /= y_dir;
+    // y_dir /= y_dir;
 
-    Double_t x_anode_hit = TRD_anode_plane/slope;
-    Double_t y_anode_hit = TRD_anode_plane;
+    // Double_t x_anode_hit = TRD_anode_plane/slope;
+    // Double_t y_anode_hit = TRD_anode_plane;
 
-    Double_t impact_angle_track = TMath::ATan2(y_anode_hit,x_anode_hit);
+    // Double_t impact_angle_track = TMath::ATan2(y_anode_hit,x_anode_hit);
 
-    // Double_t impact_angle_track = impact_angle;
-
-
-    // Double_t Delta_angle = -(impact_angle_track - impact_angle_rec);  //??
-    Double_t Delta_angle = -(impact_angle - angle_recon);
+    Double_t impact_angle_track = impact_angle;
 
 
-    printf("impact_angle_track: %4.3f, delta_angle: %4.3f \n",impact_angle_track*TMath::RadToDeg(),Delta_angle*TMath::RadToDeg());
+    Double_t Delta_angle = -(impact_angle_track - impact_angle_rec);  //??
 
-    TG_Delta_alpha_vs_impact_angle_points ->SetPoint(i_point,impact_angle_track*TMath::RadToDeg(),Delta_angle*TMath::RadToDeg());
+    cout << Delta_angle << endl;
+
+    Delta_angle = (impact_angle - angle_recon);
+
+    cout << Delta_angle << endl;
+
+    printf("impact_angle_track: %4.3f, delta_angle: %4.3f \n",impact_angle*TMath::RadToDeg(),Delta_angle*TMath::RadToDeg());
+
+    // TG_Delta_alpha_vs_impact_angle_points ->SetPoint(i_point,impact_angle_track*TMath::RadToDeg(),Delta_angle*TMath::RadToDeg());
+    TG_Delta_alpha_vs_impact_angle_points ->SetPoint(i_point,impact_angle*TMath::RadToDeg(),Delta_angle*TMath::RadToDeg());
     i_point++;
 
     lf_recon->ClearPoints();
