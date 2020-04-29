@@ -712,19 +712,19 @@ void straight_line_fits(Double_t impact_angle)
 
     printf("Delta_x: %4.3f, impact_angle_rec: %4.3f \n",Delta_x*TMath::RadToDeg(),impact_angle_rec*TMath::RadToDeg());
 
-    // Double_t x_dir = TMath::Cos(impact_angle);
-    // Double_t y_dir = TMath::Sin(impact_angle);
-    // Double_t slope = 1.0;
-    // if(x_dir != 0.0) slope = y_dir/x_dir;
-    // x_dir /= y_dir;
-    // y_dir /= y_dir;
+    Double_t x_dir = TMath::Cos(impact_angle);
+    Double_t y_dir = TMath::Sin(impact_angle);
+    Double_t slope = 1.0;
+    if(x_dir != 0.0) slope = y_dir/x_dir;
+    x_dir /= y_dir;
+    y_dir /= y_dir;
 
-    // Double_t x_anode_hit = TRD_anode_plane/slope;
-    // Double_t y_anode_hit = TRD_anode_plane;
+    Double_t x_anode_hit = TRD_anode_plane/slope;
+    Double_t y_anode_hit = TRD_anode_plane;
 
-    // Double_t impact_angle_track = TMath::ATan2(y_anode_hit,x_anode_hit);
+    Double_t impact_angle_track = TMath::ATan2(y_anode_hit,x_anode_hit);
 
-    Double_t impact_angle_track = impact_angle;
+    // Double_t impact_angle_track = impact_angle;
 
 
     // Double_t Delta_angle = -(impact_angle_track - impact_angle_rec);  //??
