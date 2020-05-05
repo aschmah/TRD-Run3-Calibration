@@ -800,6 +800,7 @@ void Ali_AS_analysis_TRD_digits::UserExec(Option_t *)
         AS_Tracklet  ->set_detector(det_tracklet);
         AS_Tracklet  ->set_TV3_offset(TV3_offset);
         AS_Tracklet  ->set_TV3_dir(TV3_dir);
+        AS_Tracklet  ->set_online_dy(dy_local); 
     }
     //-----------------------------------------------------------------
 
@@ -1412,7 +1413,7 @@ void Ali_AS_analysis_TRD_digits::UserExec(Option_t *)
                 //AS_offline_Tracklet  ->set_TV3_offset(TV3_offline_offset);
                 AS_offline_Tracklet  ->set_TV3_offset(vec_pos_data);
                 AS_offline_Tracklet  ->set_TV3_dir(TV3_offline_dir);
-
+                
                 AS_offline_Tracklet  ->set_chi2(FTRD_trkl_chi2);
                 AS_offline_Tracklet  ->set_refYZ(FTRD_trkl_refY,FTRD_trkl_refZ);
                 AS_offline_Tracklet  ->set_refdYdZdx(FTRD_trkl_refdYdx,FTRD_trkl_refdZdx);
