@@ -147,6 +147,7 @@ TFile* Ali_AS_analysis_TRD_digits::OpenDigitsFile(TString inputfile,
 {
     // we should check if we are reading ESDs or AODs - for now, only
     // ESDs are supported
+    //
 
     cout << "" << endl;
     cout << "In OpenDigitsFile" << endl;
