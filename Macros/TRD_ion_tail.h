@@ -12,12 +12,24 @@ static const Double_t TRD_ampl_stop   = 0.037;
 static const Int_t    N_clusters      = 100;
 static const Double_t step_clusters   = 0.00125; // cm
 
+vector<Double_t> recon_points;
+vector<Double_t> primary_points;
+
+TLinearFitter *lf_recon = new TLinearFitter(2);
+TLinearFitter *lf_primary = new TLinearFitter(2);
+
 static vector< vector<Double_t> > vec_pad_pos;
 static vector< vector<Double_t> > vec_cluster_pos;
 
 static TGraph* tg_rec_cluster;
 
 static TH2D* h2D_ADC_xy;
+
+TGraph* TG_Delta_alpha_vs_impact_angle_points = new TGraph();
+Int_t i_point = 0;
+
+Double_t LA_fit;
+Double_t vD_ratio_fit;
 
 
 //----------------------------------------------------------------------------------------
@@ -179,7 +191,6 @@ void Load_data()
     {
         tg_time_response ->SetPoint(i_point,arr_time_response[i_point][0],arr_time_response[i_point][1]);
     }
-
 
 }
 //----------------------------------------------------------------------------------------
@@ -355,6 +366,7 @@ void Draw_TRD_detector_2D()
 TVector2* Create_TRD_track(Double_t impact_angle, Double_t Lorentz_angle, Double_t drift_vel_ratio, Double_t Lorentz_angle_pre_corr)
 {
     // Lorentz_angle_pre_corr: The Lorentz angle pre correction which was applied for the data used for calibration
+    lf_primary->SetFormula("x ++ 1");
 
     vec_cluster_pos.clear();
     vector<Double_t> vec_pos;
@@ -372,6 +384,7 @@ TVector2* Create_TRD_track(Double_t impact_angle, Double_t Lorentz_angle, Double
     if(Lorentz_tan != 0.0) Lorentz_slope = 1.0/Lorentz_tan;
 
     TPolyMarker* TPM_trd_track_clusters      = new TPolyMarker();
+    TPolyMarker* TPM_tpc_track_clusters      = new TPolyMarker();
     TPolyMarker* TPM_trd_anode_plane         = new TPolyMarker();
     TPolyMarker* TPM_trd_Lorentz_anode_plane = new TPolyMarker();
     TPolyMarker* TPM_trd_Lorentz_drift       = new TPolyMarker();
@@ -382,12 +395,23 @@ TVector2* Create_TRD_track(Double_t impact_angle, Double_t Lorentz_angle, Double
         Double_t x_val = x_dir*step_clusters*i_cluster;
         Double_t y_val = 0.5*step_clusters + TRD_drift_start + y_dir*step_clusters*i_cluster;
 
+        TPM_tpc_track_clusters->SetNextPoint(x_val,y_val);
+
+        //Lorentz angle correction
+
+        Double_t shift = TMath::Tan(Lorentz_angle)*(0.03 - y_val);
+        x_val += shift;
+
+        lf_primary->AddPoint(&x_val,y_val);
+
         if(y_val > TRD_ampl_stop) break;
         TPM_trd_track_clusters ->SetNextPoint(x_val,y_val);
 
         //printf("i_cluster: %d, step_clusters: %4.3f, y_dir*step_clusters*i_cluster: %4.3f, x_val: %4.3f, y_val: %4.3f \n \n",i_cluster,step_clusters,y_dir*step_clusters*i_cluster,x_val,y_val);
         vec_pos[0] = x_val;
         vec_pos[1] = y_val;
+
+        
 
         vec_cluster_pos.push_back(vec_pos);
     }
@@ -396,6 +420,11 @@ TVector2* Create_TRD_track(Double_t impact_angle, Double_t Lorentz_angle, Double
     TPM_trd_track_clusters ->SetMarkerColor(kRed);
     TPM_trd_track_clusters ->SetMarkerStyle(20);
     TPM_trd_track_clusters ->Draw("");
+
+    TPM_tpc_track_clusters ->SetMarkerSize(0.5);
+    TPM_tpc_track_clusters ->SetMarkerColor(kBlack);
+    TPM_tpc_track_clusters ->SetMarkerStyle(20);
+    TPM_tpc_track_clusters ->Draw("");
 
     Double_t x_anode_hit = TRD_anode_plane/slope;
     Double_t y_anode_hit = TRD_anode_plane;
@@ -423,6 +452,7 @@ TVector2* Create_TRD_track(Double_t impact_angle, Double_t Lorentz_angle, Double
     TPM_trd_Lorentz_drift ->SetMarkerStyle(29);
     TPM_trd_Lorentz_drift ->Draw("");
 
+#if 0
     // Reconstructed hit of first cluster at chamber entrance after pre Lorentz angle correction
     Double_t x_Lorentz_drift_hit_pre_corr = x_Lorentz_anode_hit - (TRD_anode_plane - y_Lorentz_drift_hit)*TMath::Tan(Lorentz_angle_pre_corr);
     Double_t y_Lorentz_drift_hit_pre_corr = TRD_anode_plane - TRD_anode_plane*drift_vel_ratio;
@@ -431,10 +461,24 @@ TVector2* Create_TRD_track(Double_t impact_angle, Double_t Lorentz_angle, Double
     TPM_trd_Lorentz_drift_pre_corr ->SetMarkerColor(kOrange+1);
     TPM_trd_Lorentz_drift_pre_corr ->SetMarkerStyle(29);
     TPM_trd_Lorentz_drift_pre_corr ->Draw("");
+#endif
 
-    PlotLine(x_Lorentz_drift_hit_pre_corr,x_anode_hit,y_Lorentz_drift_hit_pre_corr,y_anode_hit,kGreen+2,2,2); // (Double_t x1_val, Double_t x2_val, Double_t y1_val, Double_t y2_val, Int_t Line_Col, Int_t LineWidth, Int_t LineStyle)
+    PlotLine(x_Lorentz_drift_hit,x_anode_hit,y_Lorentz_drift_hit,y_anode_hit,kGreen+2,2,2); // (Double_t x1_val, Double_t x2_val, Double_t y1_val, Double_t y2_val, Int_t Line_Col, Int_t LineWidth, Int_t LineStyle)
 
     TVector2* TV2_trd_track = new TVector2(x_dir,y_dir);
+
+     Double_t impact_angle_track = TMath::ATan2(y_anode_hit,x_anode_hit);
+
+     Double_t Delta_x_Lorentz_drift_hit = x_anode_hit - x_Lorentz_drift_hit;
+     Double_t Delta_y_Lorentz_drift_hit = y_anode_hit - y_Lorentz_drift_hit;
+     Double_t impact_angle_rec   = TMath::ATan2(Delta_y_Lorentz_drift_hit,Delta_x_Lorentz_drift_hit);
+
+     Double_t Delta_angle = -(impact_angle_track - impact_angle_rec);
+
+     //TG_Delta_alpha_vs_impact_angle ->SetPoint(i_point,impact_angle*TMath::RadToDeg(),Delta_angle*TMath::RadToDeg());
+     //i_point++;
+     //printf("GUI SIm drift model: impact_angle: %4.3f, impact_angle_track: %4.3f, impact_angle_rec: %4.3f, Delta_angle: %4.3f, x_anode_hit: %4.3f, x_Lorentz_drift_hit: %4.3f \n",impact_angle*TMath::RadToDeg(),impact_angle_track*TMath::RadToDeg(),impact_angle_rec*TMath::RadToDeg(),Delta_angle*TMath::RadToDeg(),x_anode_hit,x_Lorentz_drift_hit);
+
     return TV2_trd_track;
 }
 //----------------------------------------------------------------------------------------
@@ -469,6 +513,9 @@ void Make_ion_tail_convolution()
 {
     printf("Make_ion_tail_convolution \n");
 
+    //for(Double_t impact_angle = 65.0*TMath::DegToRad(); impact_angle < 115.0*TMath::DegToRad(); impact_angle += 1.0*TMath::DegToRad())
+    //{
+
     h2D_ADC_xy ->Reset();
     Double_t prf = 0.0;
     Double_t trf = 0.0;
@@ -485,15 +532,13 @@ void Make_ion_tail_convolution()
         Double_t rel_pos_x_stop = 0.0;
 
         Int_t i_pad = Find_pad_index(x_pos,rel_pos_center);
-        printf(" \n");
-        printf("i_cluster: %d, pos: {%4.5f, %4.5f}, i_pad: %d, rel_pos_center: %4.5f \n",i_cluster,x_pos,y_pos,i_pad,rel_pos_center);
+        // printf(" \n");
+        // printf("i_cluster: %d, pos: {%4.5f, %4.5f}, i_pad: %d, rel_pos_center: %4.5f \n",i_cluster,x_pos,y_pos,i_pad,rel_pos_center);
 
         for(Int_t i_ion_tail = i_cluster; i_ion_tail >= 0.0; i_ion_tail--)
         {
             Double_t i_time       = i_ion_tail*0.1; // in mus
             Double_t y_pos_charge = y_pos - i_time*1.25*0.01; // 1.56 cm/mus, one time bin = 0.1 mus
-
-            cout << "time, ypos charge: " << i_time << "  " << y_pos_charge << endl;
 
 
             for(Int_t i_charge_share = -2; i_charge_share <= 2; i_charge_share++) // two pads on the left and right for charge sharing
@@ -516,15 +561,24 @@ void Make_ion_tail_convolution()
                 //Double_t ADC          = tg_time_response ->Eval(0.3 + i_time)*prf;
 
                 Double_t ADC = trf*prf;
+
+                //compensate for aplification region effect
+                //I think this is correct?
+                if (i_cluster >= 21)
+                {
+                    ADC *= 2;
+                }
                 
                 // printf("   i_charge_share: %d, i_ion_tail: %d, i_time: %4.3f, y_pos_charge: %4.5f, ADC: %4.3f \n",i_charge_share,i_ion_tail,i_time,y_pos_charge,ADC);
 
                 h2D_ADC_xy ->Fill(x_pos_charge,y_pos_charge,ADC);
 
-                printf("   - i_charge_share: %d, x_pos_charge: %4.3f, rel_pos_center: %4.3f, rel_pos_center_pad_response: %4.3f, low_int_prf: %4.3f, up_int_prf: %4.3f, prf: %4.3f, trf: %4.3f, ADC: %4.3f \n",i_charge_share,x_pos_charge,rel_pos_center,rel_pos_center_pad_response,low_int_prf,up_int_prf,prf,trf,ADC);
+                // printf("   - i_charge_share: %d, x_pos_charge: %4.3f, rel_pos_center: %4.3f, rel_pos_center_pad_response: %4.3f, low_int_prf: %4.3f, up_int_prf: %4.3f, prf: %4.3f, trf: %4.3f, ADC: %4.3f \n",i_charge_share,x_pos_charge,rel_pos_center,rel_pos_center_pad_response,low_int_prf,up_int_prf,prf,trf,ADC);
             }
         }
     }
+
+# if 0
 
     TCanvas* can_ADC_xy = new TCanvas("can_ADC_xy","can_ADC_xy",600,50,800,600);
     can_ADC_xy->cd()->SetTicks(1,1);
@@ -550,15 +604,21 @@ void Make_ion_tail_convolution()
     h2D_ADC_xy->GetXaxis()->SetTitle("x (m)");
     h2D_ADC_xy->GetYaxis()->SetTitle("y (m)");
     h2D_ADC_xy->DrawCopy("colz");
+#endif
+    //TG_Delta_alpha_vs_impact_angle ->SetPoint(i_point,impact_angle*TMath::RadToDeg(),Delta_angle*TMath::RadToDeg());
+
+    //}
 }
 //----------------------------------------------------------------------------------------
 
 
 
 //----------------------------------------------------------------------------------------
-void Reconstruct_tracklet()
+void Reconstruct_tracklet(Double_t Lorentz_angle)
 {
     printf("Reconstruct_tracklet \n");
+
+    lf_recon->SetFormula("x ++ 1");
 
     tg_rec_cluster ->Clear();
 
@@ -583,13 +643,350 @@ void Reconstruct_tracklet()
         else x_pos_weighted = -999.0;
 
         tg_rec_cluster ->SetPoint(i_biny - 1,x_pos_weighted,y_pos);
+        lf_recon->AddPoint(&x_pos_weighted, y_pos);
+
     }
 
+#if 1
     tg_rec_cluster ->SetMarkerSize(0.8);
     tg_rec_cluster ->SetMarkerStyle(20);
     tg_rec_cluster ->SetMarkerColor(kGreen+2);
     tg_rec_cluster ->Draw("same p");
+
+#endif
 }
 //----------------------------------------------------------------------------------------
 
 
+
+//----------------------------------------------------------------------------------------
+void straight_line_fits(Double_t impact_angle)
+{
+    lf_recon->Eval();
+    lf_primary->Eval();
+
+    Double_t Delta_x = -999.9;
+    Double_t Delta_y = TRD_anode_plane;
+    Double_t Delta_x_noIT = -999.9;
+
+    Double_t parFit_recon[2];
+    for(int i = 0; i < 2; ++i)
+    {
+        parFit_recon[i] = lf_recon->GetParameter(i);
+        // cout <<  "recon line: " << parFit_recon[i] << endl;
+    }
+
+    Double_t parFit_primary[2];
+    for(int i = 0; i < 2; ++i)
+    {
+        parFit_primary[i] = lf_primary->GetParameter(i);
+        // cout << "primary line: " << parFit_primary[i] << endl;
+    }
+
+    // range [0, 0.01]
+    // for(int i = 0; i < 100; ++i)
+    // {
+    //     Double_t x = -0.02/100 * i;
+    //     Double_t y_recon = parFit_recon[0]*x + parFit_recon[1];
+    //     Double_t y_primary = parFit_primary[0]*x + parFit_primary[1];
+    //      cout << "x val: " << x << endl;
+    //      cout << "y vals: " << y_recon << "    " << y_primary << endl;
+
+    //     // cout << "ratio at x = " << x << ": " << (0.03 - y_recon)/(0.03 - y_primary) << endl;
+    // } 
+
+    // Double_t x = -parFit_primary[1]/parFit_primary[0];
+    // cout << "first cluster ratio: " << (0.03 - (parFit_recon[0]*x + parFit_recon[1]))/(0.03) << endl;
+
+    // x = -parFit_recon[1]/parFit_recon[0];
+    // cout << "first cluster ratio (upwards): " << 0.03/(0.03 - (parFit_primary[0]*x + parFit_primary[1])) << endl;
+
+
+
+
+
+    if (parFit_recon[0] != 0)
+    {
+        Delta_x = (-parFit_recon[1]+TRD_anode_plane)/parFit_recon[0] + parFit_recon[1]/parFit_recon[0];
+    }
+
+    if (parFit_primary[0] != 0)
+    {
+        Delta_x_noIT = (-parFit_primary[1]+TRD_anode_plane)/parFit_primary[0] + parFit_primary[1]/parFit_primary[0];
+    }
+
+    Delta_y = TRD_anode_plane;
+
+
+
+    Double_t angle_recon;
+    Double_t x_diff_recon;
+    Double_t y_diff_recon;
+
+    if (parFit_recon[0] != 0)
+    {
+        x_diff_recon = (TRD_anode_plane - parFit_recon[1]) / parFit_recon[0];
+        y_diff_recon = TRD_anode_plane - parFit_recon[1];
+        angle_recon = TMath::ATan2(y_diff_recon, x_diff_recon);
+    }
+
+
+    Double_t angle_primary;
+    Double_t x_diff_primary;
+    Double_t y_diff_primary;
+
+    if (parFit_primary[0] != 0)
+    {
+        x_diff_primary = (TRD_anode_plane - parFit_primary[1]) / parFit_primary[0];
+        y_diff_primary = TRD_anode_plane - parFit_primary[1];
+        angle_primary = TMath::ATan2(y_diff_primary, x_diff_primary);
+    }
+
+
+
+    // Double_t x_diff_prim = (TRD_anode_plane - parFit_primary[1]) / parFit_primary[0];
+    // Double_t y_diff_prim = TRD_anode_plane - parFit_primary[1];
+
+    // Double_t angle_prim = TMath::ATan2(y_diff_prim, x_diff_prim);
+
+    //cout << "angles: " << angle_recon*TMath::RadToDeg() << "  " << \
+        "    " << impact_angle*TMath::RadToDeg() << endl;
+
+
+
+    Double_t impact_angle_rec   = TMath::ATan2(Delta_y,Delta_x);
+    Double_t impact_angle_noIT   = TMath::ATan2(Delta_y,Delta_x_noIT);
+
+
+    //printf("Delta_x: %4.3f, impact_angle_noIT: %4.3f, impact_angle_rec: %4.3f \n",Delta_x,impact_angle_noIT*TMath::RadToDeg(),impact_angle_rec*TMath::RadToDeg());
+
+    // Double_t x_dir = TMath::Cos(impact_angle);
+    // Double_t y_dir = TMath::Sin(impact_angle);
+    // Double_t slope = 1.0;
+    // if(x_dir != 0.0) slope = y_dir/x_dir;
+    // x_dir /= y_dir;
+    // y_dir /= y_dir;
+
+    // Double_t x_anode_hit = TRD_anode_plane/slope;
+    // Double_t y_anode_hit = TRD_anode_plane;
+
+    // Double_t impact_angle_track = TMath::ATan2(y_anode_hit,x_anode_hit);
+
+    Double_t impact_angle_track = impact_angle;
+
+
+    Double_t Delta_angle = -(impact_angle_track - impact_angle_rec);  //??
+
+    //cout << "Nastia delta ang:" << Delta_angle*TMath::RadToDeg() << endl;
+
+    //Delta_angle = -(impact_angle - angle_recon);
+
+    //cout << "Jason delta ang:" << Delta_angle*TMath::RadToDeg() << endl;
+
+    //printf("impact_angle_track: %4.3f, delta_angle: %4.3f \n",impact_angle*TMath::RadToDeg(),Delta_angle*TMath::RadToDeg());
+
+    // TG_Delta_alpha_vs_impact_angle_points ->SetPoint(i_point,impact_angle_track*TMath::RadToDeg(),Delta_angle*TMath::RadToDeg());
+    TG_Delta_alpha_vs_impact_angle_points ->SetPoint(i_point,impact_angle*TMath::RadToDeg(),Delta_angle*TMath::RadToDeg());
+    i_point++;
+
+    lf_recon->ClearPoints();
+    lf_primary->ClearPoints();
+
+}
+//----------------------------------------------------------------------------------------
+
+//----------------------------------------------------------------------------------------
+
+
+TGraph* calc_Delta_alpha(Double_t Lorentz_angle, Double_t drift_vel_ratio)
+{
+    TGraph* TG_Delta_alpha_vs_impact_angle = new TGraph();
+
+    Int_t i_point = 0;
+
+    //Double_t impact_angle = 110.0*TMath::DegToRad();
+    for(Double_t impact_angle = 65.0*TMath::DegToRad(); impact_angle < 105.0*TMath::DegToRad(); impact_angle += 1.0*TMath::DegToRad())
+    {
+
+        // Direction vector of incoming track
+        Double_t x_dir = TMath::Cos(impact_angle);
+        Double_t y_dir = TMath::Sin(impact_angle);
+
+        // Slope of incoming track
+        Double_t slope = 10000000.0;
+        if(x_dir != 0.0) slope = y_dir/x_dir;
+
+        // Slope of Lorentz angle
+        Double_t Lorentz_tan   = TMath::Tan(Lorentz_angle);
+        Double_t Lorentz_slope = 10000000.0;
+        if(Lorentz_tan != 0.0) Lorentz_slope = 1.0/Lorentz_tan;
+
+        // Hit point of incoming track with anode plane
+        Double_t x_anode_hit = TRD_anode_plane/slope;
+        Double_t y_anode_hit = TRD_anode_plane;
+
+        // Hit point at anode plane of Lorentz angle shifted cluster from the entrance
+        Double_t x_Lorentz_anode_hit = TRD_anode_plane/Lorentz_slope;
+        Double_t y_Lorentz_anode_hit = TRD_anode_plane;
+
+        // Cluster location within drift cell of cluster from entrance after drift velocity ratio is applied
+        Double_t x_Lorentz_drift_hit = x_Lorentz_anode_hit;
+        Double_t y_Lorentz_drift_hit = TRD_anode_plane - TRD_anode_plane*drift_vel_ratio;
+
+        // Reconstructed hit of first cluster at chamber entrance after pre Lorentz angle correction
+        // Double_t x_Lorentz_drift_hit_pre_corr = x_Lorentz_anode_hit - y_Lorentz_drift_hit*TMath::Tan(Lorentz_angle_pre_corr);
+        //Double_t x_Lorentz_drift_hit_pre_corr = x_Lorentz_anode_hit - (TRD_anode_plane - y_Lorentz_drift_hit)*TMath::Tan(Lorentz_angle_pre_corr);
+        //Double_t y_Lorentz_drift_hit_pre_corr = TRD_anode_plane - TRD_anode_plane*drift_vel_ratio;
+
+        Double_t impact_angle_track = TMath::ATan2(y_anode_hit,x_anode_hit);
+
+        Double_t Delta_x_Lorentz_drift_hit = x_anode_hit - x_Lorentz_drift_hit;
+        Double_t Delta_y_Lorentz_drift_hit = y_anode_hit - y_Lorentz_drift_hit;
+        Double_t impact_angle_rec   = TMath::ATan2(Delta_y_Lorentz_drift_hit,Delta_x_Lorentz_drift_hit);
+
+        Double_t Delta_angle = -(impact_angle_track - impact_angle_rec);
+
+        TG_Delta_alpha_vs_impact_angle ->SetPoint(i_point,impact_angle*TMath::RadToDeg(),Delta_angle*TMath::RadToDeg());
+        i_point++;
+        //printf("impact_angle: %4.3f, Delta_angle: %4.3f, impact_angle_track: %4.3f, impact_angle_rec: %4.3f, Delta: {%4.3f, %4.3f}, x_anode_hit: %4.3f, x_Lorentz_drift_hit: %4.3f \n",impact_angle*TMath::RadToDeg(),Delta_angle*TMath::RadToDeg(),impact_angle_track*TMath::RadToDeg(),impact_angle_rec*TMath::RadToDeg(),Delta_x_Lorentz_drift_hit,Delta_y_Lorentz_drift_hit,x_anode_hit,x_Lorentz_drift_hit);
+    }
+
+    return TG_Delta_alpha_vs_impact_angle;
+
+}
+
+//----------------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------
+
+
+void Chi2_TRD_vDrift(Int_t &, Double_t *, Double_t & sum, Double_t * par, Int_t )
+{
+    sum = 0;
+
+    //Double_t B_field_use = par[0];
+    //Double_t E_field_use = par[1];
+    //Double_t v_drift_use = par[2];
+    //Double_t vD_use      = par[3];
+    //Double_t LA_use      = par[4];
+
+    Double_t LA_use  = par[0];
+    Double_t vD_ratio_use = par[1];
+    //Double_t Lorentz_angle_pre_corr = LA_fit_corr->Eval(i_detector_global);
+
+    //TGraph* tg_Delta_vs_impact_single = calc_Delta_alpha(B_field_use,E_field_use,v_drift_use,vD_use,LA_use);
+    TGraph* tg_Delta_vs_impact_single = calc_Delta_alpha(LA_use,vD_ratio_use);
+
+    for(Int_t impact_angle = 65.0; impact_angle < 115.0; impact_angle++)
+    {
+        Double_t Delta_alpha     = TG_Delta_alpha_vs_impact_angle_points ->Eval(impact_angle);
+        //Double_t Delta_alpha      = vec_tp_Delta_vs_impact[i_detector_global] ->GetBinContent(i_bin);
+        //Double_t Delta_alpha_err  = vec_tp_Delta_vs_impact[i_detector_global] ->GetBinError(i_bin);
+        Double_t Delta_alpha_err = 1.0;
+
+        //if(Delta_alpha_err == 0.0) continue;
+        //if(impact_angle < 78.0) continue;
+        //if(impact_angle > 100.0) continue;
+
+        Double_t Delta_alpha_sim = tg_Delta_vs_impact_single ->Eval(impact_angle);
+
+        sum += TMath::Power(Delta_alpha_sim - Delta_alpha,2)/TMath::Power(Delta_alpha_err,2);
+        //sum += TMath::Power(Delta_alpha_sim - Delta_alpha,2);
+
+        //printf("sum: %4.3f \n",sum);
+
+    }
+
+    delete tg_Delta_vs_impact_single;
+}
+//----------------------------------------------------------------------------------------
+
+
+void fit_TG()
+{
+    TVirtualFitter *min = TVirtualFitter::Fitter(0,2);
+    min->SetFCN(Chi2_TRD_vDrift);
+    Double_t pStart[2] = {-7.5*TMath::DegToRad(),1.0}; // B-field, E-field, v_drift, vD_drift (1.7 instead of 1.56)
+    //Double_t pStart[5] = {B_field,HV_drift_in/l_drift,v_drift_in,1.56,0.134}; // B-field, E-field, v_drift, vD_drift (1.7 instead of 1.56)
+    //Double_t pStart[4] = {B_field,HV_drift_in/l_drift,1.48,1.56}; // B-field, E-field, v_drift, vD_drift (1.7 instead of 1.56)
+    //Double_t pStart[2] = {0.0,1.0}; //LA_diff, vD_ratio
+    // 73: 1.48  after fit: 1.269
+
+    min->SetParameter(0,"LA",pStart[0],0.01,0,0);
+    min->SetParameter(1,"Ratio",pStart[1],0.01,0,0);
+
+    //min->SetParameter(0,"B_field",pStart[0],0.01,0,0);
+    //min->SetParameter(1,"E_field",pStart[1]*fudge_Hdrift,0.01,0,0);
+    //min->SetParameter(2,"v_drift",pStart[2],0.01,0,0);
+    //min->SetParameter(3,"vD_drift",pStart[3],0.01,0,0);
+    //min->SetParameter(4,"LA_factor",pStart[4],0.01,0,0);
+
+    min->FixParameter(0);
+    //min->FixParameter(1);
+    //min->FixParameter(3);
+    //min->FixParameter(4);
+
+    Double_t arglist[2];
+    arglist[0] = 1000; // number of function calls
+    arglist[1] = 0.001; // tolerance
+    min->ExecuteCommand("MINIMIZE",arglist,2);
+    // get fit parameters
+    Double_t parFit[2];
+    for(int i = 0; i < 2; ++i)
+    {
+        parFit[i] = min->GetParameter(i);
+    }
+
+    //v_fit  = parFit[2];
+    //vD_fit = parFit[3];
+    //E_fit  = parFit[1];
+    //LA_factor_fit = parFit[4];
+
+    LA_fit  = parFit[0];
+    vD_ratio_fit = parFit[1];
+
+    printf("vD_ratio_fit: %4.3f, LA_fit: %4.3f \n",vD_ratio_fit,LA_fit*TMath::RadToDeg());
+
+
+}
+//----------------------------------------------------------------------------------------
+
+void Draw_delta_angle()
+{
+    TCanvas* can_delta_vs_angle = new TCanvas("can_delta_vs_angle","can_delta_vs_angle",50,50,600,600);
+    can_delta_vs_angle->cd()->SetTicks(1,1);
+    can_delta_vs_angle->cd()->SetGrid(0,0);
+    can_delta_vs_angle->cd()->SetFillColor(10);
+    can_delta_vs_angle->cd()->SetRightMargin(0.01);
+    can_delta_vs_angle->cd()->SetLeftMargin(0.18);
+    can_delta_vs_angle->cd()->SetBottomMargin(0.12);
+    can_delta_vs_angle->cd()->SetTopMargin(0.01);
+    TH1F* h_frame_delta_vs_angle = can_delta_vs_angle->cd()->DrawFrame(65.0,-10.0,115.0,10.0,"h_frame_delta_vs_angle");
+    h_frame_delta_vs_angle->SetStats(0);
+    h_frame_delta_vs_angle->SetTitle("");
+    h_frame_delta_vs_angle->GetXaxis()->SetTitleOffset(1.0);
+    h_frame_delta_vs_angle->GetYaxis()->SetTitleOffset(1.7);
+    h_frame_delta_vs_angle->GetXaxis()->SetLabelSize(0.05);
+    h_frame_delta_vs_angle->GetYaxis()->SetLabelSize(0.05);
+    h_frame_delta_vs_angle->GetXaxis()->SetTitleSize(0.05);
+    h_frame_delta_vs_angle->GetYaxis()->SetTitleSize(0.05);
+    h_frame_delta_vs_angle->GetXaxis()->SetNdivisions(505,'N');
+    h_frame_delta_vs_angle->GetYaxis()->SetNdivisions(505,'N');
+    h_frame_delta_vs_angle->GetXaxis()->CenterTitle();
+    h_frame_delta_vs_angle->GetYaxis()->CenterTitle();
+    h_frame_delta_vs_angle->GetXaxis()->SetTitle("impact angle (deg.)");
+    h_frame_delta_vs_angle->GetYaxis()->SetTitle("#Delta#alpha (deg.)");
+
+    TG_Delta_alpha_vs_impact_angle_points->SetLineColor(kBlack);
+    TG_Delta_alpha_vs_impact_angle_points->SetLineWidth(2);
+    TG_Delta_alpha_vs_impact_angle_points->Draw("same");
+
+    TGraph* tg_Delta_vs_impact_single_draw = calc_Delta_alpha(LA_fit,vD_ratio_fit);
+
+    tg_Delta_vs_impact_single_draw->SetLineColor(kRed);
+    tg_Delta_vs_impact_single_draw->SetLineWidth(2);
+    tg_Delta_vs_impact_single_draw->Draw("same");
+}
+
+//----------------------------------------------
+
+//----------------------------------------------
