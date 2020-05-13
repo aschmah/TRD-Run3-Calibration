@@ -55,9 +55,7 @@ private:
 
     TFile* outputfile;
     TFile* outputfile_trkl;
-
     TFile* calibration_params;
-
 
     Long64_t N_Events;
     Long64_t N_Tracks;
@@ -201,6 +199,7 @@ private:
     vector< vector< vector<Double_t> > > vec_tracklet_fit_points;
     vector< vector< vector<Double_t> > > vec_online_tracklet_points;
     vector< vector< vector<Double_t> > > vec_corrected_online_tracklet_points;
+    vector<Double_t> online_dy;
     Int_t draw_corrected_online_det_numbers[6] = {0};
     vector<TProfile*> vec_tp_Delta_vs_impact;
     vector<TH2D*> vec_TH2D_Delta_vs_impact;
@@ -243,6 +242,7 @@ public:
     void Draw_neighbor_tracks(Int_t i_track);
     void Draw_online_tracklets();
     void Draw_corrected_online_tracklets();
+    void calc_impact_hist();
     void Draw_offline_tracklets();
     TGLViewer* Draw_TRD();
     void set_dca_to_track(Double_t dca_r, Double_t dca_z) {max_dca_r_to_track = dca_r; max_dca_z_to_track = dca_z;}
@@ -1633,6 +1633,7 @@ Int_t TBase_TRD_Calib::select_online_tracklets()
 
     vec_online_tracklet_points.resize(6); // layer
     vec_corrected_online_tracklet_points.resize(6);
+    online_dy.resize(6);
     for(Int_t i_layer = 0; i_layer < 6; i_layer++)
     {
         vec_online_tracklet_points[i_layer].resize(2);
@@ -1668,6 +1669,8 @@ Int_t TBase_TRD_Calib::select_online_tracklets()
         Short_t  i_det_tracklet = AS_Tracklet ->get_detector();
 
         Int_t    TRD_layer      = fGeo        ->GetLayer(i_det_tracklet);
+
+        Double_t dy = AS_Tracklet -> get_online_dy();
 
         //printf("TRD_layer: %d \n",TRD_layer);
 
@@ -1717,13 +1720,13 @@ Int_t TBase_TRD_Calib::select_online_tracklets()
                 tv3_dirs_online[TRD_layer][0] = TV3_dir[0];
                 tv3_dirs_online[TRD_layer][1] = TV3_dir[1];
 
-                // for (int iter = 0; iter <=6; iter++){
-                //     cout << draw_corrected_online_det_numbers[iter] << endl;
-                // }
+
                 vec_corrected_online_tracklet_points[TRD_layer][0][0] = TV3_offset[0];
                 vec_corrected_online_tracklet_points[TRD_layer][0][1] = TV3_offset[1];
                 vec_corrected_online_tracklet_points[TRD_layer][1][0] = TV3_offset[0];
                 vec_corrected_online_tracklet_points[TRD_layer][1][1] = TV3_offset[1];
+
+                online_dy[TRD_layer] = dy;
                 // vec_corrected_online_tracklet_points[TRD_layer][1][0] = TV3_offset[0] + scale_factor_length*TV3_dir[0];
                 // vec_corrected_online_tracklet_points[TRD_layer][1][1] = TV3_offset[1] + scale_factor_length*TV3_dir[1];
 
@@ -4031,6 +4034,91 @@ void TBase_TRD_Calib::Draw_corrected_online_tracklets()
     }
 
     calibration_params->TFile::Close();
+}
+//----------------------------------------------------------------------------------------
+
+
+//----------------------------------------------------------------------------------------
+void TBase_TRD_Calib::calc_impact_hist()
+{
+
+    TH2D* h2D_impact_hist = new TH2D("h2D_impact_hist","h2D_impact_hist",70,50,130,70,-1,1);
+    TCanvas* can_impact_hist = new TCanvas("can_impact_hist","can_impact_hist");    
+
+    TProfile* profile_impact_hist = new TProfile("profile_impact_hist","profile_impact_hist",70,50,130);
+    TCanvas* profile_impact_hist_can = new TCanvas("profile_impact_hist_can","profile_impact_hist_can");    
+
+
+    for(Long64_t i_event = 0; i_event < 500; i_event++)
+    {
+        if(i_event % 20 == 0) printf("i_event: %lld out of %lld \n",i_event,file_entries_total);
+        if (!input_SE->GetEntry( i_event )) return 0; // take the event -> information is stored in event
+
+        UShort_t NumTracks = AS_Event ->getNumTracks(); // number of tracks in this event
+
+        for(Int_t i_track = 0; i_track < NumTracks; i_track++)
+        {
+            AS_Track      = AS_Event ->getTrack( i_track ); // take the track
+            TLorentzVector TLV_part = AS_Track ->get_TLV_part();
+            Float_t pT_track        = TLV_part.Pt();
+            // if(pT_track < 1.5) continue; // 3.5200
+
+            make_clusters(i_track);
+
+
+            get_2D_global_circle_fit();  // i will get dir_vec_circle (not needed?) and vec_TPL_circle_tracklets[i_point] (basically i_layer)
+            select_online_tracklets();  // function to select onl tracklets close to something
+
+            for(Int_t i_layer = 5; i_layer >= 0; i_layer--)
+            {
+                if(vec_online_tracklet_points[i_layer][0][0] > -999.0 && vec_online_tracklet_points[i_layer][1][0] > -999.0)
+                {
+                    Double_t impact_angle_circle[6] = {0.0};
+                    Double_t delta_x_local_global_circle[6] = {0.0}; // local chamber coordinate system, global circle fit - in case it's different
+
+
+                    delta_x_local_global_circle[i_layer] = vec_dir_vec_circle[i_layer].Dot(vec_TV3_TRD_center[arr_layer_detector[i_layer]][0]);
+                    Double_t sign_direction_impact_circle = TMath::Sign(1.0,delta_x_local_global_circle[i_layer]);
+
+                    impact_angle_circle[i_layer] = vec_dir_vec_circle[i_layer].Angle(vec_TV3_TRD_center[arr_layer_detector[i_layer]][2]);  //i need something like that for circles
+
+                    if(impact_angle_circle[i_layer] > TMath::Pi()*0.5) impact_angle_circle[i_layer] -= TMath::Pi();
+
+                    impact_angle_circle[i_layer] = 0.5*TMath::Pi() - sign_direction_impact_circle*impact_angle_circle[i_layer];
+                    
+                    // printf("impact_angle_circle: %4.3f \n",impact_angle_circle[i_layer]);
+                    // cout << online_dy[i_layer] << endl;
+
+                    h2D_impact_hist ->Fill(impact_angle_circle[i_layer]*TMath::RadToDeg(),online_dy[i_layer],1);
+                    profile_impact_hist ->Fill(impact_angle_circle[i_layer]*TMath::RadToDeg(),online_dy[i_layer],1);
+                }
+            }
+            online_dy.clear();
+        }
+    }
+    for (int i=0; i<40; i++)
+    {
+        cout << "Bin: " << i << endl;
+        cout << profile_impact_hist->GetBinContent(i) << endl;
+        cout << profile_impact_hist->GetBinEntries(i) << endl;
+    }
+
+    h2D_impact_hist->GetXaxis()->SetTitle("Impact Angle (deg)");
+    h2D_impact_hist->GetYaxis()->SetTitle("dy (cm)");
+    h2D_impact_hist->GetXaxis()->CenterTitle();
+    h2D_impact_hist->GetYaxis()->CenterTitle();
+
+    can_impact_hist->cd();
+    h2D_impact_hist->Draw("colz");
+
+
+    profile_impact_hist->GetXaxis()->SetTitle("Impact Angle (deg)");
+    profile_impact_hist->GetYaxis()->SetTitle("Mean dy (cm)");
+    profile_impact_hist->GetXaxis()->CenterTitle();
+    profile_impact_hist->GetYaxis()->CenterTitle();
+
+    profile_impact_hist_can->cd();
+    profile_impact_hist->Draw();
 }
 //----------------------------------------------------------------------------------------
 

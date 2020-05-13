@@ -4,6 +4,10 @@ TList *detector_vs_adc_list;
 TH1D *max_hist;
 TH1D *plateu_hist;
 TH1D *ratio_hist;
+TH1D *all_defects_hist;
+vector<int> all_defects;
+TFile* outputfile;
+
 
 tuple<Double_t, Double_t, Double_t> getADCParams(const char *profile_name)
 {
@@ -24,14 +28,54 @@ tuple<Double_t, Double_t, Double_t> getADCParams(const char *profile_name)
 
     ratio = max / plateu;
 
-    if (h->GetBinContent(24) < h->GetBinContent(15) * 0.75 && plateu > 1)
-    {
-        string detector_str(profile_name, 14, 3);
-        cout << detector_str << ", ";
-    }
+    //look for ADC plots with ion tail
+    // if (h->GetBinContent(24) < h->GetBinContent(15) * 0.75 && plateu > 1)
+    // {
+    //     string detector_str(profile_name, 14, 3);
+    //     cout << detector_str << ", ";
+    // }
 
     return {max, plateu, ratio};
 }
+
+
+void draw_defects_hist()
+{
+    all_defects_hist = new TH1D("all_defects_hist", "All Defects", 540, 0, 539);
+    
+    cout << all_defects.size() << endl;
+    // for (int i = 0; i < all_defects.size(); i++)
+    // {
+    //     cout << all_defects[i] << ",";
+    // }
+
+    for (int i=0; i<540; i++)
+    {
+        bool exists = std::find(std::begin(all_defects), std::end(all_defects), i) != std::end(all_defects);
+        if (!exists)
+        {
+            all_defects_hist->SetBinContent(i,1);
+        }
+    }
+
+    all_defects_hist->GetXaxis()->SetTitle("Chamber");
+    all_defects_hist->GetYaxis()->SetTitle("Good=1, Bad=0");
+    all_defects_hist->GetXaxis()->CenterTitle();
+    all_defects_hist->GetYaxis()->CenterTitle();
+
+    TCanvas *all_defects_hist_can = new TCanvas("all_defects_hist_can", "All_defects");
+    all_defects_hist_can->cd();
+    all_defects_hist->Draw();
+
+    outputfile = new TFile("./chamber_QC.root","RECREATE");
+    outputfile ->cd();
+    all_defects_hist->Write();
+    // for(Int_t i = 0; i < 540; i++)
+    // {
+    //     all_defects_hist[i]          ->Write();
+    // }
+}
+
 
 void draw_hists()
 {
@@ -63,10 +107,15 @@ void draw_hists()
     ratio_hist->Draw();
 }
 
+
 void detector_qc()
 {
-    TFile *calib_file = TFile::Open("./Merge_TRD_Calib_V4.root");
+
+    TFile *calib_file = TFile::Open("../../Merge_TRD_Calib_V4.root");
     detector_vs_adc_list = (TList *)calib_file->Get("TRD_Digits_output;1");
+
+    // defects = new TGraph("defectives_hist", "All Defects", 100, 0, 540);
+
 
     max_hist = new TH1D("max_hist", "Average ADC Over Timebins [2,3]", 200, 10, 100);
     plateu_hist = new TH1D("plateu_hist", "Average ADC Over Timebins [7,20]", 200, 0, 60);
@@ -81,12 +130,13 @@ void detector_qc()
         if (strcmp(object->ClassName(), "TProfile") == 0)
         {
             auto [max, plateu, ratio] = getADCParams(object->GetName());
+            string detector_str(object->GetName(), 14, 3);
+            int detector = stoi(detector_str);
 
             if (max < 40)
             {
-                string detector_str(object->GetName(), 14, 3);
-                int detector = stoi(detector_str);
                 defectives.push_back(detector);
+                all_defects.push_back(detector);
                 continue;
             }
 
@@ -98,15 +148,17 @@ void detector_qc()
 
     // draw_hists();
 
+
     //HV stuff
 
     cout << endl;
 
-    TFile *hv_file = TFile::Open("./TRD-Run3-Calibration/Data/HV_anode_vs_det_265338.root");
+    vector<int> hv_anode_defectives;
+    vector<int> hv_drift_defectives;
+
+    TFile *hv_file = TFile::Open("../Data/HV_anode_vs_det_265338.root");
     TCanvas *anode_hv_can = (TCanvas *)hv_file->Get("tg_HV_anode_vs_det_can;1");
     TGraph *anode_hv = (TGraph *)anode_hv_can->FindObject("tg_HV_anode_vs_det");
-
-    vector<int> hv_anode_defectives;
 
     for (int i = 0; i < 540; i++)
     {
@@ -114,19 +166,18 @@ void detector_qc()
         if (hv < 1400)
         {
             hv_anode_defectives.push_back(i);
+            all_defects.push_back(i);
         }
     }
 
-    for (int i = 0; i < hv_anode_defectives.size(); i++)
-    {
-        cout << hv_anode_defectives[i] << ",";
-    }
+    // for (int i = 0; i < hv_anode_defectives.size(); i++)
+    // {
+    //     cout << hv_anode_defectives[i] << ",";
+    // }
 
-    TFile *drift_hv_file = TFile::Open("./TRD-Run3-Calibration/Data/HV_drift_vs_det_2016.root");
+    TFile *drift_hv_file = TFile::Open("../Data/HV_drift_vs_det_2016.root");
     TCanvas *drift_hv_can = (TCanvas *)drift_hv_file->Get("tg_HV_drift_vs_det_can;1");
     TGraph *drift_hv = (TGraph *)drift_hv_can->FindObject("tg_HV_drift_vs_det");
-
-    vector<int> hv_drift_defectives;
 
     for (int i = 0; i < 540; i++)
     {
@@ -134,11 +185,14 @@ void detector_qc()
         if (hv < 1920)
         {
             hv_drift_defectives.push_back(i);
+            all_defects.push_back(i);
         }
     }
 
-    for (int i = 0; i < hv_drift_defectives.size(); i++)
-    {
-        cout << hv_drift_defectives[i] << ",";
-    }
+    // for (int i = 0; i < hv_drift_defectives.size(); i++)
+    // {
+    //     cout << hv_drift_defectives[i] << ",";
+    // }
+
+    draw_defects_hist();
 }
