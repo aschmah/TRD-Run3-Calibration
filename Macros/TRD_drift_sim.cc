@@ -172,7 +172,7 @@ TVector2* Create_TRD_track(Double_t impact_angle, Double_t Lorentz_angle, Double
     TPM_trd_Lorentz_drift_pre_corr ->SetMarkerStyle(29);
     TPM_trd_Lorentz_drift_pre_corr ->Draw("");
 
-    PlotLine(x_Lorentz_drift_hit,x_anode_hit,y_Lorentz_drift_hit,y_anode_hit,kGreen+2,2,2); // (Double_t x1_val, Double_t x2_val, Double_t y1_val, Double_t y2_val, Int_t Line_Col, Int_t LineWidth, Int_t LineStyle)
+    PlotLine(x_Lorentz_drift_hit_pre_corr,x_anode_hit,y_Lorentz_drift_hit_pre_corr,y_anode_hit,kGreen+2,2,2); // (Double_t x1_val, Double_t x2_val, Double_t y1_val, Double_t y2_val, Int_t Line_Col, Int_t LineWidth, Int_t LineStyle)
 
     TVector2* TV2_trd_track = new TVector2(x_dir,y_dir);
     return TV2_trd_track;
@@ -245,8 +245,8 @@ void TRD_drift_sim()
 
     Double_t impact_angle             = 75.0;
     Double_t Lorentz_angle            = -10;
-    Double_t Drift_vel_ratio          = 1; // 0.8
-    Double_t Lorentz_angle_pre_corr   = -20; // -7.5
+    Double_t Drift_vel_ratio          = 1.1; // 0.8
+    Double_t Lorentz_angle_pre_corr   = -16; // -7.5
 
     Draw_TRD_detector_2D();
     Create_TRD_track(impact_angle*TMath::DegToRad(),Lorentz_angle*TMath::DegToRad(),Drift_vel_ratio,Lorentz_angle_pre_corr*TMath::DegToRad());
