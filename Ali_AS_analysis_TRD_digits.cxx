@@ -445,7 +445,7 @@ Bool_t Ali_AS_analysis_TRD_digits::UserNotify()
     h_v_fit_vs_det = new TH1D("h_v_fit_vs_det","h_v_fit_vs_det",540,0,540);
     for(Int_t i_det = 0; i_det < 540; i_det++)
     {
-        h_v_fit_vs_det ->SetBinContent(i_det+1,-1.0);
+        h_v_fit_vs_det ->SetBinContent(i_det+1,1.05);
     }
     for(Int_t i_point = 0; i_point < tg_v_fit_vs_det->GetN(); i_point++)
     {
@@ -457,7 +457,7 @@ Bool_t Ali_AS_analysis_TRD_digits::UserNotify()
     h_LA_factor_fit_vs_det = new TH1D("h_LA_factor_fit_vs_det","h_LA_factor_fit_vs_det",540,0,540);
     for(Int_t i_det = 0; i_det < 540; i_det++)
     {
-         h_LA_factor_fit_vs_det->SetBinContent(i_det+1,-1.0);
+         h_LA_factor_fit_vs_det->SetBinContent(i_det+1,-0.14);
     }
     for(Int_t i_point = 0; i_point < tg_LA_factor_fit_vs_det->GetN(); i_point++)
     {
