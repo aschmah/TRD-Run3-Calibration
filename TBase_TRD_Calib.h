@@ -206,6 +206,9 @@ private:
     vector<TProfile*> vec_tp_Delta_vs_impact_circle;
     vector<TH2D*> vec_TH2D_Delta_vs_impact_circle;
 
+    TH2D* h2D_delta_alpha;
+    TH2D* h2D_delta_offset;
+
     vector<TVector2> vec_TV2_points;
     vector<TVector3> vec_dir_vec_circle;
     vector<TVector3> vec_dir_vec_circle_notempty;
@@ -2786,6 +2789,10 @@ void TBase_TRD_Calib::Calibrate()
 {
     printf("TBase_TRD_Calib::Calibrate() \n");
 
+    // used to check if detector is bad for 2D hists
+    TFile* calibration_params = TFile::Open("./Data/TRD_Calib_vDfit_and_LAfit_digits.root");
+    vdrift_fit = (TGraph*)calibration_params->Get(";1");
+
     vec_tp_Delta_vs_impact.resize(540);
     vec_TH2D_Delta_vs_impact.resize(540);
     vec_tp_Delta_vs_impact_circle.resize(540);
@@ -2796,12 +2803,12 @@ void TBase_TRD_Calib::Calibrate()
         vec_tp_Delta_vs_impact[i_det] = new TProfile(Form("vec_th1d_Delta_vs_impact_%d",i_det),Form("vec_th1d_Delta_vs_impact_%d",i_det),360,-360,360);
         vec_TH2D_Delta_vs_impact[i_det] = new TH2D(Form("vec_th2d_Delta_vs_impact_%d",i_det),Form("vec_th2d_Delta_vs_impact_%d",i_det),10,70,110,50,-25,25);
         vec_tp_Delta_vs_impact_circle[i_det] = new TProfile(Form("vec_th1d_Delta_vs_impact_circle_%d",i_det),Form("vec_th1d_Delta_vs_impact_circle_%d",i_det),360,-360,360);
-        vec_TH2D_Delta_vs_impact_circle[i_det] = new TH2D(Form("vec_th2d_Delta_vs_impact_circle_%d",i_det),Form("vec_th2d_Delta_vs_impact_circle_%d",i_det),10,70,110,50,-25,25);
+        vec_TH2D_Delta_vs_impact_circle[i_det] = new TH2D(Form("vec_th2d_Delta_vs_impact_circle_%d",i_det),Form("vec_th2d_Delta_vs_impact_circle_%d",i_det),13,70,110,50,-25,25);
 
     
     }
 
-    for(Long64_t i_event = 0; i_event < 20000; i_event++)
+    for(Long64_t i_event = 0; i_event < 20; i_event++)
     //for(Long64_t i_event = 0; i_event < file_entries_total; i_event++)
     {
         if(i_event % 20 == 0) printf("i_event: %lld out of %lld \n",i_event,file_entries_total);
@@ -3212,9 +3219,9 @@ void TBase_TRD_Calib::Calibrate()
         }
     }
 
-    //printf("test 8 \n");
+    // printf("test 8 \n");
 
-    //cancas for circle fit
+    // canvas for circle fit
     vector<TCanvas*> vec_can_Delta_vs_impact_circle;
     vec_can_Delta_vs_impact_circle.resize(6); // 6 sector blocks with 3 sectors each (18)
 
@@ -3281,6 +3288,109 @@ void TBase_TRD_Calib::Calibrate()
             }
         }
     }
+
+
+    // 2D plot
+    // vector<TCanvas*> vec_can_2D_Delta_vs_impact_circle;
+    // vec_can_2D_Delta_vs_impact_circle.resize(36); // 12 sector blocks with 3 sectors each (18)
+
+    // TH1D* h2D_dummy_Delta_vs_impact_circle = new TH1D("h2D_dummy_Delta_vs_impact_circle","h2D_dummy_Delta_vs_impact_circle",90,50,140);
+    // h2D_dummy_Delta_vs_impact_circle->SetStats(0);
+    // h2D_dummy_Delta_vs_impact_circle->SetTitle("");
+    // h2D_dummy_Delta_vs_impact_circle->GetXaxis()->SetTitleOffset(0.85);
+    // h2D_dummy_Delta_vs_impact_circle->GetYaxis()->SetTitleOffset(0.78);
+    // h2D_dummy_Delta_vs_impact_circle->GetXaxis()->SetLabelOffset(0.0);
+    // h2D_dummy_Delta_vs_impact_circle->GetYaxis()->SetLabelOffset(0.01);
+    // h2D_dummy_Delta_vs_impact_circle->GetXaxis()->SetLabelSize(0.08);
+    // h2D_dummy_Delta_vs_impact_circle->GetYaxis()->SetLabelSize(0.08);
+    // h2D_dummy_Delta_vs_impact_circle->GetXaxis()->SetTitleSize(0.08);
+    // h2D_dummy_Delta_vs_impact_circle->GetYaxis()->SetTitleSize(0.08);
+    // h2D_dummy_Delta_vs_impact_circle->GetXaxis()->SetNdivisions(505,'N');
+    // h2D_dummy_Delta_vs_impact_circle->GetYaxis()->SetNdivisions(505,'N');
+    // h2D_dummy_Delta_vs_impact_circle->GetXaxis()->CenterTitle();
+    // h2D_dummy_Delta_vs_impact_circle->GetYaxis()->CenterTitle();
+    // h2D_dummy_Delta_vs_impact_circle->GetXaxis()->SetTitle("impact angle");
+    // h2D_dummy_Delta_vs_impact_circle->GetYaxis()->SetTitle("#Delta #alpha");
+    // h2D_dummy_Delta_vs_impact_circle->GetXaxis()->SetRangeUser(70,110);
+    // h2D_dummy_Delta_vs_impact_circle->GetYaxis()->SetRangeUser(-24,24);
+
+
+    // for(Int_t i_sec_block = 0; i_sec_block < 36; i_sec_block++)
+    // {
+    //     HistName = "vec_can_2D_Delta_vs_impact_circle";
+    //     HistName += i_sec_block;
+    //     vec_can_2D_Delta_vs_impact_circle[i_sec_block] = new TCanvas(HistName.Data(),HistName.Data(),10,10,1600,1000);
+
+    //     vec_can_2D_Delta_vs_impact_circle[i_sec_block] ->Divide(5,3); // x = stack, y = sector
+
+
+    //     for(Int_t i_det = i_sec_block*15; i_det < i_sec_block*15 + 15; i_det++)
+    //     {
+    //         Int_t det_colour = kBlack;
+    //         bool is_defective = find(begin(Defect_TRD_detectors), end(Defect_TRD_detectors), i_det) != end(Defect_TRD_detectors);
+    //         if (is_defective){
+    //             det_colour = kRed;
+    //         }
+            
+    //         Double_t vdrift;
+    //         Double_t x;
+    //         Double_t y;
+
+    //         bool found = 0;
+    //         for (Int_t vdrift_det=0; vdrift_det<540; vdrift_det++)
+    //         {
+    //             vdrift = vdrift_fit->GetPoint(vdrift_det, x, y);
+    //             if ((Int_t)x == i_det)
+    //             {
+    //                 found = 1;
+    //             }
+    //         }
+
+    //         if (!found)
+    //         {
+    //             det_colour = kRed;
+    //         }
+    //         // see all defects
+    //         // if (det_colour == kRed)
+    //         // {
+    //         //     cout << i_det << ", ";
+    //         // }
+    //         Double_t total = vec_TH2D_Delta_vs_impact_circle[i_det]->Integral(1,11,1,48);
+    //         // cout << "det: " << i_det << " | " << "total: " << total << endl;
+    //         if (total == 0)
+    //         {
+    //             continue;
+    //         }
+
+    //         Int_t iPad = i_det % 15 + 1;
+
+    //         vec_can_2D_Delta_vs_impact_circle[i_sec_block] ->cd(iPad)->SetTicks(1,1);
+    //         vec_can_2D_Delta_vs_impact_circle[i_sec_block] ->cd(iPad)->SetGrid(0,0);
+    //         vec_can_2D_Delta_vs_impact_circle[i_sec_block] ->cd(iPad)->SetFillColor(10);
+    //         vec_can_2D_Delta_vs_impact_circle[i_sec_block] ->cd(iPad)->SetRightMargin(0.01);
+    //         vec_can_2D_Delta_vs_impact_circle[i_sec_block] ->cd(iPad)->SetTopMargin(0.01);
+    //         vec_can_2D_Delta_vs_impact_circle[i_sec_block] ->cd(iPad)->SetBottomMargin(0.2);
+    //         vec_can_2D_Delta_vs_impact_circle[i_sec_block] ->cd(iPad)->SetLeftMargin(0.2);
+    //         vec_can_2D_Delta_vs_impact_circle[i_sec_block] ->cd(iPad);
+
+    //         h2D_dummy_Delta_vs_impact_circle->Draw("h");
+
+    //         vec_TH2D_Delta_vs_impact_circle[i_det] ->Draw("colz same h1");
+
+    //         HistName = "";
+    //         sprintf(NoP,"Det: %d",(Int_t)i_det);
+    //         HistName += NoP;
+    //         plotTopLegend((char*)HistName.Data(),0.75,0.9,0.055,det_colour,0.0,42,1,1); // char* label,Float_t x=-1,Float_t y=-1, Float_t size=0.06,Int_t color=1,Float_t angle=0.0, Int_t font = 42, Int_t NDC = 1, Int_t align = 1
+        
+    //     }
+
+    //     HistName = "";
+    //     sprintf(NoP,"%s%d","half_sector_", (Int_t)i_sec_block);
+    //     HistName += NoP;
+    //     HistName += ".png";
+    //     vec_can_2D_Delta_vs_impact_circle[i_sec_block]->Print((char*)HistName.Data());
+    // }
+
 
     TCanvas* can_delta_angle_perp_impact = new TCanvas("can_delta_angle_perp_impact","can_delta_angle_perp_impact",500,10,500,500);
     can_delta_angle_perp_impact ->cd();
@@ -3456,6 +3566,8 @@ void TBase_TRD_Calib::Calibrate_on_trkl()
             //select_online_tracklets() uses offline circle fit to determine nearby tracklets
             get_2D_global_circle_fit();  // i will get dir_vec_circle (not needed?) and vec_TPL_circle_tracklets[i_point] (basically i_layer)
             select_online_tracklets();  // function to select onl tracklets close to something
+            
+            // for histos with corrected tracklets
             // Draw_corrected_online_tracklets();
 
             //vec_online_tracklet_points[i_layer][i_start_stop][i_XY] : starts and ends of online tracklets
@@ -3529,7 +3641,8 @@ void TBase_TRD_Calib::Calibrate_on_trkl()
 
                     //back to angles calculation
 
-                    //corrected tracklets
+                    // for histos with corrected tracklets
+                    // corrected tracklets
                     // Double_t delta_x = vec_corrected_online_tracklet_points[i_layer][1][0] - vec_corrected_online_tracklet_points[i_layer][0][0];
                     // Double_t delta_y = vec_corrected_online_tracklet_points[i_layer][1][1] - vec_corrected_online_tracklet_points[i_layer][0][1];
                     
@@ -3632,6 +3745,9 @@ void TBase_TRD_Calib::Calibrate_on_trkl()
 
 
                     //printf("test 5 \n");
+                    
+                    // fill impact hists
+                    h2D_delta_alpha ->Fill(impact_angle_circle[i_layer]*TMath::RadToDeg(), Delta_angle_circle*TMath::RadToDeg(), 1);
 
 
                     h_detector_hit ->Fill(detector);
@@ -3896,10 +4012,14 @@ void TBase_TRD_Calib::Draw_corrected_online_tracklets()
 {
     // printf("TBase_TRD_Calib::Draw_online_tracklets() \n");
 
+    /* To plot delta alpha histo using the corrected tracklets, comment out two sets of line in calibrate_on_trkl()
+    look for comment "for histos with corrected tracklets" to find these lines. Also disable drawing of
+    corrected tracklets in this function because it will be called at every iteration */
+    
+
     // TFile* calibration_params = TFile::Open("./TRD_Calib_vDfit_and_LAfit_online_trkl_new_withpre.root");
     TFile* calibration_params = TFile::Open("./TRD_Calib_vDfit_and_LAfit_trkl_morestat.root");
     vdrift_fit = (TGraph*)calibration_params->Get(";1");
-    LA_fit = (TGraph*)calibration_params->Get(";2");
 
     vec_TPL_online_tracklets_selected_corrected.clear();
     vec_TPL_online_tracklets_selected_corrected.resize(6);
@@ -4043,11 +4163,11 @@ void TBase_TRD_Calib::calc_impact_hist()
 {
 
     TH2D* h2D_impact_hist = new TH2D("h2D_impact_hist","h2D_impact_hist",70,50,130,70,-1,1);
-    TCanvas* can_impact_hist = new TCanvas("can_impact_hist","can_impact_hist");    
+    TCanvas* can_impact_hist = new TCanvas("can_impact_hist","can_impact_hist"); 
 
     TProfile* profile_impact_hist = new TProfile("profile_impact_hist","profile_impact_hist",70,50,130);
-    TCanvas* profile_impact_hist_can = new TCanvas("profile_impact_hist_can","profile_impact_hist_can");    
-
+    TCanvas* profile_impact_hist_can = new TCanvas("profile_impact_hist_can","profile_impact_hist_can");   
+    
 
     for(Long64_t i_event = 0; i_event < 500; i_event++)
     {
@@ -4089,8 +4209,8 @@ void TBase_TRD_Calib::calc_impact_hist()
                     // printf("impact_angle_circle: %4.3f \n",impact_angle_circle[i_layer]);
                     // cout << online_dy[i_layer] << endl;
 
-                    h2D_impact_hist ->Fill(impact_angle_circle[i_layer]*TMath::RadToDeg(),online_dy[i_layer],1);
-                    profile_impact_hist ->Fill(impact_angle_circle[i_layer]*TMath::RadToDeg(),online_dy[i_layer],1);
+                    h2D_impact_hist ->Fill(impact_angle_circle[i_layer]*TMath::RadToDeg(), online_dy[i_layer], 1);
+                    profile_impact_hist ->Fill(impact_angle_circle[i_layer]*TMath::RadToDeg(), online_dy[i_layer], 1);
                 }
             }
             online_dy.clear();
