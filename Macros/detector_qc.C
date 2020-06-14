@@ -28,6 +28,8 @@ vector<int> all_defects;
 vector<int> adc_defects;
 vector<int> hv_anode_defects;
 vector<int> hv_drift_defects;
+vector<int> no_fit;
+vector<int> low_stats;
 TFile* outputfile;
 TFile* calib_file;
 TChain* input_SE;
@@ -35,7 +37,7 @@ TChain* input_SE;
 TString JPsi_TREE   = "Tree_AS_Event";
 TString JPsi_BRANCH = "Tree_AS_Event_branch";
 
-Int_t offical_qa[91] = {2, 15, 17, 27, 31, 32, 36, 40, 43, 49, 50, 55, 59, 64, 88, 92, 113, 116, 119, 132, 180, 181, 190,
+Int_t official_qa[91] = {2, 15, 17, 27, 31, 32, 36, 40, 43, 49, 50, 55, 59, 64, 88, 92, 113, 116, 119, 132, 180, 181, 190,
     191, 194, 207, 215, 219, 221, 226, 227, 228, 230, 231, 233, 236, 238, 241, 249, 255, 277, 287, 302, 308, 310, 311, 317, 318, 319, 
     320, 326, 328, 335, 348, 368, 377, 386, 389, 402, 403, 404, 405, 406, 407, 432, 433, 434, 435, 436, 437, 452, 455, 456, 462, 463, 
     464, 465, 466, 467, 470, 482, 483, 484, 485, 490, 491, 493, 500, 502, 504, 538};
@@ -45,7 +47,7 @@ Int_t bad_hv[86] = {2, 5, 8, 12, 17, 26, 27, 29, 30, 31, 32, 36, 40, 43, 49, 50,
     308, 309, 310, 311, 316, 317, 318, 319, 320, 326, 328, 335, 348, 368, 377, 386, 389, 452, 455, 456, 461, 470, 483, 484, 485, 490, 491, 
     493, 494, 498, 500, 502, 504, 538};
 
-Int_t offical_and_hv[111] = {2, 5, 8, 12, 15, 17, 26, 27, 29, 30, 31, 32, 36, 40, 43, 49, 50, 51, 55, 59, 64, 88, 92, 113, 116, 
+Int_t official_and_hv[111] = {2, 5, 8, 12, 15, 17, 26, 27, 29, 30, 31, 32, 36, 40, 43, 49, 50, 51, 55, 59, 64, 88, 92, 113, 116, 
     119, 132, 180, 181, 184, 190, 191, 194, 197, 207, 213, 214, 215, 219, 220, 221, 226, 227, 228, 230, 231, 232, 233, 236, 
     238, 241, 249, 255, 265, 274, 277, 287, 302, 308, 309, 310, 311, 316, 317, 318, 319, 320, 326, 328, 335, 348, 368, 377, 
     386, 389, 402, 403, 404, 405, 406, 407, 432, 433, 434, 435, 436, 437, 452, 455, 456, 461, 462, 463, 464, 465, 466, 467, 
@@ -122,14 +124,14 @@ tuple<Double_t, Double_t, Double_t> getADCParams(const char *profile_name)
 
     ratio = max / plateu;
 
-    //look for ADC plots with ion tail
+    // look for ADC plots with ion tail
     // if (h->GetBinContent(24) < h->GetBinContent(15) * 0.75 && plateu > 1)
     // {
     //     string detector_str(profile_name, 14, 3);
     //     cout << detector_str << ", ";
     // }
 
-    //get total sum of ADC over 24 tb for good chambers
+    // get total sum of ADC over 24 tb for good chambers
     // if (max > 40)
     // {
     //     Double_t ADC_sum = 0;
@@ -144,13 +146,25 @@ tuple<Double_t, Double_t, Double_t> getADCParams(const char *profile_name)
 }
 
 
+void redraw_ADC_curve(const char *profile_name)
+{
+    TProfile *h = (TProfile *)detector_vs_adc_list->FindObject(profile_name);
+
+    h->SetMaximum(60);
+
+    TCanvas *h_can = new TCanvas("h_can", "h_can");
+    h_can->cd();
+    h->Draw();
+}
+
+
 void get_ADC_defects()
 {
     detector_vs_adc_list = (TList *)calib_file->Get("TRD_Digits_output;1");
 
     // defects = new TGraph("adc_defects_hist", "All Defects", 100, 0, 540);
 
-    max_hist = new TH1D("max_hist", "", 200, 10, 100);
+    max_hist = new TH1D("peak_hist", "", 200, 10, 100);
     plateu_hist = new TH1D("plateu_hist", "", 200, 0, 60);
     ratio_hist = new TH1D("ratio_hist", "", 200, 0, 8);
 
@@ -164,23 +178,29 @@ void get_ADC_defects()
             string detector_str(object->GetName(), 14, 3);
             int detector = stoi(detector_str);
 
-            bool exists = std::find(std::begin(offical_and_hv), std::end(offical_and_hv), detector) != std::end(offical_and_hv);
+            bool exists = std::find(std::begin(official_and_hv), std::end(official_and_hv), detector) != std::end(official_and_hv);
             if (exists)
             {
-                continue;
+                // continue;
             }
 
-            if (max < 30 || max > 72)
+            if (max < 35 || max > 70)
             {
                 adc_defects.push_back(detector);
                 all_defects.push_back(detector);
-                // cout << detector << endl;
+                cout << detector << ", ";
                 // continue;
             }
 
             max_hist->Fill(max);
             plateu_hist->Fill(plateu);
             ratio_hist->Fill(ratio);
+
+            // if (detector == 431)
+            // {
+            //     redraw_ADC_curve(object->GetName());
+            // }
+
         }
     }
 }
@@ -188,15 +208,15 @@ void get_ADC_defects()
 
 void draw_ADC_hists()
 {
-    TLine *upper = new TLine(72,0,72,25);
+    TLine *upper = new TLine(70,0,70,25);
     upper -> SetLineWidth(2);
     upper -> SetLineColor(kRed);
 
-    TLine *lower = new TLine(30,0,30,25);
+    TLine *lower = new TLine(35,0,35,25);
     lower -> SetLineWidth(2);
     lower -> SetLineColor(kRed);
 
-    max_hist->GetXaxis()->SetTitle("ADC Value");
+    max_hist->GetXaxis()->SetTitle("Mean ADC Value over timebins [2,3]");
     max_hist->GetYaxis()->SetTitle("Number of Detectors");
     max_hist->GetXaxis()->CenterTitle();
     max_hist->GetYaxis()->CenterTitle();
@@ -248,40 +268,63 @@ void get_HV_defects()
     anode_hv->GetXaxis()->CenterTitle();
     anode_hv->GetYaxis()->CenterTitle();
 
+    double x;
+    double y;
+    double hv;
+    int missing = 0;
+    int low = 0;
     for (int i = 0; i < 540; i++)
     {
-        Double_t hv = anode_hv->Eval(i);
-        if (hv < 1400)
+        x = -1;
+        for (int point = 0; point < anode_hv->GetN(); point++)
         {
-            hv_anode_defects.push_back(i);
-            all_defects.push_back(i);
+            anode_hv->GetPoint(point, x, y);
+            if (x == i)
+            {
+                hv = y;
+                if (hv < 1400)
+                {
+                    low++;
+                    hv_anode_defects.push_back(i);
+                    all_defects.push_back(i);
+                }
+                goto next;
+            }
         }
+        missing ++;
+        hv_anode_defects.push_back(i);
+        all_defects.push_back(i);
+        next:
+        continue;
     }
 
-    for (int i =0; i<hv_anode_defects.size(); i++)
-    {
-        Double_t x;
-        Double_t y;
+    // cout << "size anode: " << hv_anode_defects.size() << endl;
+    // cout << "low: " << low << " | " << "missing: " << missing << endl;
 
-        bool exists = std::find(std::begin(offical_qa), std::end(offical_qa), hv_anode_defects[i]) != std::end(offical_qa);
-        if (!exists)
-        {
-            anode_hv->GetPoint(hv_anode_defects[i], x, y);
-            cout << "x: " << x << " | " << "y: " << y << endl;
-            anode_hv_unique->SetPoint(anode_hv_unique->GetN(), x, y);
-        }  
-    }
+    // draw qc presentation histograms showing difference with official QA
+    // for (int i =0; i<hv_anode_defects.size(); i++)
+    // {
+    //     Double_t x;
+    //     Double_t y;
 
-    // new_anode_hv->cd();
-    anode_hv->Draw("AP");
-    anode_hv_unique->Draw("*");
-    anode_hv_line->Draw();
+    //     bool exists = std::find(std::begin(official_qa), std::end(official_qa), hv_anode_defects[i]) != std::end(official_qa);
+    //     if (!exists)
+    //     {
+    //         anode_hv->GetPoint(hv_anode_defects[i], x, y);
+    //         cout << "x: " << x << " | " << "y: " << y << endl;
+    //         anode_hv_unique->SetPoint(anode_hv_unique->GetN(), x, y);
+    //     }  
+    // }
 
-    for (int i = 0; i < hv_anode_defects.size(); i++)
-    {
-        cout << hv_anode_defects[i] << ", ";
-    }
+    // // new_anode_hv->cd();
+    // anode_hv->Draw("AP");
+    // anode_hv_unique->Draw("*");
+    // anode_hv_line->Draw();
 
+    // for (int i = 0; i < hv_anode_defects.size(); i++)
+    // {
+    //     cout << hv_anode_defects[i] << ", ";
+    // }
 
 
     TFile *drift_hv_file = TFile::Open("../Data/HV_drift_vs_det_265338.root");
@@ -301,34 +344,57 @@ void get_HV_defects()
     drift_hv->GetXaxis()->CenterTitle();
     drift_hv->GetYaxis()->CenterTitle();
 
+    low = 0;
+    missing = 0;
     for (int i = 0; i < 540; i++)
     {
-        Double_t hv = drift_hv->Eval(i);
-        if (hv < 1920)
+        x = -1;
+        for (int point = 0; point < drift_hv->GetN(); point++)
         {
-            hv_drift_defects.push_back(i);
-            all_defects.push_back(i);
+            drift_hv->GetPoint(point, x, y);
+            if (x == i)
+            {
+                hv = y;
+                if (hv < 1920)
+                {
+                    low ++;
+                    hv_drift_defects.push_back(i);
+                    all_defects.push_back(i);
+                }
+                goto next2;
+            }
         }
+        missing ++;
+        hv_drift_defects.push_back(i);
+        all_defects.push_back(i);
+        next2:
+        continue;
     }
 
-    for (int i =0; i<hv_drift_defects.size(); i++)
-    {
-        Double_t x;
-        Double_t y;
+    // cout << "size drift: " << hv_drift_defects.size() << endl;
+    // cout << "low: " << low << " | " << "missing: " << missing << endl;
 
-        bool exists = std::find(std::begin(offical_qa), std::end(offical_qa), hv_drift_defects[i]) != std::end(offical_qa);
-        if (!exists)
-        {
-            drift_hv->GetPoint(hv_drift_defects[i], x, y);
-            cout << "x: " << x << " | " << "y: " << y << endl;
-            drift_hv_unique->SetPoint(drift_hv_unique->GetN(), x, y);
-        }  
-    }
+    // draw histograms for qc presentation
+    // int unique = 0;
+    // for (int i =0; i<hv_drift_defects.size(); i++)
+    // {
+    //     Double_t x;
+    //     Double_t y;
 
-    new_drift_hv->cd();
-    drift_hv->Draw("AP");
-    drift_hv_unique->Draw("*");
-    drift_hv_line->Draw();
+    //     bool exists = std::find(std::begin(official_qa), std::end(official_qa), hv_drift_defects[i]) != std::end(official_qa);
+    //     if (!exists)
+    //     {
+    //         unique ++;
+    //         drift_hv->GetPoint(hv_drift_defects[i], x, y);
+    //         // cout << "x: " << x << " | " << "y: " << y << endl;
+    //         // drift_hv_unique->SetPoint(drift_hv_unique->GetN(), x, y);
+    //     }  
+    // }
+    // cout << "unique: " << unique << endl;
+    // new_drift_hv->cd();
+    // drift_hv->Draw("AP");
+    // drift_hv_unique->Draw("*");
+    // drift_hv_line->Draw();
 
 
     // for (int i = 0; i < hv_drift_defects.size(); i++)
@@ -336,13 +402,13 @@ void get_HV_defects()
     //     cout << hv_drift_defects[i] << ", ";
     // }
 
-    sort( all_defects.begin(), all_defects.end() );
-    all_defects.erase( unique( all_defects.begin(), all_defects.end() ), all_defects.end() );
-
-    for (int i = 0; i < all_defects.size(); i++)
-    {
-        cout << all_defects[i] << ", ";
-    }
+    // sort( all_defects.begin(), all_defects.end() );
+    // all_defects.erase( unique( all_defects.begin(), all_defects.end() ), all_defects.end() );
+    // cout << "all size: " << all_defects.size() << endl;
+    // for (int i = 0; i < all_defects.size(); i++)
+    // {
+    //     cout << all_defects[i] << ", ";
+    // }
 }
 
 
@@ -456,8 +522,9 @@ void get_noise_defects()
 
 void get_no_calibration()
 {
-    TFile* calibration_params = TFile::Open("../Data/TRD_Calib_vDfit_and_LAfit_digits.root");
-    TGraph* vdrift_fit = (TGraph*)calibration_params->Get(";1");
+    // TFile* calibration_params = TFile::Open("../Data/TRD_Calib_vDfit_and_LAfit_digits.root");
+    TFile* calibration_params = TFile::Open("../Data/TRD_Calib_vDfit_and_LAfit_3456.root");
+    TGraph* vdrift_fit = (TGraph*)calibration_params->Get("tg_v_fit_vs_det;1");
 
     Double_t vdrift;
     Double_t x;
@@ -469,7 +536,6 @@ void get_no_calibration()
 
         for (Int_t vdrift_det=0; vdrift_det<540; vdrift_det++)
         {
-
             vdrift = vdrift_fit->GetPoint(vdrift_det, x, y);
             if ((Int_t)x == i_det)
             {
@@ -479,12 +545,13 @@ void get_no_calibration()
 
         if (!found)
         {
-            cout << i_det << ", ";
+            no_fit.push_back(i_det);
+            // cout << i_det << ", ";
         }
     }
 
     int count = 0;
-    TFile* h1d_detector_hit_file = TFile::Open("../Data/h_detector_hit.root");
+    TFile* h1d_detector_hit_file = TFile::Open("../Data/h_detector_hit_76kbinfix.root");
     TH1D* h1d_detector_hit = (TH1D*)h1d_detector_hit_file->Get("h_detector_hit;1");
 
     // draw detector hits hist with axis labels
@@ -500,23 +567,25 @@ void get_no_calibration()
 
     cout << endl << endl;
 
-    // number of hits per chameber with no fit
-    TH1D* h1d_hits_no_fit = new TH1D("h1d_hits_no_fit", "h1d_hits_no_fit", 56, 0, 10);
+    // histogram of number of hits per chamber with no fit
+    // TH1D* h1d_hits_no_fit = new TH1D("h1d_hits_no_fit", "h1d_hits_no_fit", 56, 0, 10);
 
-    TCanvas *h1d_hits_no_fit_can = new TCanvas("h1d_hits_no_fit_can", "h1d_hits_no_fit_can");
-    h1d_hits_no_fit->GetXaxis()->SetTitle("Detector");
-    h1d_hits_no_fit->GetYaxis()->SetTitle("Number of Tracklets per 10k Events");
+    // TCanvas *h1d_hits_no_fit_can = new TCanvas("h1d_hits_no_fit_can", "h1d_hits_no_fit_can");
+    // h1d_hits_no_fit->GetXaxis()->SetTitle("Detector");
+    // h1d_hits_no_fit->GetYaxis()->SetTitle("Number of Tracklets per 10k Events");
 
-    h1d_hits_no_fit->GetXaxis()->CenterTitle();
-    h1d_hits_no_fit->GetYaxis()->CenterTitle();
+    // h1d_hits_no_fit->GetXaxis()->CenterTitle();
+    // h1d_hits_no_fit->GetYaxis()->CenterTitle();
 
-    // indexed from 1
     for (Int_t i_det=0; i_det<540; i_det++)
     {
         int hits = h1d_detector_hit->GetBinContent(i_det+1);
+        hits = hits/7.6; // per 10k events. there were 76k events total
+
         // cout << "idet: " << i_det << " | " << "hits: " << hits << endl;
-        if (hits < 2)
+        if (hits < 10)
         {
+            low_stats.push_back(i_det);
             count ++;
             // cout << i_det << ", ";
         }
@@ -531,18 +600,31 @@ void get_no_calibration()
     118, 182, 183, 184, 185, 213, 234, 235, 237, 239, 306, 307, 309, 321, 322, 323, 324, 325, 327, 329, 384, 385, 387, 388, 
     450, 451, 453, 454, 461, 480, 481, 498, 499, 501, 503, 533, 537};
 
+    int no_fit[147] = {2, 15, 17, 27, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 43, 48, 49, 50, 51, 52, 53, 54,
+    55, 56, 57, 58, 59, 64, 88, 92, 113, 114, 115, 116, 117, 118, 119, 132, 180, 181, 182, 183, 184, 185, 190, 191, 194, 207, 213, 215,
+    219, 221, 226, 227, 228, 230, 231, 233, 234, 235, 236, 237, 238, 239, 241, 249, 255, 277, 287, 302, 306, 307, 308, 309, 310, 311,
+    317, 318, 319, 320, 321, 322, 323, 324, 325, 326, 327, 328, 329, 335, 348, 368, 377, 384, 385, 386, 387, 388, 389, 402, 403, 404,
+    405, 406, 407, 432, 433, 434, 435, 436, 437, 450, 451, 452, 453, 454, 455, 456, 461, 462, 463, 464, 465, 466, 467, 470, 480, 481,
+    482, 483, 484, 485, 490, 491, 493, 498, 499, 500, 501, 502, 503, 504, 533, 537, 538};
+
+    int no_fit_binfix[98] = {2, 15, 17, 27, 31, 32, 36, 40, 43, 49, 50, 55, 59, 64, 88, 92, 113, 116, 119, 132, 180, 181, 190, 191, 194, 207,
+    213, 215, 219, 221, 226, 227, 228, 230, 231, 233, 236, 238, 241, 249, 255, 277, 287, 302, 308, 309, 310, 311, 317, 318, 319, 320,
+    326, 328, 335, 348, 368, 377, 386, 389, 402, 403, 404, 405, 406, 407, 432, 433, 434, 435, 436, 437, 452, 455, 456, 461, 462, 463,
+    464, 465, 466, 467, 470, 480, 481, 482, 483, 484, 485, 490, 491, 493, 500, 502, 504, 533, 537, 538};
+
     count = 0;
-    for (int i_det=0; i_det<56  ; i_det++)
+    for (int i_det=0; i_det<147  ; i_det++)
     {
-        int hits = h1d_detector_hit->GetBinContent(det_not_in_official[i_det]+1);
-        h1d_hits_no_fit->Fill(hits);
-        cout << "det: " << det_not_in_official[i_det] << " | " << "hits: " << hits << endl;
-        if (hits < 3) {count ++;}
+        int hits = h1d_detector_hit->GetBinContent(no_fit[i_det]+1);
+        hits = hits/7.6;
+        // h1d_hits_no_fit->Fill(hits);
+        cout << "det: " << no_fit[i_det] << " | " << "hits: " << hits << endl;
+        if (hits < 10) {count ++;}
     }
     cout << count << endl;
 
-    h1d_hits_no_fit_can->cd();
-    h1d_hits_no_fit->Draw();
+    // h1d_hits_no_fit_can->cd();
+    // h1d_hits_no_fit->Draw();
 }
 
 
@@ -576,6 +658,234 @@ void draw_all_defects_hist()
     outputfile = new TFile("./chamber_QC.root","RECREATE");
     outputfile ->cd();
     all_defects_hist->Write();
+}
+
+
+void draw_qc_summary()
+{
+    cout << "no fit: " << no_fit.size() << endl;
+    TCanvas *summary_can = new TCanvas("summary_can", "summary_can", 0,0,1800,1000);
+    summary_can->Divide(1,6, 0.005,0.005);
+
+    TGraph *good_points = new TGraph();
+    good_points->SetMarkerColor(kGreen-3);
+    good_points->SetMarkerStyle(4);
+
+    TGraph *bad_points = new TGraph();
+    bad_points->SetMarkerColor(kRed);
+    bad_points->SetMarkerStyle(5);
+
+    int pointx = 1;
+    int pointy = 1;
+
+    bool good_bad[6];
+    for (int i_det=0; i_det<540; i_det++)
+    {
+        pointy = 1;
+
+        good_bad[0] = std::find(std::begin(hv_anode_defects), std::end(hv_anode_defects), i_det) != std::end(hv_anode_defects);
+        good_bad[1] = std::find(std::begin(hv_drift_defects), std::end(hv_drift_defects), i_det) != std::end(hv_drift_defects);
+        good_bad[2] = std::find(std::begin(adc_defects), std::end(adc_defects), i_det) != std::end(adc_defects);
+        good_bad[3] = std::find(std::begin(low_stats), std::end(low_stats), i_det) != std::end(low_stats);        
+        good_bad[4] = std::find(std::begin(no_fit), std::end(no_fit), i_det) != std::end(no_fit);
+        good_bad[5] = std::find(std::begin(official_qa), std::end(official_qa), i_det) != std::end(official_qa);
+
+        for (int b=0; b<6; b++)
+        {
+            bool bad = good_bad[b];
+            if (bad)
+            {
+                bad_points->SetPoint(bad_points->GetN(), pointx, pointy);
+            }
+            else
+            {
+                good_points->SetPoint(good_points->GetN(), pointx, pointy);
+            }
+            pointy ++;
+        }
+
+        pointx ++;
+        if (pointx % 7 == 0) {pointx ++;}
+    }
+    
+    TString label;
+    TString ylabels[8] = {" ", "anode HV", "drift HV", "ADC", "low stats", "no fit", "official", " "};
+
+
+    summary_can->cd(1);
+    auto frame = gPad->DrawFrame(0,0,105,7);
+
+    frame->GetXaxis()->SetNdivisions(15, 0);
+    frame->GetXaxis()->SetLabelSize(0.1);
+    for (int i_label=1; i_label<9; i_label++)
+    {
+        frame->GetYaxis()->ChangeLabel(i_label,-1,-1,-1,-1,-1,ylabels[i_label-1]);
+    }
+    frame->GetYaxis()->SetTickSize(0);
+    frame->GetYaxis()->SetLabelSize(0.1);
+    gPad->SetGridx(1);
+
+    for (int i_label=2; i_label<16; i_label++)
+    {
+
+        label = "";
+        label += (i_label-1)*6 - 1;
+        label += " | ";
+        label += (i_label-1)*6;
+        frame->GetXaxis()->ChangeLabel(i_label,-1,-1,-1,-1,-1,label.Data());
+    }
+    frame->GetXaxis()->ChangeLabel(1,-1,-1,-1,-1,-1,"   | 0");
+    frame->GetXaxis()->ChangeLabel(16,-1,-1,-1,-1,-1,"89 |    ");
+
+    good_points->Draw("P");
+    bad_points->Draw("same P");
+
+
+    summary_can->cd(2);
+    frame = gPad->DrawFrame(105,0,210,7);
+
+    frame->GetXaxis()->SetNdivisions(15,0);
+    frame->GetXaxis()->SetLabelSize(0.1);
+    for (int i_label=1; i_label<9; i_label++)
+    {
+        frame->GetYaxis()->ChangeLabel(i_label,-1,-1,-1,-1,-1,ylabels[i_label-1]);
+    }
+    frame->GetYaxis()->SetTickSize(0);
+    frame->GetYaxis()->SetLabelSize(0.1);
+    gPad->SetGridx(1);
+
+    for (int i_label=2; i_label<16; i_label++)
+    {
+        label = "";
+        label += (i_label+14)*6 - 1;
+        label += " | ";
+        label += (i_label+14)*6;
+        frame->GetXaxis()->ChangeLabel(i_label,-1,-1,-1,-1,-1,label.Data());
+    }
+    frame->GetXaxis()->ChangeLabel(1,-1,-1,-1,-1,-1,"     | 90");
+    frame->GetXaxis()->ChangeLabel(16,-1,-1,-1,-1,-1,"179 |      ");
+
+    good_points->Draw("P");
+    bad_points->Draw("same P");
+
+
+    summary_can->cd(3);
+    frame = gPad->DrawFrame(210,0,315,7);
+
+    frame->GetXaxis()->SetNdivisions(15,0);
+    frame->GetXaxis()->SetLabelSize(0.1);
+    for (int i_label=1; i_label<9; i_label++)
+    {
+        frame->GetYaxis()->ChangeLabel(i_label,-1,-1,-1,-1,-1,ylabels[i_label-1]);
+    }
+    frame->GetYaxis()->SetTickSize(0);
+    frame->GetYaxis()->SetLabelSize(0.1);
+    gPad->SetGridx(1);
+
+    for (int i_label=2; i_label<16; i_label++)
+    {
+        label = "";
+        label += (i_label+29)*6 - 1;
+        label += " | ";
+        label += (i_label+29)*6;
+        frame->GetXaxis()->ChangeLabel(i_label,-1,-1,-1,-1,-1,label.Data());
+    }
+    frame->GetXaxis()->ChangeLabel(1,-1,-1,-1,-1,-1,"       | 180");
+    frame->GetXaxis()->ChangeLabel(16,-1,-1,-1,-1,-1,"269 |      ");
+
+    good_points->Draw("P");
+    bad_points->Draw("same P");
+
+
+    summary_can->cd(4);
+    frame = gPad->DrawFrame(315,0,420,7);
+
+    frame->GetXaxis()->SetNdivisions(15,0);
+    frame->GetXaxis()->SetLabelSize(0.1);
+    for (int i_label=1; i_label<9; i_label++)
+    {
+        frame->GetYaxis()->ChangeLabel(i_label,-1,-1,-1,-1,-1,ylabels[i_label-1]);
+    }
+    frame->GetYaxis()->SetTickSize(0);
+    frame->GetYaxis()->SetLabelSize(0.1);
+    gPad->SetGridx(1);
+
+    for (int i_label=2; i_label<16; i_label++)
+    {
+        label = "";
+        label += (i_label+44)*6 - 1;
+        label += " | ";
+        label += (i_label+44)*6;
+        frame->GetXaxis()->ChangeLabel(i_label,-1,-1,-1,-1,-1,label.Data());
+    }
+    frame->GetXaxis()->ChangeLabel(1,-1,-1,-1,-1,-1,"       | 270");
+    frame->GetXaxis()->ChangeLabel(16,-1,-1,-1,-1,-1,"359 |      ");
+
+    good_points->Draw("P");
+    bad_points->Draw("same P");
+
+
+    summary_can->cd(5);
+    frame = gPad->DrawFrame(420,0,525,7);
+
+    frame->GetXaxis()->SetNdivisions(15,0);
+    frame->GetXaxis()->SetLabelSize(0.1);
+    for (int i_label=1; i_label<9; i_label++)
+    {
+        frame->GetYaxis()->ChangeLabel(i_label,-1,-1,-1,-1,-1,ylabels[i_label-1]);
+    }
+    frame->GetYaxis()->SetTickSize(0);
+    frame->GetYaxis()->SetLabelSize(0.1);
+    gPad->SetGridx(1);
+
+    for (int i_label=2; i_label<16; i_label++)
+    {
+        label = "";
+        label += (i_label+59)*6 - 1;
+        label += " | ";
+        label += (i_label+59)*6;
+        frame->GetXaxis()->ChangeLabel(i_label,-1,-1,-1,-1,-1,label.Data());
+    }
+    frame->GetXaxis()->ChangeLabel(1,-1,-1,-1,-1,-1,"       | 360");
+    frame->GetXaxis()->ChangeLabel(16,-1,-1,-1,-1,-1,"449 |      ");
+
+    good_points->Draw("P");
+    bad_points->Draw("same P");
+
+
+    summary_can->cd(6);
+    frame = gPad->DrawFrame(525,0,630,7);
+
+    frame->GetXaxis()->SetNdivisions(15,0);
+    frame->GetXaxis()->SetLabelSize(0.1);
+    for (int i_label=1; i_label<9; i_label++)
+    {
+        frame->GetYaxis()->ChangeLabel(i_label,-1,-1,-1,-1,-1,ylabels[i_label-1]);
+    }
+    frame->GetYaxis()->SetTickSize(0);
+    frame->GetYaxis()->SetLabelSize(0.1);
+    gPad->SetGridx(1);
+
+    for (int i_label=2; i_label<16; i_label++)
+    {
+        label = "";
+        label += (i_label+74)*6 - 1;
+        label += " | ";
+        label += (i_label+74)*6;
+        frame->GetXaxis()->ChangeLabel(i_label,-1,-1,-1,-1,-1,label.Data());
+    }
+    frame->GetXaxis()->ChangeLabel(1,-1,-1,-1,-1,-1,"       | 450");
+    frame->GetXaxis()->ChangeLabel(16,-1,-1,-1,-1,-1,"539 |      ");
+
+    good_points->Draw("P");
+    bad_points->Draw("same P");
+
+//     summary_can->cd();
+//    auto legend = new TLegend(10,0.7,0.48,0.9);
+//    legend->SetHeader("The Legend Title","C"); // option "C" allows to center the header
+//    legend->AddEntry(bad_points,"Histogram filled with random numbers","f");
+//    legend->AddEntry(good_points,"Function abs(#frac{sin(x)}{x})","l");
+//    legend->Draw();
 }
 
 
@@ -625,15 +935,17 @@ void detector_qc()
     
     // Init_tree("../list_tree_off_trkl_V1.txt");
 
-    // get_ADC_defects();
+    get_ADC_defects();
 
     // draw_ADC_hists();
 
-    // get_HV_defects();
+    get_HV_defects();
 
     // get_noise_defects();
 
-    // get_no_calibration();
+    get_no_calibration();
+
+    draw_qc_summary();
 
     // draw_all_defects_hist();
 

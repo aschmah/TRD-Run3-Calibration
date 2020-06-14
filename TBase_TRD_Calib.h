@@ -163,9 +163,16 @@ private:
     Int_t Not_installed_TRD_detectors[19] = {402,403,404,405,406,407,432,433,434,435,436,437,462,463,464,465,466,467,538};
 
     // list from Yvonne
-    // Int_t Defect_TRD_detectors[84]        = {2,5,17,24,26,30,31,32,36,40,41,43,49,50,59,62,64,78,88,92,93,107,110,111,113,116,119,131,161,
-    // 165,182,184,188,190,191,215,219,221,223,226,227,233,236,239,241,249,255,265,277,287,302,308,310,311,318,319,320,326,328,335,348,354,368,377,380,
-    // 386,389,452,455,456,470,474,476,483,484,485,490,491,493,494,500,502,504,506};
+    // Int_t Defect_TRD_detectors[84] = {2, 5, 17, 24, 26, 30, 31, 32, 36, 40, 41, 43, 49, 50, 59, 62, 64, 78, 88, 92, 93, 107, 110, 
+    // 111, 113, 116, 119, 131, 161, 165, 182, 184, 188, 190, 191, 215, 219, 221, 223, 226, 227, 233, 236, 239, 241, 249, 255, 265, 277, 
+    // 287, 302, 308, 310, 311, 318, 319, 320, 326, 328, 335, 348, 354, 368, 377, 380, 386, 389, 452, 455, 456, 470, 474, 476, 483, 484, 
+    // 485, 490, 491, 493, 494, 500, 502, 504, 506};
+
+    // list from official QA http://aliqatrd.web.cern.ch/aliqatrd/data/2016/LHC16q/pass1_CENT_wSDD/000265338/
+    // Int_t Defect_TRD_detectors[91] = {2, 15, 17, 27, 31, 32, 36, 40, 43, 49, 50, 55, 59, 64, 88, 92, 113, 116, 119, 132, 180, 181, 190,
+    // 191, 194, 207, 215, 219, 221, 226, 227, 228, 230, 231, 233, 236, 238, 241, 249, 255, 277, 287, 302, 308, 310, 311, 317, 318, 319, 
+    // 320, 326, 328, 335, 348, 368, 377, 386, 389, 402, 403, 404, 405, 406, 407, 432, 433, 434, 435, 436, 437, 452, 455, 456, 462, 463, 
+    // 464, 465, 466, 467, 470, 482, 483, 484, 485, 490, 491, 493, 500, 502, 504, 538};
 
     // from Jason's QC (cut max adc [2,3] > 40)
     // bad adc only
@@ -176,14 +183,28 @@ private:
     // 419, 425, 427, 429, 430, 431, 432, 433, 434, 435, 436, 437, 438, 439, 442, 443, 445, 447, 448, 449, 452, 455, 456, 461, 462, 463,
     // 464, 465, 466, 467, 470, 482, 483, 484, 485, 490, 491, 493, 497, 500, 502, 504, 526, 533, 536, 537, 538};
 
+    // bad HV only
+    // Int_t Defect_TRD_detectors[86] = {2, 5, 8, 12, 17, 26, 27, 29, 30, 31, 32, 36, 40, 43, 49, 50, 51, 59, 64, 88, 92, 113, 116, 119, 132, 
+    // 181, 184, 190, 191, 197, 213, 214, 215, 219, 220, 221, 226, 227, 228, 230, 231, 232, 233, 236, 241, 249, 255, 265, 274, 277, 287, 302, 
+    // 308, 309, 310, 311, 316, 317, 318, 319, 320, 326, 328, 335, 348, 368, 377, 386, 389, 452, 455, 456, 461, 470, 483, 484, 485, 490, 491, 
+    // 493, 494, 498, 500, 502, 504, 538};
+
+    // no v_fit
+    // Int_t Defect_TRD_detectors[135] = {2, 15, 17, 27, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 43, 48, 49, 50, 51, 52, 53, 54, 
+    // 55, 56, 57, 58, 59, 64, 88, 92, 113, 114, 115, 116, 117, 118, 119, 132, 180, 181, 182, 183, 184, 185, 190, 191, 194, 207, 213, 215, 
+    // 219, 221, 226, 227, 228, 230, 231, 233, 234, 235, 236, 237, 238, 239, 241, 249, 255, 277, 287, 302, 306, 307, 308, 309, 310, 311, 
+    // 317, 318, 319, 320, 321, 322, 323, 324, 325, 326, 327, 328, 329, 335, 348, 368, 377, 384, 385, 386, 387, 388, 389, 402, 403, 404, 
+    // 405, 406, 407, 432, 433, 434, 435, 436, 437, 450, 451, 452, 453, 454, 455, 456, 461, 462, 463, 464, 465, 466, 467, 470, 480, 481, 
+    // 482, 483, 484, 485, 490};
+
     // bad adc and bad hv
-    Int_t Defect_TRD_detectors[167] = {2, 5, 8, 12, 15, 17, 26, 27, 29, 30, 31, 32, 36, 40, 43, 47, 49, 50, 51, 55, 59, 64, 88, 92, 113, 116, 119, 123, 125, 129, 130,
-    131, 132, 136, 137, 140, 141, 142, 143, 144, 146, 148, 149, 150, 156, 157, 159, 162, 163, 164, 169, 171, 175, 180, 181, 190, 191,
-    194, 197, 207, 213, 214, 215, 219, 220, 221, 226, 227, 228, 230, 231, 232, 233, 236, 238, 241, 245, 249, 255, 265, 274, 277, 287,
-    302, 304, 305, 308, 309, 310, 311, 317, 318, 319, 320, 323, 326, 328, 335, 348, 365, 368, 371, 377, 386, 389, 391, 395, 397, 400,
-    401, 402, 403, 404, 405, 406, 407, 413, 417, 419, 425, 427, 429, 430, 431, 432, 433, 434, 435, 436, 437, 438, 439, 442, 443, 445,
-    447, 448, 449, 452, 455, 456, 461, 462, 463, 464, 465, 466, 467, 470, 476, 482, 483, 484, 485, 490, 491, 493, 497, 500, 502, 504,
-    520, 526, 533, 536, 537, 538};
+    Int_t Defect_TRD_detectors[167] = {2, 5, 8, 12, 15, 17, 26, 27, 29, 30, 31, 32, 36, 40, 43, 47, 49, 50, 51, 55, 59, 64, 88, 92, 113, 
+    116, 119, 123, 125, 129, 130, 131, 132, 136, 137, 140, 141, 142, 143, 144, 146, 148, 149, 150, 156, 157, 159, 162, 163, 164, 169, 
+    171, 175, 180, 181, 190, 191, 194, 197, 207, 213, 214, 215, 219, 220, 221, 226, 227, 228, 230, 231, 232, 233, 236, 238, 241, 245, 
+    249, 255, 265, 274, 277, 287, 302, 304, 305, 308, 309, 310, 311, 317, 318, 319, 320, 323, 326, 328, 335, 348, 365, 368, 371, 377, 
+    386, 389, 391, 395, 397, 400, 401, 402, 403, 404, 405, 406, 407, 413, 417, 419, 425, 427, 429, 430, 431, 432, 433, 434, 435, 436, 
+    437, 438, 439, 442, 443, 445, 447, 448, 449, 452, 455, 456, 461, 462, 463, 464, 465, 466, 467, 470, 476, 482, 483, 484, 485, 490, 
+    491, 493, 497, 500, 502, 504, 520, 526, 533, 536, 537, 538};
 
     // with v_fit check
     Int_t Defect_TRD_detectors_wfit[271] =  {2, 5, 8, 12, 15, 17, 26, 27, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 43, 47, 48,
@@ -2835,19 +2856,18 @@ void TBase_TRD_Calib::Calibrate()
         vec_tp_Delta_vs_impact[i_det] = new TProfile(Form("vec_th1d_Delta_vs_impact_%d",i_det),Form("vec_th1d_Delta_vs_impact_%d",i_det),360,-360,360);
         vec_TH2D_Delta_vs_impact[i_det] = new TH2D(Form("vec_th2d_Delta_vs_impact_%d",i_det),Form("vec_th2d_Delta_vs_impact_%d",i_det),10,70,110,50,-25,25);
         vec_tp_Delta_vs_impact_circle[i_det] = new TProfile(Form("vec_th1d_Delta_vs_impact_circle_%d",i_det),Form("vec_th1d_Delta_vs_impact_circle_%d",i_det),360,-360,360);
-        vec_TH2D_Delta_vs_impact_circle[i_det] = new TH2D(Form("vec_th2d_Delta_vs_impact_circle_%d",i_det),Form("vec_th2d_Delta_vs_impact_circle_%d",i_det),13,70,110,50,-25,25);
+        vec_TH2D_Delta_vs_impact_circle[i_det] = new TH2D(Form("vec_th2d_Delta_vs_impact_circle_%d",i_det),Form("vec_th2d_Delta_vs_impact_circle_%d",i_det),13,70,110,200,-100,100);
 
     
     }
 
-    for(Long64_t i_event = 0; i_event < 1000; i_event++)
+    for(Long64_t i_event = 0; i_event < 10000; i_event++)
     //for(Long64_t i_event = 0; i_event < file_entries_total; i_event++)
     {
-        if(i_event % 20 == 0) printf("i_event: %lld out of %lld \n",i_event,file_entries_total);
+        if(i_event % 100 == 0) printf("i_event: %lld out of %lld \n",i_event,file_entries_total);
         if (!input_SE->GetEntry( i_event )) return 0; // take the event -> information is stored in event
 
         UShort_t NumTracks = AS_Event ->getNumTracks(); // number of tracks in this event
-
         for(Int_t i_track = 0; i_track < NumTracks; i_track++)
         {
             //cout << "i_track: " << i_track << ", of " << NumTracks << endl;
@@ -3195,72 +3215,72 @@ void TBase_TRD_Calib::Calibrate()
     //printf("test 7 \n");
 
     // copy all that for circle angle histos
-    vector<TCanvas*> vec_can_Delta_vs_impact;
-    vec_can_Delta_vs_impact.resize(6); // 6 sector blocks with 3 sectors each (18)
+    // vector<TCanvas*> vec_can_Delta_vs_impact;
+    // vec_can_Delta_vs_impact.resize(6); // 6 sector blocks with 3 sectors each (18)
 
-    TH1D* h_dummy_Delta_vs_impact = new TH1D("h_dummy_Delta_vs_impact","h_dummy_Delta_vs_impact",90,50,140);
-    h_dummy_Delta_vs_impact->SetStats(0);
-    h_dummy_Delta_vs_impact->SetTitle("");
-    h_dummy_Delta_vs_impact->GetXaxis()->SetTitleOffset(0.85);
-    h_dummy_Delta_vs_impact->GetYaxis()->SetTitleOffset(0.78);
-    h_dummy_Delta_vs_impact->GetXaxis()->SetLabelOffset(0.0);
-    h_dummy_Delta_vs_impact->GetYaxis()->SetLabelOffset(0.01);
-    h_dummy_Delta_vs_impact->GetXaxis()->SetLabelSize(0.08);
-    h_dummy_Delta_vs_impact->GetYaxis()->SetLabelSize(0.08);
-    h_dummy_Delta_vs_impact->GetXaxis()->SetTitleSize(0.08);
-    h_dummy_Delta_vs_impact->GetYaxis()->SetTitleSize(0.08);
-    h_dummy_Delta_vs_impact->GetXaxis()->SetNdivisions(505,'N');
-    h_dummy_Delta_vs_impact->GetYaxis()->SetNdivisions(505,'N');
-    h_dummy_Delta_vs_impact->GetXaxis()->CenterTitle();
-    h_dummy_Delta_vs_impact->GetYaxis()->CenterTitle();
-    h_dummy_Delta_vs_impact->GetXaxis()->SetTitle("impact angle");
-    h_dummy_Delta_vs_impact->GetYaxis()->SetTitle("#Delta #alpha");
-    h_dummy_Delta_vs_impact->GetXaxis()->SetRangeUser(70,110);
-    h_dummy_Delta_vs_impact->GetYaxis()->SetRangeUser(-24,24);
+    // TH1D* h_dummy_Delta_vs_impact = new TH1D("h_dummy_Delta_vs_impact","h_dummy_Delta_vs_impact",90,50,140);
+    // h_dummy_Delta_vs_impact->SetStats(0);
+    // h_dummy_Delta_vs_impact->SetTitle("");
+    // h_dummy_Delta_vs_impact->GetXaxis()->SetTitleOffset(0.85);
+    // h_dummy_Delta_vs_impact->GetYaxis()->SetTitleOffset(0.78);
+    // h_dummy_Delta_vs_impact->GetXaxis()->SetLabelOffset(0.0);
+    // h_dummy_Delta_vs_impact->GetYaxis()->SetLabelOffset(0.01);
+    // h_dummy_Delta_vs_impact->GetXaxis()->SetLabelSize(0.08);
+    // h_dummy_Delta_vs_impact->GetYaxis()->SetLabelSize(0.08);
+    // h_dummy_Delta_vs_impact->GetXaxis()->SetTitleSize(0.08);
+    // h_dummy_Delta_vs_impact->GetYaxis()->SetTitleSize(0.08);
+    // h_dummy_Delta_vs_impact->GetXaxis()->SetNdivisions(505,'N');
+    // h_dummy_Delta_vs_impact->GetYaxis()->SetNdivisions(505,'N');
+    // h_dummy_Delta_vs_impact->GetXaxis()->CenterTitle();
+    // h_dummy_Delta_vs_impact->GetYaxis()->CenterTitle();
+    // h_dummy_Delta_vs_impact->GetXaxis()->SetTitle("impact angle");
+    // h_dummy_Delta_vs_impact->GetYaxis()->SetTitle("#Delta #alpha");
+    // h_dummy_Delta_vs_impact->GetXaxis()->SetRangeUser(70,110);
+    // h_dummy_Delta_vs_impact->GetYaxis()->SetRangeUser(-24,24);
 
     Int_t arr_color_layer[6] = {kBlack,kRed,kBlue,kGreen,kMagenta,kCyan};
 
-    for(Int_t i_sec_block = 0; i_sec_block < 6; i_sec_block++)
-    {
-        HistName = "vec_can_Delta_vs_impact_";
-        HistName += i_sec_block;
-        vec_can_Delta_vs_impact[i_sec_block] = new TCanvas(HistName.Data(),HistName.Data(),10,10,1600,1000);
+    // for(Int_t i_sec_block = 0; i_sec_block < 6; i_sec_block++)
+    // {
+    //     HistName = "vec_can_Delta_vs_impact_";
+    //     HistName += i_sec_block;
+    //     vec_can_Delta_vs_impact[i_sec_block] = new TCanvas(HistName.Data(),HistName.Data(),10,10,1600,1000);
 
-        vec_can_Delta_vs_impact[i_sec_block] ->Divide(5,3); // x = stack, y = sector
+    //     vec_can_Delta_vs_impact[i_sec_block] ->Divide(5,3); // x = stack, y = sector
 
-        for(Int_t i_sec_sub = 0; i_sec_sub < 3; i_sec_sub++)
-        {
-            Int_t i_sector = i_sec_block + 6*i_sec_sub;
-            for(Int_t i_stack = 0; i_stack < 5; i_stack++)
-            {
-                Int_t iPad = i_sec_sub*5 + i_stack + 1;
-                vec_can_Delta_vs_impact[i_sec_block] ->cd(iPad)->SetTicks(1,1);
-                vec_can_Delta_vs_impact[i_sec_block] ->cd(iPad)->SetGrid(0,0);
-                vec_can_Delta_vs_impact[i_sec_block] ->cd(iPad)->SetFillColor(10);
-                vec_can_Delta_vs_impact[i_sec_block] ->cd(iPad)->SetRightMargin(0.01);
-                vec_can_Delta_vs_impact[i_sec_block] ->cd(iPad)->SetTopMargin(0.01);
-                vec_can_Delta_vs_impact[i_sec_block] ->cd(iPad)->SetBottomMargin(0.2);
-                vec_can_Delta_vs_impact[i_sec_block] ->cd(iPad)->SetLeftMargin(0.2);
-                vec_can_Delta_vs_impact[i_sec_block] ->cd(iPad);
-                h_dummy_Delta_vs_impact->Draw("h");
+    //     for(Int_t i_sec_sub = 0; i_sec_sub < 3; i_sec_sub++)
+    //     {
+    //         Int_t i_sector = i_sec_block + 6*i_sec_sub;
+    //         for(Int_t i_stack = 0; i_stack < 5; i_stack++)
+    //         {
+    //             Int_t iPad = i_sec_sub*5 + i_stack + 1;
+    //             vec_can_Delta_vs_impact[i_sec_block] ->cd(iPad)->SetTicks(1,1);
+    //             vec_can_Delta_vs_impact[i_sec_block] ->cd(iPad)->SetGrid(0,0);
+    //             vec_can_Delta_vs_impact[i_sec_block] ->cd(iPad)->SetFillColor(10);
+    //             vec_can_Delta_vs_impact[i_sec_block] ->cd(iPad)->SetRightMargin(0.01);
+    //             vec_can_Delta_vs_impact[i_sec_block] ->cd(iPad)->SetTopMargin(0.01);
+    //             vec_can_Delta_vs_impact[i_sec_block] ->cd(iPad)->SetBottomMargin(0.2);
+    //             vec_can_Delta_vs_impact[i_sec_block] ->cd(iPad)->SetLeftMargin(0.2);
+    //             vec_can_Delta_vs_impact[i_sec_block] ->cd(iPad);
+    //             h_dummy_Delta_vs_impact->Draw("h");
 
-                for(Int_t i_layer = 0; i_layer < 6; i_layer++)
-                {
-                    Int_t i_detector = i_layer + 6*i_stack + 30*i_sector;
-                    printf("detector: %d \n",i_detector);
-                    vec_tp_Delta_vs_impact[i_detector] ->SetLineColor(arr_color_layer[i_layer]);
-                    vec_tp_Delta_vs_impact[i_detector] ->SetLineWidth(2);
-                    vec_tp_Delta_vs_impact[i_detector] ->SetLineStyle(1);
-                    vec_tp_Delta_vs_impact[i_detector] ->Draw("same hl");
+    //             for(Int_t i_layer = 0; i_layer < 6; i_layer++)
+    //             {
+    //                 Int_t i_detector = i_layer + 6*i_stack + 30*i_sector;
+    //                 printf("detector: %d \n",i_detector);
+    //                 vec_tp_Delta_vs_impact[i_detector] ->SetLineColor(arr_color_layer[i_layer]);
+    //                 vec_tp_Delta_vs_impact[i_detector] ->SetLineWidth(2);
+    //                 vec_tp_Delta_vs_impact[i_detector] ->SetLineStyle(1);
+    //                 vec_tp_Delta_vs_impact[i_detector] ->Draw("same hl");
 
-                    HistName = "";
-                    sprintf(NoP,"%4.0f",(Double_t)i_detector);
-                    HistName += NoP;
-                    plotTopLegend((char*)HistName.Data(),0.24,0.89-i_layer*0.07,0.045,arr_color_layer[i_layer],0.0,42,1,1); // char* label,Float_t x=-1,Float_t y=-1, Float_t size=0.06,Int_t color=1,Float_t angle=0.0, Int_t font = 42, Int_t NDC = 1, Int_t align = 1
-                }
-            }
-        }
-    }
+    //                 HistName = "";
+    //                 sprintf(NoP,"%4.0f",(Double_t)i_detector);
+    //                 HistName += NoP;
+    //                 plotTopLegend((char*)HistName.Data(),0.24,0.89-i_layer*0.07,0.045,arr_color_layer[i_layer],0.0,42,1,1); // char* label,Float_t x=-1,Float_t y=-1, Float_t size=0.06,Int_t color=1,Float_t angle=0.0, Int_t font = 42, Int_t NDC = 1, Int_t align = 1
+    //             }
+    //         }
+    //     }
+    // }
 
     // printf("test 8 \n");
 
@@ -3288,7 +3308,7 @@ void TBase_TRD_Calib::Calibrate()
     h_dummy_Delta_vs_impact_circle->GetXaxis()->SetRangeUser(70,110);
     h_dummy_Delta_vs_impact_circle->GetYaxis()->SetRangeUser(-24,24);
 
-    //Int_t arr_color_layer[6] = {kBlack,kRed,kBlue,kGreen,kMagenta,kCyan};
+    // Int_t arr_color_layer[6] = {kBlack,kRed,kBlue,kGreen,kMagenta,kCyan};
 
     for(Int_t i_sec_block = 0; i_sec_block < 6; i_sec_block++)
     {
@@ -3317,7 +3337,7 @@ void TBase_TRD_Calib::Calibrate()
                 for(Int_t i_layer = 0; i_layer < 6; i_layer++)
                 {
                     Int_t i_detector = i_layer + 6*i_stack + 30*i_sector;
-                    printf("detector: %d \n",i_detector);
+                    // printf("detector: %d \n",i_detector);
                     vec_tp_Delta_vs_impact_circle[i_detector] ->SetLineColor(arr_color_layer[i_layer]);
                     vec_tp_Delta_vs_impact_circle[i_detector] ->SetLineWidth(2);
                     vec_tp_Delta_vs_impact_circle[i_detector] ->SetLineStyle(1);
@@ -3355,7 +3375,7 @@ void TBase_TRD_Calib::Calibrate()
     // h2D_dummy_Delta_vs_impact_circle->GetXaxis()->SetTitle("impact angle");
     // h2D_dummy_Delta_vs_impact_circle->GetYaxis()->SetTitle("#Delta #alpha");
     // h2D_dummy_Delta_vs_impact_circle->GetXaxis()->SetRangeUser(70,110);
-    // h2D_dummy_Delta_vs_impact_circle->GetYaxis()->SetRangeUser(-24,24);
+    // h2D_dummy_Delta_vs_impact_circle->GetYaxis()->SetRangeUser(-99,99);
 
 
     // for(Int_t i_sec_block = 0; i_sec_block < 36; i_sec_block++)
@@ -3398,7 +3418,7 @@ void TBase_TRD_Calib::Calibrate()
     //         // {
     //         //     cout << i_det << ", ";
     //         // }
-    //         Double_t total = vec_TH2D_Delta_vs_impact_circle[i_det]->Integral(1,11,1,48);
+    //         Double_t total = vec_TH2D_Delta_vs_impact_circle[i_det]->Integral(1,11,1,98);
     //         // cout << "det: " << i_det << " | " << "total: " << total << endl;
     //         if (total == 0)
     //         {
@@ -3446,7 +3466,13 @@ void TBase_TRD_Calib::Calibrate()
 
     TCanvas* can_detector_hit = new TCanvas("can_detector_hit","can_detector_hit",500,500,500,500);
     can_detector_hit ->cd();
+
+    h_detector_hit->SetFillColor(kBlue);
     h_detector_hit  ->Draw();
+
+    TFile* h_detector_hit_outputfile = new TFile("./h_detector_hit.root","RECREATE");
+    h_detector_hit_outputfile ->cd();
+    h_detector_hit->Write();
 
     printf("Write data to output file \n");
     outputfile ->cd();
