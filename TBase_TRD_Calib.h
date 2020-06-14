@@ -185,6 +185,22 @@ private:
     447, 448, 449, 452, 455, 456, 461, 462, 463, 464, 465, 466, 467, 470, 476, 482, 483, 484, 485, 490, 491, 493, 497, 500, 502, 504,
     520, 526, 533, 536, 537, 538};
 
+    // with v_fit check
+    Int_t Defect_TRD_detectors_wfit[271] =  {2, 5, 8, 12, 15, 17, 26, 27, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 43, 47, 48,
+    49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 64, 88, 92, 113, 114, 115, 116, 117, 118, 119, 123, 125, 129, 130, 131, 132, 136, 137,
+    140, 141, 142, 143, 144, 146, 148, 149, 150, 156, 157, 159, 162, 163, 164, 169, 171, 175, 180, 181, 182, 183, 184, 185, 190, 191,
+    194, 197, 207, 213, 214, 215, 219, 220, 221, 226, 227, 228, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 241, 245, 249, 255,
+    265, 274, 277, 287, 302, 304, 305, 306, 307, 308, 309, 310, 311, 317, 318, 319, 320, 321, 322, 323, 324, 325, 326, 327, 328, 329,
+    335, 348, 365, 368, 371, 377, 384, 385, 386, 387, 388, 389, 391, 395, 397, 400, 401, 402, 403, 404, 405, 406, 407, 413, 417, 419,
+    425, 427, 429, 430, 431, 432, 433, 434, 435, 436, 437, 438, 439, 442, 443, 445, 447, 448, 449, 450, 451, 452, 453, 454, 455, 456,
+    461, 462, 463, 464, 465, 466, 467, 470, 476, 480, 481, 482, 483, 484, 485, 490, 491, 493, 497, 498, 499, 500, 501, 502, 503, 504,
+    520, 526, 533, 536, 537, 538};
+
+    Int_t official_qa[91] = {2, 15, 17, 27, 31, 32, 36, 40, 43, 49, 50, 55, 59, 64, 88, 92, 113, 116, 119, 132, 180, 181, 190,
+    191, 194, 207, 215, 219, 221, 226, 227, 228, 230, 231, 233, 236, 238, 241, 249, 255, 277, 287, 302, 308, 310, 311, 317, 318, 319, 
+    320, 326, 328, 335, 348, 368, 377, 386, 389, 402, 403, 404, 405, 406, 407, 432, 433, 434, 435, 436, 437, 452, 455, 456, 462, 463, 
+    464, 465, 466, 467, 470, 482, 483, 484, 485, 490, 491, 493, 500, 502, 504, 538};
+
     Double_t max_dca_z_to_track = 8.0; // in cm
     Double_t max_dca_r_to_track = 1.0; // in cm
     vector<Int_t> vec_merge_time_bins;
@@ -281,8 +297,8 @@ public:
 TBase_TRD_Calib::TBase_TRD_Calib()
 {
     //outputfile = new TFile("./TRD_Calib.root","RECREATE");
-    outputfile = new TFile("./TRD_Calib_circle_56.root","RECREATE");
-    outputfile_trkl = new TFile("./TRD_Calib_on_trkl.root","RECREATE");
+    outputfile = new TFile("./Data/TRD_Calib_circle_3456_test.root","RECREATE");
+    outputfile_trkl = new TFile("./Data/TRD_Calib_on_trkl_3456_test.root","RECREATE");
 
 
     Init_QA();
@@ -518,8 +534,8 @@ TBase_TRD_Calib::TBase_TRD_Calib()
 void TBase_TRD_Calib::Init_QA()
 {
     printf("TBase_TRD_Calib::Init_QA() \n");
-    // TFile* inputfile_QA = TFile::Open("/home/ceres/schmah/ALICE/TRD_Run3_calib/QA_out_year_2016_V2.root");
-    TFile* inputfile_QA = TFile::Open("/home/jasonb/Documents/masters/calibration/QA_out_year_2016_V2.root");
+    TFile* inputfile_QA = TFile::Open("/home/ceres/schmah/ALICE/TRD_Run3_calib/QA_out_year_2016_V2.root");
+    //TFile* inputfile_QA = TFile::Open("/home/jasonb/Documents/masters/calibration/QA_out_year_2016_V2.root");
     tg_HV_drift_vs_det = (TGraph*)inputfile_QA->Get("tg_HV_drift_vs_det");
     tg_HV_anode_vs_det = (TGraph*)inputfile_QA->Get("tg_HV_anode_vs_det");;
     tg_vdrift_vs_det   = (TGraph*)inputfile_QA->Get("tg_vdrift_vs_det");;
@@ -621,6 +637,22 @@ vector< vector<TVector3> >  TBase_TRD_Calib::make_clusters(Int_t i_track)
         if(dca_phi > 3.0)  continue;
 
         arr_layer_detector[layer] = detector;
+
+        //printf("test 1 \n");
+
+        ///FOR CLEAN CALIB: IGNORE ALL SUSPICIOUS CHAMBERS
+        Int_t flag_defect = 0;
+        for (Int_t i_defect = 0; i_defect < 91; i_defect++)
+        {
+            if (detector == official_qa[i_defect])
+            {
+                flag_defect = 1;
+                break;
+            }
+        }
+        ////////////
+
+        if (flag_defect == 1) continue;
 
         for(Int_t i_time_merge = 0; i_time_merge < (N_merged_time_bins); i_time_merge++)
         {
@@ -1073,7 +1105,7 @@ Int_t TBase_TRD_Calib::get_2D_global_circle_fit()
 
     //n_layer_notempty = i_layer_notempty-1;  ?? check later
 
-    if (i_layer_notempty-1 < 2)
+    if (i_layer_notempty-1 < 1)  //<2
     {
         //printf("!!! less than 3 points to fit circle - you got bad circle !!! \n");
         return 0;
@@ -2441,9 +2473,9 @@ TGLViewer* TBase_TRD_Calib::Draw_TRD()
 void TBase_TRD_Calib::Init_tree(TString SEList)
 {
     cout << "Initialize tree" << endl;
-    // TString pinputdir = "/misc/alidata120/alice_u/schmah/TRD_offline_calib/Data/";
-    TString pinputdir = "/home/jasonb/Documents/masters/calibration/";
-    //TString pinputdir = "/home/ceres/berdnikova/TRD-Run3-Calibration/";
+    //TString pinputdir = "/misc/alidata120/alice_u/schmah/TRD_offline_calib/Data/";
+    //TString pinputdir = "/home/jasonb/Documents/masters/calibration/";
+    TString pinputdir = "/misc/alidata120/alice_u/berdnikova/TRD-Run3-Calibration/3456/";
 
     AS_Event = new Ali_AS_Event();
     AS_Track = new Ali_AS_Track();
@@ -2808,7 +2840,7 @@ void TBase_TRD_Calib::Calibrate()
     
     }
 
-    for(Long64_t i_event = 0; i_event < 20; i_event++)
+    for(Long64_t i_event = 0; i_event < 1000; i_event++)
     //for(Long64_t i_event = 0; i_event < file_entries_total; i_event++)
     {
         if(i_event % 20 == 0) printf("i_event: %lld out of %lld \n",i_event,file_entries_total);
@@ -2849,6 +2881,8 @@ void TBase_TRD_Calib::Calibrate()
 
             //--------------------------
             // Offline tracklet loop
+
+#if 0
             UShort_t  fNumOfflineTracklets = AS_Track ->getNumOfflineTracklets();
             if(fNumOfflineTracklets > 2)
             {
@@ -2890,6 +2924,7 @@ void TBase_TRD_Calib::Calibrate()
                     }
                 }
             }
+#endif
             //--------------------------
 
             //if(dca > 0.0) continue;
@@ -2905,7 +2940,7 @@ void TBase_TRD_Calib::Calibrate()
 
             //printf("i_track: %4.3d, i_event: %4.3d \n",i_track,i_event);
 
-
+              //printf("test 0 \n");
             make_clusters(i_track);
             //get_straight_line_fit(i_track);
             get_tracklets_fit(i_track);
@@ -2932,7 +2967,7 @@ void TBase_TRD_Calib::Calibrate()
             {
                 if(vec_tracklet_fit_points[i_layer][0][0] > -999.0 && vec_tracklet_fit_points[i_layer][1][0] > -999.0) N_good_layers++;
             }
-            if(N_good_layers < 5) continue;
+            if(N_good_layers < 3) continue;    //  <5
 
             //printf("N_good_layers: %d \n",N_good_layers);
             //printf("i_event: %lld, i_track: %d \n",i_event,i_track);
@@ -2973,6 +3008,8 @@ void TBase_TRD_Calib::Calibrate()
                     // Calculate impact angles of global track to every single layer
                     if(i_layer == 6) // Global track
                     {
+                        continue;   //try to disable
+#if 0
                         Double_t path_offset = 0.0;
                         for(Int_t i_layerB = 0; i_layerB < 6; i_layerB++)
                         {
@@ -3030,6 +3067,7 @@ void TBase_TRD_Calib::Calibrate()
                             //    printf("  --> i_layerB: %d, impact_angle: %4.3f, vec: {%4.3f, %4.3f} \n",i_layerB,impact_angle[i_layerB]*TMath::RadToDeg(),vec_tracklet_fit_points[i_layerB][0][0],vec_tracklet_fit_points[i_layerB][1][0]);
                             //}
                         }
+#endif
                     }
 
                     //printf("test 3 \n");
@@ -3045,7 +3083,9 @@ void TBase_TRD_Calib::Calibrate()
 
                         //-----impact angle for circle global fit HERE---------
 
-                        if(tracklets_min_circle == 0.0 || tracklets_min_circle > 4.0) continue;
+                        //if(tracklets_min_circle == 0.0 || tracklets_min_circle > 4.0) continue;  // 3 points excluded
+                        if(tracklets_min_circle > 4.0) continue; 
+
                         //printf("test 3.2 \n");
 
                         //printf("i_layer: %d \n",i_layer);
@@ -3109,17 +3149,18 @@ void TBase_TRD_Calib::Calibrate()
                         //vec_tp_Delta_vs_impact[arr_layer_detector[i_layer]] ->Fill(impact_angle[i_layer]*TMath::RadToDeg(),Delta_angle*TMath::RadToDeg());
                         //vec_tp_Delta_vs_impact[detector] ->Fill(impact_angle[i_layer]*TMath::RadToDeg(),fabs(Delta_angle*TMath::RadToDeg()));
 
+#if 0
                         //fill histos for straight line global track
                         vec_tp_Delta_vs_impact[detector]   ->Fill(impact_angle[i_layer]*TMath::RadToDeg(),Delta_angle*TMath::RadToDeg());
                         vec_TH2D_Delta_vs_impact[detector] ->Fill(impact_angle[i_layer]*TMath::RadToDeg(),Delta_angle*TMath::RadToDeg());
-
+#endif
                         //fill histos for circle global track
                         vec_tp_Delta_vs_impact_circle[detector]   ->Fill(impact_angle_circle[i_layer]*TMath::RadToDeg(),Delta_angle_circle*TMath::RadToDeg());
                         vec_TH2D_Delta_vs_impact_circle[detector] ->Fill(impact_angle_circle[i_layer]*TMath::RadToDeg(),Delta_angle_circle*TMath::RadToDeg());
 
                         //printf("test 6 \n");
 
-
+#if 0
                         //separate hist for perpendicular impacts - straight line
                         if(impact_angle[i_layer]*TMath::RadToDeg() > 89.0 && impact_angle[i_layer]*TMath::RadToDeg() < 91.0)
                         //if(impact_angle[i_layer]*TMath::RadToDeg() > 80 && impact_angle[i_layer]*TMath::RadToDeg() < 83)
@@ -3127,6 +3168,7 @@ void TBase_TRD_Calib::Calibrate()
                         //    printf("detector: %d, track: %d, impact angle: %4.3f, Delta angle: %4.3f, delta_x_local_tracklet: %4.3f \n",detector,i_track,impact_angle[i_layer]*TMath::RadToDeg(),Delta_angle*TMath::RadToDeg(),delta_x_local_tracklet);
                             h_delta_angle_perp_impact ->Fill(Delta_angle*TMath::RadToDeg());
                         }
+#endif
 
                         //separate hist for perpendicular impacts - cirrcle
                         if(impact_angle_circle[i_layer]*TMath::RadToDeg() > 89.0 && impact_angle_circle[i_layer]*TMath::RadToDeg() < 91.0)
@@ -3135,13 +3177,14 @@ void TBase_TRD_Calib::Calibrate()
                             h_delta_angle_perp_impact_circle ->Fill(Delta_angle_circle*TMath::RadToDeg());
                         }
 
-
+#if 0
                         //if(impact_angle[i_layer]*TMath::RadToDeg() > 73.0 && impact_angle[i_layer]*TMath::RadToDeg() < 78.0 && pT_track > 3.5)
                         if(impact_angle[i_layer]*TMath::RadToDeg() > 87.5 && impact_angle[i_layer]*TMath::RadToDeg() < 92.5 && pT_track > 3.5)
                         {
                             //printf("       ======================> i_event: %lld, i_track: %d \n",i_event,i_track);
                         }
                         //printf("detector: %d, track: %d, impact angle: %4.3f, Delta angle: %4.3f \n",detector,i_track,impact_angle[i_layer]*TMath::RadToDeg(),Delta_angle*TMath::RadToDeg());
+#endif
                     }
 
                 }
