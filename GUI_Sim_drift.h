@@ -3,6 +3,9 @@ static vector<TProfile*> vec_tp_Delta_vs_impact;
 static vector<TProfile*> vec_tp_Delta_vs_impact_line;
 static vector<TProfile*> vec_tp_Delta_vs_impact_circle;
 
+static TGraph* vdrift_fit_corr;
+static TGraph* LA_fit_corr;
+
 static vector< vector<TProfile*> > vec_tp_Delta_vs_impact_all;
 static const Double_t l_drift = 0.03; // m 0.0335
 static const Double_t B_field = 0.5; // T = kg * s^-2 * A^-1
@@ -26,7 +29,7 @@ static const Double_t fudge_LorentzAngle = 1.0;
 
 
 //-------------- version with LA_pre_corr
-#if 1
+#if 0
 //TGraph* Create_TRD_Delta_alpha_vs_impact_angle(Double_t Lorentz_angle, Double_t drift_vel_ratio, Double_t Lorentz_angle_pre_corr)
 TGraph* calc_Delta_alpha(Double_t Lorentz_angle, Double_t drift_vel_ratio, Double_t Lorentz_angle_pre_corr)
 {
@@ -84,8 +87,8 @@ TGraph* calc_Delta_alpha(Double_t Lorentz_angle, Double_t drift_vel_ratio, Doubl
 #endif
 
 //----------------------------------------------------------------------------------------
-// New version
-#if 0
+// New version : no precalib LA
+#if 1
 TGraph* calc_Delta_alpha(Double_t Lorentz_angle_diff, Double_t drift_vel_ratio)
 {
     TGraph* TG_Delta_alpha_vs_impact_angle = new TGraph();
@@ -99,7 +102,7 @@ TGraph* calc_Delta_alpha(Double_t Lorentz_angle_diff, Double_t drift_vel_ratio)
         Double_t slope = 10000000.0;
         if(x_dir != 0.0) slope = y_dir/x_dir;
 
-        Double_t Lorentz_tan   = TMath::Tan(Lorentz_angle_diff+0.001);
+        Double_t Lorentz_tan   = TMath::Tan(Lorentz_angle_diff);
         Double_t Lorentz_slope = 10000000.0;
         if(Lorentz_tan != 0.0) Lorentz_slope = 1.0/Lorentz_tan;
 
@@ -227,10 +230,10 @@ void Chi2_TRD_vDrift(Int_t &, Double_t *, Double_t & sum, Double_t * par, Int_t 
 
     Double_t LA_use  = par[0];
     Double_t vD_ratio_use = par[1];
-    Double_t Lorentz_angle_pre_corr = -0.16133;
+    Double_t Lorentz_angle_pre_corr = LA_fit_corr->Eval(i_detector_global);
 
-    //TGraph* tg_Delta_vs_impact_single = calc_Delta_alpha(B_field_use,E_field_use,v_drift_use,vD_use,LA_use);
-    TGraph* tg_Delta_vs_impact_single = calc_Delta_alpha(LA_use,vD_ratio_use,Lorentz_angle_pre_corr);
+    TGraph* tg_Delta_vs_impact_single = calc_Delta_alpha(LA_use,vD_ratio_use); //old version
+    //TGraph* tg_Delta_vs_impact_single = calc_Delta_alpha(LA_use,vD_ratio_use,Lorentz_angle_pre_corr); //new version
 
     for(Int_t i_bin = 1; i_bin <= vec_tp_Delta_vs_impact[i_detector_global]->GetNbinsX(); i_bin++)
     {
@@ -438,6 +441,21 @@ private:
 
     TFile* outputfile;
 
+    TFile* calibration_params;
+
+    Int_t Defect_TRD_detectors[167] = {2, 5, 8, 12, 15, 17, 26, 27, 29, 30, 31, 32, 36, 40, 43, 47, 49, 50, 51, 55, 59, 64, 88, 92, 113, 116, 119, 123, 125, 129, 130,
+    131, 132, 136, 137, 140, 141, 142, 143, 144, 146, 148, 149, 150, 156, 157, 159, 162, 163, 164, 169, 171, 175, 180, 181, 190, 191,
+    194, 197, 207, 213, 214, 215, 219, 220, 221, 226, 227, 228, 230, 231, 232, 233, 236, 238, 241, 245, 249, 255, 265, 274, 277, 287,
+    302, 304, 305, 308, 309, 310, 311, 317, 318, 319, 320, 323, 326, 328, 335, 348, 365, 368, 371, 377, 386, 389, 391, 395, 397, 400,
+    401, 402, 403, 404, 405, 406, 407, 413, 417, 419, 425, 427, 429, 430, 431, 432, 433, 434, 435, 436, 437, 438, 439, 442, 443, 445,
+    447, 448, 449, 452, 455, 456, 461, 462, 463, 464, 465, 466, 467, 470, 476, 482, 483, 484, 485, 490, 491, 493, 497, 500, 502, 504,
+    520, 526, 533, 536, 537, 538};
+
+    Int_t official_qa[91] = {2, 15, 17, 27, 31, 32, 36, 40, 43, 49, 50, 55, 59, 64, 88, 92, 113, 116, 119, 132, 180, 181, 190,
+    191, 194, 207, 215, 219, 221, 226, 227, 228, 230, 231, 233, 236, 238, 241, 249, 255, 277, 287, 302, 308, 310, 311, 317, 318, 319, 
+    320, 326, 328, 335, 348, 368, 377, 386, 389, 402, 403, 404, 405, 406, 407, 432, 433, 434, 435, 436, 437, 452, 455, 456, 462, 463, 
+    464, 465, 466, 467, 470, 482, 483, 484, 485, 490, 491, 493, 500, 502, 504, 538};
+
 public:
     GUI_Sim_drift();
     virtual ~GUI_Sim_drift();
@@ -466,7 +484,7 @@ GUI_Sim_drift::GUI_Sim_drift() : TGMainFrame(gClient->GetRoot(), 200, 100)
 {
     //-------------------------------------
     //outputfile = new TFile("./TRD_Calib_vDfit_and_LAfit.root","RECREATE");
-    outputfile = new TFile("./TRD_Calib_vDfit_and_LAfit_online_trkl_new_withpre.root","RECREATE");
+    outputfile = new TFile("./TRD_Calib_vDfit_and_LAfit_3456.root","RECREATE");
 
 
 
@@ -683,8 +701,8 @@ Int_t GUI_Sim_drift::LoadData()
     //input_data[0]     = TFile::Open("./Data/TRD_Calib_TPC_impact.root");
     //input_data[1] = TFile::Open("./Data/TRD_Calib_All_170k_neg.root");
     //input_data[2] = TFile::Open("./Data/TRD_Calib_All_170k_pos.root");
-    //input_data[0]     = TFile::Open("./Data/TRD_Calib_circle_56.root");
-    input_data[0]     = TFile::Open("./Data/TRD_Calib_on_trkl.root");
+    input_data[0]     = TFile::Open("./Data/TRD_Calib_circle_3456.root");
+    //input_data[0]     = TFile::Open("./Data/TRD_Calib_on_trkl_corr.root");
     // input_data[0]     = TFile::Open("./Data/TRD_Calib_on_trkl_online.root");
 
 
@@ -789,6 +807,11 @@ Int_t GUI_Sim_drift::LoadData()
         Double_t ExB_val = vec_tg_chamber_ExB_vs_runid[det]->Eval(run_id_use);
         tg_ExB_vs_det ->SetPoint(det,det,ExB_val);
     }
+
+    TFile* calibration_params = TFile::Open("./Data/TRD_Calib_vDfit_and_LAfit_online_trkl_50k.root");
+    vdrift_fit_corr = (TGraph*)calibration_params->Get(";1");
+    LA_fit_corr = (TGraph*)calibration_params->Get(";2");
+
     TCanvas* can_ExB = new TCanvas("can_ExB","can_ExB",10,10,500,500);
     can_ExB ->cd();
     tg_ExB_vs_det ->SetMarkerColor(kBlack);
@@ -943,6 +966,19 @@ Int_t GUI_Sim_drift::Do_Minimize_Single()
 
     
     Int_t i_detector = arr_NEntry_det->GetNumberEntry()->GetNumber();
+    Int_t flag_defect_TRD;
+
+    for(Int_t i_defect = 0; i_defect < 167; i_defect++)
+    {
+        if(i_detector == Defect_TRD_detectors[i_defect])
+        {
+            flag_defect_TRD = 1;
+            break;
+        }
+    }
+
+    if(flag_defect_TRD) return 0;
+
 
     Double_t det = -1.0;
     Double_t v_drift_in = -1.0;
@@ -1016,7 +1052,9 @@ Int_t GUI_Sim_drift::Do_Minimize_Single()
     if(vD_ratio_fit != 0.0 && v_drift_in > 0.0) //IF WANT TO USE vD from OCDB AS vD_set
     {
         //v_fit = v_drift_in/vD_ratio_fit;   //IF WANT TO USE vD from OCDB AS vD_set
-        v_fit = 1.546/vD_ratio_fit;
+        v_fit = 1.546/vD_ratio_fit;      //OLD
+        //v_fit = fabs(v_fit/TMath::Cos(LA_fit));
+        //v_fit = (vdrift_fit_corr->Eval(i_detector_global))/vD_ratio_fit;  //new version
     }
 
     else v_fit = -1.0;
@@ -1102,6 +1140,21 @@ Int_t GUI_Sim_drift::Do_Minimize()
 
     for(Int_t i_detector = 0; i_detector < ndet; ++i_detector)
     {
+
+        Int_t flag_defect_TRD = 0;
+        for(Int_t i_defect = 0; i_defect < 91; i_defect++)
+        {
+            if(i_detector == official_qa[i_defect])
+            {
+                flag_defect_TRD = 1;
+                break;
+            }
+        }
+
+        printf("\n flag_defect_TRD: %d \n \n",flag_defect_TRD);
+
+        //if(flag_defect_TRD) continue;
+
         det           = -1.0;
         v_drift_in_A  = -1.0;
         v_drift_in    = -1.0;
@@ -1232,14 +1285,20 @@ Int_t GUI_Sim_drift::Do_Minimize()
             i_point = i_point+1;
 
             //if(vec_vD_ratio_fit[i_detector] != 0.0) //IF WANT TO USE 1.56 AS vD_set
-            if(vec_vD_ratio_fit[i_detector] != 0.0 && v_drift_in > 0.0) //IF WANT TO USE vD from OCDB AS vD_set
+            if(vec_vD_ratio_fit[i_detector] != 0.0 && v_drift_in > 0.0 && flag_defect_TRD !=1) //IF WANT TO USE vD from OCDB AS vD_set
 
             {
                 //vec_v_fit[i_detector] = vD_set/vec_vD_ratio_fit[i_detector];   //IF WANT TO USE 1.56 AS vD_set
                 vec_v_fit[i_detector] = 1.546/vec_vD_ratio_fit[i_detector];   //IF WANT TO USE vD from OCDB AS vD_set
+                //vec_v_fit[i_detector] = fabs(vec_v_fit[i_detector]/TMath::Cos(vec_LA_fit[i_detector]));
+                //vec_v_fit[i_detector] = (vdrift_fit_corr->Eval(i_detector_global))/vec_vD_ratio_fit[i_detector]; //NEW
 
             }
-            else vec_v_fit[i_detector] = -1.0;
+            else
+            {
+                vec_v_fit[i_detector] = 1.05;
+                vec_LA_fit[i_detector] = -7.5*TMath::DegToRad();
+            }
 
             //vec_LA_fit[i_detector] = vec_LA_diff_fit[i_detector] - 0.16133;
 
@@ -1247,6 +1306,7 @@ Int_t GUI_Sim_drift::Do_Minimize()
             ///tg_vD_fit_vs_det         ->SetPoint(i_point,i_detector,vec_vD_fit[i_detector]);
             tg_vfit_vs_vOCDB         ->SetPoint(i_point,v_drift_in,vec_v_fit[i_detector]);
             tg_LA_factor_fit_vs_det  ->SetPoint(i_point,i_detector,vec_LA_fit[i_detector]);
+            //tg_vfit_vs_vOCDB         ->SetPoint(i_point,(vdrift_fit_corr->Eval(i_detector_global)),vec_v_fit[i_detector]);
         }
 
         //tg_vD_fit_vs_det ->SetPoint(i_detector,i_detector,i_detector);
@@ -1280,7 +1340,7 @@ Int_t GUI_Sim_drift::Do_Minimize()
     tg_vfit_vs_vOCDB  ->SetMarkerStyle(20);
     //tg_vfit_vs_vOCDB  ->SetLineColor(kRed);
     tg_vfit_vs_vOCDB  ->SetMarkerSize(0.5);
-    tg_vfit_vs_vOCDB  ->GetXaxis()->SetTitle("Detector ID");
+    tg_vfit_vs_vOCDB  ->GetXaxis()->SetTitle("drift velocity: Raphaelle's OCDB, cm/us");
     tg_vfit_vs_vOCDB  ->GetYaxis()->SetTitle("drift velocity: data fit results, cm/us");
     tg_vfit_vs_vOCDB  ->Draw("AP");
     tg_vfit_vs_vOCDB  ->GetXaxis()->SetLimits(0.0,2.2);
@@ -1339,7 +1399,9 @@ Int_t GUI_Sim_drift::Do_Minimize()
 
     printf("Write data to output file \n");
     outputfile->cd();
+    tg_v_fit_vs_det->SetName("tg_v_fit_vs_det");
     tg_v_fit_vs_det         ->Write();
+    tg_LA_factor_fit_vs_det ->SetName("tg_LA_factor_fit_vs_det ");
     tg_LA_factor_fit_vs_det ->Write();
     printf("All data written \n");
 
@@ -1444,7 +1506,8 @@ Int_t GUI_Sim_drift::Draw_data()
 
     printf("test 3 \n");
 
-    TGraph* tg_Delta_alpha_fit = calc_Delta_alpha(LA_use,vD_ratio_use,Lorentz_angle_pre_corr);
+    //TGraph* tg_Delta_alpha_fit = calc_Delta_alpha(LA_use,vD_ratio_use,Lorentz_angle_pre_corr);
+    TGraph* tg_Delta_alpha_fit = calc_Delta_alpha(LA_use,vD_ratio_use);
     printf("test 4 \n");
     /*
     //------------------------------------------------------------------------
@@ -1714,7 +1777,7 @@ Int_t GUI_Sim_drift::Draw_data()
     tg_Delta_alpha_fit->SetLineWidth(2);
     tg_Delta_alpha_fit->Draw("same");
 
-    printf("test 6 \n");
+    printf("test 6; circ_line_flag: %d \n",circ_line_flag);
 #if 0
     TGraph* tg_Delta_vs_impact_single = calc_Delta_alpha(B_field,E_field,v_drift_use,vD_use,LA_use);
     tg_Delta_vs_impact_single ->SetLineColor(kGreen+1);
@@ -1722,7 +1785,7 @@ Int_t GUI_Sim_drift::Draw_data()
     tg_Delta_vs_impact_single ->Draw("same");
 #endif
 
-    if (circ_line_flag == 1 || circ_line_flag ==2)
+    if (circ_line_flag == 1)
     {
     printf("i_detector: %d \n",i_detector);
     vec_tp_Delta_vs_impact[i_detector] ->SetLineColor(kBlack);
@@ -1731,7 +1794,7 @@ Int_t GUI_Sim_drift::Draw_data()
     vec_tp_Delta_vs_impact[i_detector] ->Draw("same hl");
     }
 
-    if (circ_line_flag != 1 && circ_line_flag != 2)
+    if (circ_line_flag == 2)
     {
     printf("i_detector: %d \n",i_detector);
     vec_tp_Delta_vs_impact_circle[i_detector] ->SetLineColor(kBlack);
@@ -1765,11 +1828,12 @@ Int_t GUI_Sim_drift::Draw_data()
     sprintf(NoP,"%4.0f",(Double_t)i_detector);
     HistName += NoP;
     HistName += ", v_{D} = ";
-    sprintf(NoP,"%4.3f",v_drift_in);
+    //sprintf(NoP,"%4.3f",v_drift_in);
+    sprintf(NoP,"%4.3f",(vdrift_fit_corr->Eval(i_detector_global)));
     HistName += NoP;
     HistName += ", LA = ";
-    sprintf(NoP,"%4.3f",ExB_in);
-    //sprintf(NoP,"%4.3f",LA_diff_in);
+    //sprintf(NoP,"%4.3f",ExB_in);
+    sprintf(NoP,"%4.3f",(LA_fit_corr->Eval(i_detector_global)));
     HistName += NoP;
     HistName += ", HV = ";
     sprintf(NoP,"%4.1f",HV_drift_in);
