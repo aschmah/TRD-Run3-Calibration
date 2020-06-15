@@ -23,6 +23,7 @@
 #include "AliTRDpadPlane.h"
 #include "AliTRDtrackV1.h"
 #include "AliTRDseedV1.h"
+#include "AliESDfriend.h"
 
 #include "AliTRDdigitsManager.h"
 #include "AliTRDarrayADC.h"
@@ -57,6 +58,10 @@
 
 #include "AliTRDCommonParam.h"
 
+#include "AliESDTrdTracklet.h"
+#include "TProfile.h"
+#include "TGraph.h"
+
 //------------------------
 #include <sys/types.h>
 #include <dirent.h>
@@ -78,12 +83,17 @@ static TString HistName;
 
 static TFile* dfile;
 static TFile* TRD_alignment_file;
+static TFile* TRD_calibration_file_AA;
+static TGraph* tg_v_fit_vs_det;
+static TGraph* tg_LA_factor_fit_vs_det;
+static TH1D* h_v_fit_vs_det;
+static TH1D* h_LA_factor_fit_vs_det;
 static TGeoHMatrix TM_TRD_rotation_det[540];
 static TGeoHMatrix TM_TRD_rotation_sector[18];
 static TVector3    TV3_TRD_translation[540];
 static const Double_t TRD_lorentz_angle = TMath::DegToRad()*8.8;
-//static const char *pathdatabase="alien://folder=/alice/data/2016/OCDB"; // for pPb
-static const char *pathdatabase="alien://folder=/alice/data/2015/OCDB"; // for PbPb
+static const char *pathdatabase="alien://folder=/alice/data/2016/OCDB"; // for pPb
+//static const char *pathdatabase="alien://folder=/alice/data/2015/OCDB"; // for PbPb
 static AliTRDCalDet *ChamberVdrift;
 static AliTRDCalDet *ChamberT0;
 static AliTRDCalDet *ChamberExB;
@@ -98,11 +108,15 @@ static const Double_t pT_ranges[N_pT_bins+1] = {0.2,0.5,1.0,2.0,3.0,5.0};
 static const Double_t TRD_Impact_distance_in_drift = 3.35;
 
 static AliTRDCommonParam* fParam;
+static AliESDfriend *esdFr = NULL;
+static AliESDInputHandler *esdH = NULL;
+static TString esdFriendTreeFName;
 //static Class_peak_finder my_class_peak_finder;
-//static TH1D* h_ADC_vs_time;
 
 ClassImp(Ali_AS_Event)
 ClassImp(Ali_AS_Track)
+ClassImp(Ali_AS_Tracklet)
+ClassImp(Ali_AS_offline_Tracklet)
 ClassImp(Ali_AS_TRD_digit)
 ClassImp(Ali_AS_analysis_TRD_digits)
 
@@ -111,8 +125,8 @@ ClassImp(Ali_AS_analysis_TRD_digits)
     : AliAnalysisTaskSE(name),
     fDigitsInputFileName("TRD.FltDigits.root"), fDigitsInputFile(0),
     fDigitsOutputFileName(""), fDigitsOutputFile(0),
-    fDigMan(0),fGeo(0),AS_Event(0),AS_Track(0),AS_Digit(0),Tree_AS_Event(0), fEventNoInFile(-2), N_good_events(0), fDigitsLoadedFlag(kFALSE),
-    fListOfHistos(0x0),fTree(0x0),h_dca(0x0),h_dca_xyz(0x0), h2D_TPC_dEdx_vs_momentum(0x0),h_ADC_tracklet(0x0), fPIDResponse(0), EsdTrackCuts(0)
+    fDigMan(0),fGeo(0),AS_Event(0),AS_Track(0),AS_Tracklet(0),AS_offline_Tracklet(0),AS_Digit(0),Tree_AS_Event(0), fEventNoInFile(-2), N_good_events(0), fDigitsLoadedFlag(kFALSE),
+    fListOfHistos(0x0),fTree(0x0),h_dca(0x0),h_dca_xyz(0x0), h2D_TPC_dEdx_vs_momentum(0x0), h_ADC_tracklet(0x0), h_ADC_vs_time(0x0), fPIDResponse(0), EsdTrackCuts(0)
 {
     // Constructor
 
@@ -133,6 +147,7 @@ TFile* Ali_AS_analysis_TRD_digits::OpenDigitsFile(TString inputfile,
 {
     // we should check if we are reading ESDs or AODs - for now, only
     // ESDs are supported
+    //
 
     cout << "" << endl;
     cout << "In OpenDigitsFile" << endl;
@@ -176,7 +191,6 @@ Bool_t Ali_AS_analysis_TRD_digits::UserNotify()
     cout << "In UserNotify" << endl;
     cout << "fDigitsInputFileName: " << fDigitsInputFileName.Data() << endl;
 
-    //h_ADC_vs_time = new TH1D("h_ADC_vs_time","h_ADC_vs_time",24,0,24);
     fParam = AliTRDCommonParam::Instance();
 
     delete fDigitsInputFile;
@@ -186,8 +200,10 @@ Bool_t Ali_AS_analysis_TRD_digits::UserNotify()
 
     cout << "All pointers deleted" << endl;
 
-    AliESDInputHandler *esdH = dynamic_cast<AliESDInputHandler*>
-	(AliAnalysisManager::GetAnalysisManager()->GetInputEventHandler());
+    //AliESDInputHandler *esdH = dynamic_cast<AliESDInputHandler*>
+    //    (AliAnalysisManager::GetAnalysisManager()->GetInputEventHandler());
+
+    esdH = dynamic_cast<AliESDInputHandler*> (AliAnalysisManager::GetAnalysisManager()->GetInputEventHandler());
 
     if ( ! esdH ) return kFALSE;
     if ( ! esdH->GetTree() ) return kFALSE;
@@ -357,6 +373,27 @@ Bool_t Ali_AS_analysis_TRD_digits::UserNotify()
 
 
     fDigitsInputFile = OpenDigitsFile(fname,fDigitsInputFileName,""); // <-
+
+
+#if 0
+    // Connect the friends
+    //fESD ->SetESDfriend(esdFr);
+
+    esdFriendTreeFName = fname;
+    TString basename = gSystem->BaseName(esdFriendTreeFName);
+    int index = basename.Index("#")+1;
+    basename.Remove(index);
+    basename += "AliESDfriends.root";
+    TString dirname = gSystem->DirName(esdFriendTreeFName);
+    dirname += "/";
+    esdFriendTreeFName = dirname + basename;
+    cout << "Friend name: " << esdFriendTreeFName.Data() << endl;
+#endif
+
+
+
+
+
     EsdTrackCuts = new AliESDtrackCuts();
 
     EsdTrackCuts->AliESDtrackCuts::SetRequireTPCRefit(kTRUE);
@@ -401,6 +438,39 @@ Bool_t Ali_AS_analysis_TRD_digits::UserNotify()
 	TRD_alignment_file = TFile::Open("alien:///alice/data/2016/OCDB/TRD/Align/Data/Run0_999999999_v1_s0.root");
         cout << "Alignment file from database loaded" << endl;
     }
+
+    cout << "Open calibration file" << endl;
+    TRD_calibration_file_AA = TFile::Open("alien::///alice/cern.ch/user/a/aschmah/Data/TRD_Calib_vDfit_and_LAfit_3456.root");
+    //TRD_calibration_file_AA = TFile::Open("alien::///afs/cern.ch/user/a/aberdnik/TRD_Calib_vDfit_and_LAfit_3456.root");
+    tg_v_fit_vs_det         = (TGraph*)TRD_calibration_file_AA ->Get("tg_v_fit_vs_det");
+    h_v_fit_vs_det = new TH1D("h_v_fit_vs_det","h_v_fit_vs_det",540,0,540);
+    for(Int_t i_det = 0; i_det < 540; i_det++)
+    {
+        h_v_fit_vs_det ->SetBinContent(i_det+1,1.05);
+    }
+    for(Int_t i_point = 0; i_point < tg_v_fit_vs_det->GetN(); i_point++)
+    {
+        Double_t det, vD;
+        tg_v_fit_vs_det->GetPoint(i_point,det,vD);
+        //printf("i_det(start from 0?): %4.3f; vD: %4.3f \n",det,vD);
+        h_v_fit_vs_det ->SetBinContent(det+1,vD);
+    }
+    tg_LA_factor_fit_vs_det = (TGraph*)TRD_calibration_file_AA ->Get("tg_LA_factor_fit_vs_det");
+    h_LA_factor_fit_vs_det = new TH1D("h_LA_factor_fit_vs_det","h_LA_factor_fit_vs_det",540,0,540);
+    for(Int_t i_det = 0; i_det < 540; i_det++)
+    {
+         h_LA_factor_fit_vs_det->SetBinContent(i_det+1,-0.14);
+    }
+    for(Int_t i_point = 0; i_point < tg_LA_factor_fit_vs_det->GetN(); i_point++)
+    {
+        Double_t det, LA;
+        tg_LA_factor_fit_vs_det->GetPoint(i_point,det,LA);
+
+        //printf("i_det(start from 0?): %4.3f; LA: %4.3f \n",det,LA);
+        h_LA_factor_fit_vs_det ->SetBinContent(det+1,LA);
+    }
+    cout << "Calibration file opened" << endl;
+
 
     AliCDBEntry* align_cdb = (AliCDBEntry*)TRD_alignment_file->Get("AliCDBEntry");
     TClonesArray* TRD_align_array = (TClonesArray*)align_cdb->GetObject();
@@ -476,11 +546,24 @@ void Ali_AS_analysis_TRD_digits::UserCreateOutputObjects()
         fListOfHistos->Add(h_ADC_tracklet[i_ADC]);
     }
 
+
+    h_ADC_vs_time.resize(540);
+    for(Int_t i_det = 0; i_det < 540; i_det++)
+    {
+        HistName = "h_ADC_vs_time_";
+        HistName += i_det;
+        h_ADC_vs_time[i_det] = new TProfile(HistName.Data(),HistName.Data(),30,0.0,30.0);
+        fListOfHistos->Add(h_ADC_vs_time[i_det]);
+    }
+
+
     OpenFile(2);
     cout << "File opened" << endl;
 
     AS_Event       = new Ali_AS_Event();
     AS_Track       = new Ali_AS_Track();
+    //AS_Tracklet    = new Ali_AS_Tracklet();
+    //AS_offline_Tracklet    = new Ali_AS_offline_Tracklet();
     AS_Digit       = new Ali_AS_TRD_digit();
     Tree_AS_Event  = NULL;
     Tree_AS_Event  = new TTree("Tree_AS_Event" , "AS_Events" );
@@ -526,8 +609,9 @@ void Ali_AS_analysis_TRD_digits::UserExec(Option_t *)
     //-----------------------------------------------------------------
     // IMPORTANT: call NextEvent() for book-keeping
     NextEvent();
-    if(fEventNoInFile > 5) return;
+    //if(fEventNoInFile > 50) return;
     //-----------------------------------------------------------------
+
 
 
 
@@ -547,6 +631,20 @@ void Ali_AS_analysis_TRD_digits::UserExec(Option_t *)
     //-----------------------------------------------------------------
 
 
+#if 0
+    //-----------------------------------------------------------------
+    // Connect friends
+    printf("Connect friends \n");
+    fESD->SetESDfriend(esdFr);
+
+    TTree* cTree = esdH->GetTree();
+    cTree->AddFriend("esdFriendTree", esdFriendTreeFName.Data());
+    cTree->SetBranchStatus("ESDfriend.", 1);
+    esdFr = (AliESDfriend*)(fESD->FindListObject("AliESDfriend"));
+    if (esdFr) cTree->SetBranchAddress("ESDfriend.", &esdFr);
+    //-----------------------------------------------------------------
+#endif
+
     AliAnalysisManager *man = AliAnalysisManager::GetAnalysisManager();
     if(man)
     {
@@ -564,7 +662,7 @@ void Ali_AS_analysis_TRD_digits::UserExec(Option_t *)
 
     Int_t          N_tracks         = fESD ->GetNumberOfTracks();
     Int_t          N_TRD_tracks     = fESD ->GetNumberOfTrdTracks();
-    Int_t          N_TRD_tracklets  = fESD ->GetNumberOfTrdTracklets();
+    Int_t          N_TRD_tracklets  = fESD ->GetNumberOfTrdTracklets(); // online
     Float_t        magF             = fESD ->GetMagneticField();
     const AliESDVertex* PrimVertex  = fESD ->GetPrimaryVertex();
     Int_t          RunNum           = fESD ->GetRunNumber();
@@ -579,13 +677,14 @@ void Ali_AS_analysis_TRD_digits::UserExec(Option_t *)
 
     // Fill event information
     AS_Event ->clearTrackList();
+    AS_Event ->clearTrackletList();
     AS_Event ->setTriggerWord(fESD->GetFiredTriggerClasses());
     AS_Event ->setx(PrimVertex->GetX());
     AS_Event ->sety(PrimVertex->GetY());
     AS_Event ->setz(PrimVertex->GetZ());
     AS_Event ->setid(RunNum);
     AS_Event ->setN_tracks(N_tracks);
-    AS_Event ->setN_TRD_tracklets(N_TRD_tracklets);
+    AS_Event ->setN_TRD_tracklets(N_TRD_tracklets); // online
     AS_Event ->setBeamIntAA(MeanBeamIntAA);
     AS_Event ->setT0zVertex(T0zVertex);
 
@@ -637,6 +736,82 @@ void Ali_AS_analysis_TRD_digits::UserExec(Option_t *)
     //printf("There are %d TRD tracklets in this event\n", N_TRD_tracklets);
 
 
+
+    //-----------------------------------------------------------------
+    // TRD online tracklet loop
+    for(Int_t iTracklet = 0; iTracklet < N_TRD_tracklets; iTracklet++)
+    {
+	AliESDTrdTracklet* tracklet = fESD->GetTrdTracklet(iTracklet);
+        if(!tracklet)
+        {
+	    printf("ERROR: Could not receive tracklet %d\n", iTracklet);
+	    continue;
+        }
+        Int_t det_tracklet   = tracklet ->GetDetector();
+        Int_t BinY_tracklet  = tracklet ->GetBinY();
+        Int_t BinDy_tracklet = tracklet ->GetBinDy();
+        Int_t BinZ_tracklet  = tracklet ->GetBinZ(); // row
+
+        // Table 10 in Jochen Kleins thesis:
+        Double_t y_local  = ((Double_t)BinY_tracklet)*160.0*1E-04; // in cm
+        Double_t dy_local = ((Double_t)BinDy_tracklet)*140.0*1E-04; // in cm over 3 cm
+        //printf("iTracklet: %d, det_tracklet: %d \n",iTracklet,det_tracklet);
+
+        AliTRDpadPlane* padplane = fGeo ->GetPadPlane(det_tracklet);
+        Int_t i_layer  = fGeo ->GetLayer(det_tracklet);
+        Int_t i_sector = fGeo ->GetSector(det_tracklet);
+        Float_t TRD_time0 = fGeo ->GetTime0(i_layer); // in cm
+        Double_t TRD_row_pos  = padplane ->GetRowPos(BinZ_tracklet);       // fPadRow[row] + fPadRowSMOffset;
+        Double_t TRD_row_size = padplane ->GetRowSize(BinZ_tracklet);
+
+        //------------------------
+        // Calculate tracklet offset space point
+        Double_t loc_tracklet[3] = {TRD_time0 - 0.0,y_local,TRD_row_pos - TRD_row_size/2.0};
+        Double_t             glb_tracklet[3]              = {0.0,0.0,0.0};
+        Double_t             glb_tracklet_align_sec[3]    = {0.0,0.0,0.0};
+        Double_t             glb_tracklet_align[3]        = {0.0,0.0,0.0}; // offset space point for tracklet
+        fGeo ->RotateBack(det_tracklet,loc_tracklet,glb_tracklet);
+        TM_TRD_rotation_sector[i_sector].LocalToMaster(glb_tracklet,glb_tracklet_align_sec);
+        TM_TRD_rotation_det[det_tracklet].LocalToMaster(glb_tracklet_align_sec,glb_tracklet_align);
+        //------------------------
+
+
+        //------------------------
+        // Calculate tracklet direction vector
+        Double_t loc_tracklet_vec[3] = {TRD_time0 - 3.0,y_local - dy_local,TRD_row_pos - TRD_row_size/2.0};
+        Double_t             glb_tracklet_vec[3]              = {0.0,0.0,0.0};
+        Double_t             glb_tracklet_align_sec_vec[3]    = {0.0,0.0,0.0};
+        Double_t             glb_tracklet_align_vec[3]        = {0.0,0.0,0.0}; // offset space point for tracklet
+        fGeo ->RotateBack(det_tracklet,loc_tracklet_vec,glb_tracklet_vec);
+        TM_TRD_rotation_sector[i_sector].LocalToMaster(glb_tracklet_vec,glb_tracklet_align_sec_vec);
+        TM_TRD_rotation_det[det_tracklet].LocalToMaster(glb_tracklet_align_sec_vec,glb_tracklet_align_vec);
+
+        for(Int_t i_xyz = 0; i_xyz < 3; i_xyz++)
+        {
+            glb_tracklet_align_vec[i_xyz] -= glb_tracklet_align[i_xyz];
+        }
+        //------------------------
+
+        TVector3 TV3_offset(glb_tracklet_align[0],glb_tracklet_align[1],glb_tracklet_align[2]);
+        TVector3 TV3_dir(glb_tracklet_align_vec[0],glb_tracklet_align_vec[1],glb_tracklet_align_vec[2]);
+
+
+        //printf("det: %d, sector: %d \n",det_tracklet,i_sector);
+        //printf("Local  tracklet pos: {%4.3f, %4.3f, %4.3f} \n",TRD_time0 - 0.0,y_local,TRD_row_pos - TRD_row_size/2.0);
+        //printf("Online tracklet pos: {%4.3f, %4.3f, %4.3f} \n",glb_tracklet_align[0],glb_tracklet_align[1],glb_tracklet_align[2]);
+        //printf(" \n");
+
+        AS_Tracklet  = AS_Event ->createTracklet(); // online tracklet
+        AS_Tracklet  ->set_detector(det_tracklet);
+        AS_Tracklet  ->set_TV3_offset(TV3_offset);
+        AS_Tracklet  ->set_TV3_dir(TV3_dir);
+        AS_Tracklet  ->set_online_dy(dy_local); 
+    }
+    //-----------------------------------------------------------------
+
+
+
+
     Int_t N_good_tracks = 0;
 
 
@@ -664,7 +839,7 @@ void Ali_AS_analysis_TRD_digits::UserExec(Option_t *)
     Double_t sum_full_ADC_digit_det[540];
     memset(sum_full_ADC_digit_det, 0, sizeof(sum_full_ADC_digit_det)); // for automatically-allocated arrays
 
-    cout << "Loop over all TRD detectors" << endl;
+    //cout << "Loop over all TRD detectors" << endl;
     for(Int_t i_det = 0; i_det < 540; i_det++)
     {
 	Int_t N_columns   = fDigMan->GetDigits(i_det)->GetNcol();
@@ -674,7 +849,18 @@ void Ali_AS_analysis_TRD_digits::UserExec(Option_t *)
 
 	Int_t i_sector = fGeo->GetSector(i_det);
 	Int_t i_stack  = fGeo->GetStack(i_det);
-	Int_t i_layer  = fGeo->GetLayer(i_det);
+        Int_t i_layer  = fGeo->GetLayer(i_det);
+
+        Double_t vD_calib = h_v_fit_vs_det         ->GetBinContent(i_det + 1);
+        Double_t LA_calib = h_LA_factor_fit_vs_det ->GetBinContent(i_det + 1);
+
+        //Double_t vD_calib = 1.546;
+        //Double_t LA_calib = -0.16133;
+
+        // 1.546
+        // 0.16133
+
+        //printf("i_det(start from 0): %d, vD_calib: %4.5f, LA_calib: %4.5f \n",i_det,vD_calib,LA_calib);
 
 	//printf("i_det: %d, N_columns: %d, N_rows: %d, N_times: %d, i_sector: %d, i_stack: %d, i_layer: %d \n",i_det,N_columns,N_rows,N_times,i_sector,i_stack,i_layer);
 
@@ -698,7 +884,9 @@ void Ali_AS_analysis_TRD_digits::UserExec(Option_t *)
 		{
 		    Double_t ADC_amplitude = fDigMan->GetDigitAmp(i_row,i_column,i_time,i_det);
 		    Int_t fBaseline = fDigMan->GetDigitsParam()->GetADCbaseline(i_det); // ADC baseline to be subtracted from digit ADC values, constant value of 10
-		    ADC_amplitude_sum_times += ADC_amplitude;
+                    ADC_amplitude_sum_times += ADC_amplitude;
+
+                    if((ADC_amplitude - fBaseline) > 0.0) h_ADC_vs_time[i_det] ->Fill(i_time,ADC_amplitude - fBaseline);
 
                     //printf("ADC_amplitude: %4.3f \n",ADC_amplitude);
 
@@ -707,7 +895,6 @@ void Ali_AS_analysis_TRD_digits::UserExec(Option_t *)
                         sum_full_ADC_digit_det[i_det] += ADC_amplitude - fBaseline;
 
                         //printf("i_time: %d, ADC: %f \n",i_time,ADC_amplitude);
-                        //h_ADC_vs_time ->SetBinContent(i_time+1,ADC_amplitude);
 			arr[i_time] = ADC_amplitude;
 			//cout << "i_time: " << i_time << ", fill arr: " << arr[i_time] << endl;
                         //cout << "fBaseline: " << fBaseline << ", ADC: " << ADC_amplitude << endl;
@@ -731,13 +918,19 @@ void Ali_AS_analysis_TRD_digits::UserExec(Option_t *)
 			Double_t             TRD_row_size             = padplane     ->GetRowSize(i_row);
                         Float_t              TRD_loc_Y                = TRD_col_pos + 0.5*TRD_col_size;
                         Float_t              TRD_loc_Y_uncalib        = TRD_loc_Y;
-                        Double_t             TRD_drift_time           = ((Double_t)i_time)*TRD_time_per_bin*ChamberVdrift->GetValue(i_det); // 100 ns per time bin, 1.56 cm/mus drift velocity, 3 cm drift length at maximum
+                        //Double_t             TRD_drift_time           = ((Double_t)i_time)*TRD_time_per_bin*ChamberVdrift->GetValue(i_det); // 100 ns per time bin, 1.56 cm/mus drift velocity, 3 cm drift length at maximum
+                        Double_t             TRD_drift_time           = ((Double_t)i_time)*TRD_time_per_bin*vD_calib; // 100 ns per time bin, 1.56 cm/mus drift velocity, 3 cm drift length at maximum
                         Double_t             TRD_drift_time_uncalib   = ((Double_t)i_time)*TRD_time_per_bin*1.56; // 100 ns per time bin, 1.56 cm/mus drift velocity, 3 cm drift length at maximum
+
 
                         //printf("TRD_tim0: %4.3f, vdrift: %4.3f \n",TRD_time0,ChamberVdrift->GetValue(i_det));
 
-			Float_t lorentz_angle_corr_y = ChamberExB->GetValue(i_det)*TRD_drift_time;
-			TRD_loc_Y -= Sign_magnetic_field*lorentz_angle_corr_y;
+                        //Float_t lorentz_angle_corr_y = ChamberExB->GetValue(i_det)*TRD_drift_time;
+                        Float_t lorentz_angle_corr_y = -LA_calib*TRD_drift_time;
+                        TRD_loc_Y -= Sign_magnetic_field*lorentz_angle_corr_y;
+
+                        //printf("LA_calib: %4.3f, LA: %4.3f \n",LA_calib,ChamberExB->GetValue(i_det));
+
 			//cout << "i_time: " << i_time << ", magF: " << magF << ", x: " << TRD_drift_time << ", lorentz_angle_corr_y: " << lorentz_angle_corr_y << endl;
 
 			//Float_t              TRD_loc_Z        = (Float_t)i_row*8.5+8.5/2.0;
@@ -745,8 +938,12 @@ void Ali_AS_analysis_TRD_digits::UserExec(Option_t *)
 			//Double_t             loc[3]           = {TRD_time0,TRD_loc_Y,TRD_loc_Z+TRD_row_end};
 
 			// Determine global position of TRD hit
-                        Double_t             loc[3]           = {TRD_time0 - TRD_drift_time,TRD_loc_Y,TRD_row_pos - TRD_row_size/2.0};
-                        Double_t             loc_uncalib[3]   = {TRD_time0 - TRD_drift_time_uncalib,TRD_loc_Y_uncalib,TRD_row_pos - TRD_row_size/2.0};
+                        //Double_t             loc[3]           = {TRD_time0 - TRD_drift_time,TRD_loc_Y,TRD_row_pos - TRD_row_size/2.0};
+                        //Double_t             loc_uncalib[3]   = {TRD_time0 - TRD_drift_time_uncalib,TRD_loc_Y_uncalib,TRD_row_pos - TRD_row_size/2.0};
+                        Double_t             loc_uncalib[3]  = {TRD_time0 - TRD_drift_time,TRD_loc_Y,TRD_row_pos - TRD_row_size/2.0};
+                        Double_t             loc[3]          = {TRD_time0 - TRD_drift_time_uncalib,TRD_loc_Y_uncalib,TRD_row_pos - TRD_row_size/2.0};
+
+
                         Double_t             glb[3]           = {0.0,0.0,0.0};
                         Double_t             glb_uncalib[3]   = {0.0,0.0,0.0};
                         fGeo ->RotateBack(i_det,loc,glb);
@@ -767,7 +964,7 @@ void Ali_AS_analysis_TRD_digits::UserExec(Option_t *)
                         //glb_align[1] = glb[1];
                         //glb_align[2] = glb[2];
 
-			// Determine global pointing vector of TRD plane (vector perpendicular to plane in global system)  // here no changes 
+			// Determine global pointing vector of TRD plane (vector perpendicular to plane in global system)  // here no changes
 			Double_t             loc_vec[3]           = {TRD_time0,0.0,(TRD_row_end + TRD_row_start)/2.0};
 			Double_t             glb_vec[3]           = {0.0,0.0,0.0};
 			fGeo ->RotateBack(i_det,loc_vec,glb_vec);
@@ -826,8 +1023,8 @@ void Ali_AS_analysis_TRD_digits::UserExec(Option_t *)
 			    vec_ADC_time_bins[i_time]            = ADC_amplitude;
                             vec_points_time_bins[i_time]         = TV3_TRD_hit;
                             vec_points_time_bins_uncalib[i_time] = TV3_TRD_hit_uncalib;
-                            cout << "vec calib: " << vec_points_time_bins[i_time] << endl;
-                            cout << "vec uncalib: " << vec_points_time_bins_uncalib[i_time] << endl;
+                            //cout << "vec calib: " << vec_points_time_bins[i_time] << endl;
+                            //cout << "vec uncalib: " << vec_points_time_bins_uncalib[i_time] << endl;
                         }
 			//----------------------
 		    }
@@ -964,7 +1161,7 @@ void Ali_AS_analysis_TRD_digits::UserExec(Option_t *)
     // Track loop
     //cout << "" << endl;
     //cout << "-----------------------------------------------------------------" << endl;
-    cout << "Start matching " << N_tracks << " TPC tracks with " << TV3_TRD_hits_middle.size() << " TRD pads" << endl;
+    //cout << "Start matching " << N_tracks << " TPC tracks with " << TV3_TRD_hits_middle.size() << " TRD pads" << endl;
     N_good_tracks = 0;
     Int_t N_matched_TRD_hits_total = 0;
     for(Int_t iTracks = 0; iTracks < N_tracks; iTracks++)
@@ -981,15 +1178,16 @@ void Ali_AS_analysis_TRD_digits::UserExec(Option_t *)
 	}
 
 
-	if(!EsdTrackCuts->AcceptTrack(track)) continue;
+        if(!EsdTrackCuts->AcceptTrack(track)) continue;
 
-	Double_t TRD_signal   = track ->GetTRDsignal(); // truncated mean signal?
-	Double_t Track_pT     = track ->Pt();
-	Double_t Track_p      = track ->P();
+
+        Double_t TRD_signal   = track ->GetTRDsignal(); // truncated mean signal?
+        Double_t Track_pT     = track ->Pt();
+        Double_t Track_p      = track ->P();
         Double_t p_vec[3];
-	track->GetPxPyPz(p_vec);
-	Int_t    charge       = track ->Charge();
-	Double_t Track_phi    = track ->Phi();
+        track->GetPxPyPz(p_vec);
+        Int_t    charge       = track ->Charge();
+        Double_t Track_phi    = track ->Phi();
 	Double_t Track_theta  = track ->Theta();
 	Double_t Track_eta    = track ->Eta();
 	Double_t TPC_chi2     = track ->GetTPCchi2();
@@ -997,7 +1195,6 @@ void Ali_AS_analysis_TRD_digits::UserExec(Option_t *)
 	Double_t TOF_signal   = track ->GetTOFsignal(); // time-of-flight?
         Double_t Track_length = track ->GetIntegratedLength();
 	UShort_t N_TPC_cls    = track ->GetTPCNcls();
-
 
         Int_t pT_bin;
 	for(Int_t i_pT = 0; i_pT < N_pT_bins; i_pT++)
@@ -1071,7 +1268,8 @@ void Ali_AS_analysis_TRD_digits::UserExec(Option_t *)
 	TLorentzVector TL_vec;
 	TL_vec.SetPtEtaPhiM(Track_pT,Track_eta,Track_phi,0.1349766);
 	AS_Track  = AS_Event ->createTrack();
-	AS_Track  ->clearTRD_digit_list();
+        AS_Track  ->clearTRD_digit_list();
+        AS_Track  ->clearOfflineTrackletList();
 	AS_Track  ->set_TLV_part(TL_vec);
 	AS_Track  ->setdca(((Double_t)charge)*track_total_impact);
 	AS_Track  ->setnsigma_e_TPC(Track_PID[0]);
@@ -1090,6 +1288,204 @@ void Ali_AS_analysis_TRD_digits::UserExec(Option_t *)
 	AS_Track  ->setTPCdEdx(TPC_signal);
 	AS_Track  ->setTOFsignal(TOF_signal);
         AS_Track  ->setTrack_length(Track_length);
+
+
+
+#if 1
+        //--------------------------------------
+        //printf("Loop over friend tracks \n");
+        const AliESDfriendTrack *trkFr = track->GetFriendTrack();
+        if(!trkFr)
+        {
+            continue;
+        }
+
+        Int_t ESDtrackID       = trkFr ->GetESDtrackID();
+        Float_t one_over_p     = trkFr ->Get1P();
+        //Int_t N_MaxTPCclusters = trkF ->GetMaxTPCcluster();
+        //printf("Friend track available, ESDtrackID: %d, one_over_p: %4.3f \n",ESDtrackID,one_over_p);
+        const AliTRDtrackV1 *trdTrack = 0;
+        const TObject *calibObject = 0;
+
+        for(Int_t idx = 0; (calibObject = trkFr->GetCalibObject(idx)); ++idx)
+        {
+            //printf("idx: %d \n",idx);
+            if(calibObject->IsA() != AliTRDtrackV1::Class())
+            {
+                continue;
+            }
+            trdTrack = (AliTRDtrackV1*) calibObject;
+        }
+
+        //printf("Calib object available \n");
+
+        if(trdTrack)
+        {
+            //printf("TRD track available \n");
+
+            for(Int_t iTrklt = 0; iTrklt < 6; ++iTrklt)
+            {
+                AliTRDseedV1 *tracklet = trdTrack->GetTracklet(iTrklt);
+                if(!tracklet)
+                {
+                    continue;
+                }
+
+                Int_t   FTRD_det       = tracklet->GetDetector();
+                Float_t FTRD_trkl_locZ = tracklet->GetLocalZ();
+                Float_t FTRD_trkl_locY = tracklet->GetLocalY();
+                Float_t FTRD_trkl_dYdX = tracklet->GetdYdX();
+                Float_t FTRD_trkl_dZdX = tracklet->GetdZdX();
+                Float_t FTRD_trkl_chi2 = tracklet->GetChi2();
+
+                // In sector coordinate system
+                Float_t FTRD_trkl_X    = tracklet->GetX();
+                Float_t FTRD_trkl_Y    = tracklet->GetY();
+                Float_t FTRD_trkl_Z    = tracklet->GetZ();
+                Float_t FTRD_trkl_X0   = tracklet->GetX0();
+
+                Float_t FTRD_trkl_refY    = tracklet->GetYref(0);
+                Float_t FTRD_trkl_refdYdx = tracklet->GetYref(1);
+                Float_t FTRD_trkl_refZ    = tracklet->GetZref(0);
+                Float_t FTRD_trkl_refdZdx = tracklet->GetZref(1);
+
+
+                AliTRDpadPlane* padplane = fGeo ->GetPadPlane(FTRD_det);
+                Int_t   i_layer     = fGeo ->GetLayer(FTRD_det);
+                Int_t   i_sector    = fGeo ->GetSector(FTRD_det);
+                Float_t TRD_time0   = fGeo ->GetTime0(i_layer); // in cm
+                Double_t TRD_row_pos  = padplane ->GetRow0();       // fPadRow[0] + fPadRowSMOffset;
+                Double_t TRD_row_end  = padplane ->GetRowEnd();     // fPadRow[fNrows-1] - fLengthOPad + fPadRowSMOffset;
+                Double_t TRD_row_center = (TRD_row_end + TRD_row_pos)/2.0;
+                //Double_t TRD_row_pos  = padplane ->GetRowPos(BinZ_tracklet);       // fPadRow[row] + fPadRowSMOffset;
+
+
+                //------------------------
+                // Calculate tracklet offset space point
+                //Double_t loc_tracklet[3] = {TRD_time0 - 0.0,FTRD_trkl_locY,FTRD_trkl_locZ + TRD_row_pos};
+                Double_t loc_tracklet[3] = {TRD_time0 - 0.0,FTRD_trkl_locY,FTRD_trkl_locZ + TRD_row_center};
+                Double_t             glb_tracklet[3]              = {0.0,0.0,0.0};
+                Double_t             glb_tracklet_align_sec[3]    = {0.0,0.0,0.0};
+                Double_t             glb_tracklet_align[3]        = {0.0,0.0,0.0}; // offset space point for tracklet
+                fGeo ->RotateBack(FTRD_det,loc_tracklet,glb_tracklet);
+                TM_TRD_rotation_sector[i_sector].LocalToMaster(glb_tracklet,glb_tracklet_align_sec);
+                TM_TRD_rotation_det[FTRD_det].LocalToMaster(glb_tracklet_align_sec,glb_tracklet_align);
+                //------------------------
+
+
+                //------------------------
+                // Calculate tracklet direction vector
+                Double_t loc_tracklet_vec[3] = {TRD_time0 - 3.0,FTRD_trkl_locY - FTRD_trkl_dYdX*3.0,FTRD_trkl_locZ + TRD_row_center - FTRD_trkl_dZdX*3.0};
+                Double_t             glb_tracklet_vec[3]              = {0.0,0.0,0.0};
+                Double_t             glb_tracklet_align_sec_vec[3]    = {0.0,0.0,0.0};
+                Double_t             glb_tracklet_align_vec[3]        = {0.0,0.0,0.0}; // offset space point for tracklet
+                fGeo ->RotateBack(FTRD_det,loc_tracklet_vec,glb_tracklet_vec);
+                TM_TRD_rotation_sector[i_sector].LocalToMaster(glb_tracklet_vec,glb_tracklet_align_sec_vec);
+                TM_TRD_rotation_det[FTRD_det].LocalToMaster(glb_tracklet_align_sec_vec,glb_tracklet_align_vec);
+
+                for(Int_t i_xyz = 0; i_xyz < 3; i_xyz++)
+                {
+                    glb_tracklet_align_vec[i_xyz] -= glb_tracklet_align[i_xyz];
+                }
+                //------------------------
+
+
+                TVector3 TV3_offline_offset(glb_tracklet_align[0],glb_tracklet_align[1],glb_tracklet_align[2]);
+                TVector3 TV3_offline_dir(glb_tracklet_align_vec[0],glb_tracklet_align_vec[1],glb_tracklet_align_vec[2]);
+
+
+                TVector3 vec_pos_data(-FTRD_trkl_Y,FTRD_trkl_X,FTRD_trkl_Z);
+                TVector3 vec_TV3_axis_rot(0.0,0.0,1.0);
+                TRotation Rot_axis;
+                Rot_axis.SetToIdentity();
+                Double_t angle_rotate = (-80.0 + i_sector*20.0)*TMath::DegToRad();
+                TRotation TRot = Rot_axis.Rotate(angle_rotate,vec_TV3_axis_rot); // Rotation matrix
+
+                vec_pos_data = TRot*vec_pos_data;
+
+#if 0
+                printf("det: %d, sector: %d, TRD_row_pos: %4.3f \n",FTRD_det,i_sector,TRD_row_pos);
+                printf("refY/dYdx: {%4.3f, %4.3f}, refdZ/dZdx: {%4.3f, %4.3f}, locdY/Zdx: {%4.3f, %4.3f} \n",FTRD_trkl_refY,FTRD_trkl_refdYdx,FTRD_trkl_refZ,FTRD_trkl_refdZdx,FTRD_trkl_dYdX,FTRD_trkl_dZdX);
+                printf("loc_sec (Y,Z): {%4.3f, %4.3f} \n",FTRD_trkl_locY,FTRD_trkl_locZ);
+                printf("pos_sec: {%4.3f, %4.3f, %4.3f} \n",FTRD_trkl_X,FTRD_trkl_Y,FTRD_trkl_Z);
+                printf("loc: {%4.3f, %4.3f %4.3f}, pos_data: {%4.3f, %4.3f, %4.3f}, X0: %4.3f \n",TRD_time0 - 0.0,FTRD_trkl_locY,FTRD_trkl_locZ + TRD_row_pos,vec_pos_data[0],vec_pos_data[1],vec_pos_data[2],FTRD_trkl_X0);
+                printf("loc: {%4.3f, %4.3f %4.3f}, pos_reco: {%4.3f, %4.3f, %4.3f}, X0: %4.3f \n",TRD_time0 - 0.0,FTRD_trkl_locY,FTRD_trkl_locZ + TRD_row_pos,glb_tracklet_align[0],glb_tracklet_align[1],glb_tracklet_align[2],FTRD_trkl_X0);
+                printf(" \n");
+#endif
+
+                AS_offline_Tracklet  = AS_Track ->createOfflineTracklet();
+                AS_offline_Tracklet  ->set_detector(FTRD_det);
+                //AS_offline_Tracklet  ->set_TV3_offset(TV3_offline_offset);
+                AS_offline_Tracklet  ->set_TV3_offset(vec_pos_data);
+                AS_offline_Tracklet  ->set_TV3_dir(TV3_offline_dir);
+                
+                AS_offline_Tracklet  ->set_chi2(FTRD_trkl_chi2);
+                AS_offline_Tracklet  ->set_refYZ(FTRD_trkl_refY,FTRD_trkl_refZ);
+                AS_offline_Tracklet  ->set_refdYdZdx(FTRD_trkl_refdYdx,FTRD_trkl_refdZdx);
+                AS_offline_Tracklet  ->set_locYZ(FTRD_trkl_locY,FTRD_trkl_locZ);
+                AS_offline_Tracklet  ->set_locdYdZdx(FTRD_trkl_dYdX,FTRD_trkl_dZdX);
+
+
+                /*
+                 printf("TRD tracklet available \n");
+
+                 AliTRDseedV1 trackletCopy(*tracklet);
+                 for(Int_t iCl = 0; iCl < AliTRDseedV1::kNclusters; ++iCl)
+                 {
+                 AliTRDcluster *cls = tracklet->GetClusters(iCl);
+                 if (!cls) {
+                 continue;
+                 }
+                 int det = cls->GetDetector();
+                 float charge = cls->GetQ();
+                 int timeBin = cls->GetPadTime();
+                 int timeBinLocal = cls->GetLocalTimeBin();
+
+                 printf("iTrklt: %d, iCl: %d, det: %d, charge: %4.3f \n",iTrklt,iCl,det,charge);
+                 }
+                 */
+            }
+        }
+        //--------------------------------------
+#endif
+
+
+
+#if 0
+        //---------------------
+        // Friends -> offline TRD tracklets
+        printf("Loop over friend tracks \n");
+        const AliESDfriendTrack *trkF = track->GetFriendTrack();
+        if(!trkF) continue;
+        Int_t ESDtrackID       = trkF ->GetESDtrackID();
+        Float_t one_over_p     = trkF ->Get1P();
+        //Int_t N_MaxTPCclusters = trkF ->GetMaxTPCcluster();
+        printf("Track available, ESDtrackID: %d, one_over_p: %4.3f \n",ESDtrackID,one_over_p);
+        const AliTRDtrackV1 *trdTrack = 0;
+        const TObject *calibObject = 0;
+
+        //cout << (calibObject = trkF->GetCalibObject(0))->IsA() << endl;
+
+        for(Int_t idx = 0; (calibObject = trkF->GetCalibObject(idx)); ++idx)
+        {
+            printf("   -> idx: %d \n",idx);
+            if(calibObject->IsA() != AliTRDtrackV1::Class()) continue;
+            trdTrack = (AliTRDtrackV1*) calibObject;
+            printf("     -> trdTrack \n");
+        }
+        if(!trdTrack) continue;
+        printf("TRD tracklet available \n");
+
+        for(Int_t iTrklt = 0; iTrklt < 6; iTrklt++)
+        {
+            AliTRDseedV1 *tracklet = trdTrack->GetTracklet(iTrklt);
+            if(!tracklet) continue;
+            tracklet->Print();
+        }
+        //---------------------
+#endif
+
+
 
 	//-------------------
 	// Get TRD information
@@ -1181,7 +1577,6 @@ void Ali_AS_analysis_TRD_digits::UserExec(Option_t *)
 
 
 
-
 	//Helix
         FillHelix(track,magF);
 
@@ -1224,6 +1619,9 @@ void Ali_AS_analysis_TRD_digits::UserExec(Option_t *)
 	    Int_t TRD_layer_match[6] = {0,0,0,0,0,0};
             Double_t Impact_angle_first = -100.0;
             Double_t min_dca = 100000.0;
+
+            //cout << "Test A, fEventNoInFile: " << fEventNoInFile <<  ", N_good_tracks: " << N_good_tracks << ", iTracks: " << iTracks << endl;
+
 	    for(Int_t i_TRD_hit = 0; i_TRD_hit < TV3_TRD_hits_middle.size(); i_TRD_hit++) // ADC (average for all time bins) hit for a single pad
 	    {
 		Double_t dx = helix_point_search[0] - TV3_TRD_hits_middle[i_TRD_hit].X();
@@ -1238,11 +1636,12 @@ void Ali_AS_analysis_TRD_digits::UserExec(Option_t *)
                 if(dcaAB < min_dca) min_dca = dcaAB;
 
                 Double_t dca_xyz[3];
-		Double_t helix_point_dca[3];
-		aliHelix.Evaluate(pathA,helix_point_dca);
-
                 Double_t helix_point[3];
-		aliHelix.Evaluate(pathA,helix_point);
+                aliHelix.Evaluate(pathA,helix_point);
+
+                dca_xyz[0] = helix_point[0] - TV3_TRD_hits_middle[i_TRD_hit].X();
+		dca_xyz[1] = helix_point[1] - TV3_TRD_hits_middle[i_TRD_hit].Y();
+		dca_xyz[2] = helix_point[2] - TV3_TRD_hits_middle[i_TRD_hit].Z();
 
 		Double_t helix_point_B[3];
 		aliHelix.Evaluate(pathA-1.0,helix_point_B);
@@ -1251,6 +1650,7 @@ void Ali_AS_analysis_TRD_digits::UserExec(Option_t *)
 		TV3_track_impact_vec_on_TRD.SetXYZ(helix_point[0]-helix_point_B[0],helix_point[1]-helix_point_B[1],helix_point[2]-helix_point_B[2]);
 
                 Int_t N_good_match = 0;
+                //cout << "Test digit A" << endl;
 		if(dcaAB < TPC_TRD_matching_window) // TRD hit matched with TPC track
 		{
 		    Int_t    TRD_det    = vec_TRD_hits_det_lay_row_col[i_TRD_hit][0];
@@ -1267,7 +1667,7 @@ void Ali_AS_analysis_TRD_digits::UserExec(Option_t *)
 
 		    //Int_t row_calc = (y_TRD%16);
 		    //printf("iTracks: %d, det: %d, lay: %d, sec: %d, stack: %d, row: {%d,%d}, col: %d \n",iTracks,TRD_det,TRD_lay,TRD_sec,TRD_stack,TRD_row,row_calc,TRD_col);
-                   
+
 		    TRD_layer_match[TRD_lay] = 1;
 
 		    Double_t Impact_angle = TV3_TRD_hits_det_angle_middle[i_TRD_hit].Angle(TV3_track_impact_vec_on_TRD); // in rad
@@ -1285,7 +1685,8 @@ void Ali_AS_analysis_TRD_digits::UserExec(Option_t *)
 		    AS_Digit = AS_Track ->createTRD_digit();
 		    AS_Digit ->sethit_ids(x_TRD,y_TRD);
                     AS_Digit ->setdca_to_track(dcaAB,dca_xyz[0],dca_xyz[1],dca_xyz[2]);
-		    AS_Digit ->setImpactAngle(Impact_angle);
+                    AS_Digit ->setImpactAngle(Impact_angle);
+                    //printf("dca: {%4.3f, %4.3f, %4.3f} \n",dca_xyz[0],dca_xyz[1],dca_xyz[2]);
 
                     Double_t Impact_distance_in_drift_angle = TRD_Impact_distance_in_drift/TMath::Cos(Impact_angle); // 3.0 cm drift length + 0.5*0.7 cm amplification region
 
@@ -1303,7 +1704,9 @@ void Ali_AS_analysis_TRD_digits::UserExec(Option_t *)
 			}
 		    }
 
-                    func_tail_cancellation(ADC_Digit_values_array_tc,1);
+                    //cout << "Test digit B" << endl;
+
+                    //func_tail_cancellation(ADC_Digit_values_array_tc,1);
 		    for(Int_t i_time = 0; i_time < vec_TRD_hits_ADC_values_time[i_TRD_hit].size(); i_time++)
 		    {
 			Double_t ADC_value  = vec_TRD_hits_ADC_values_time[i_TRD_hit][i_time];
@@ -1313,7 +1716,7 @@ void Ali_AS_analysis_TRD_digits::UserExec(Option_t *)
 			Double_t pad_gain_factor = KryptoGain ->GetGainCorrectionFactor(TRD_det,TRD_row,TRD_col);
 			Double_t detector_gain = chambergain->GetValue(TRD_det);
 			Double_t ADC_value_corrected    = ((ADC_value - fBaseline + pad_noise)/(detector_gain*pad_gain_factor))/Impact_distance_in_drift_angle;
-			Double_t ADC_value_corrected_tc = ((ADC_Digit_values_array_tc[i_time] - fBaseline + pad_noise)/(detector_gain*pad_gain_factor))/Impact_distance_in_drift_angle;
+			//Double_t ADC_value_corrected_tc = ((ADC_Digit_values_array_tc[i_time] - fBaseline + pad_noise)/(detector_gain*pad_gain_factor))/Impact_distance_in_drift_angle;
 		        //cout << "i_time: " << i_time << ", ADC_value: " << ADC_value << ", fBaseline: " << fBaseline << ", pad_noise: " << pad_noise
 			//    << ", detector_gain: " << detector_gain << ", pad_gain_factor: " << pad_gain_factor <<
 			//    ", Impact_distance_in_drift_angle: " << Impact_distance_in_drift_angle << ", ADC_value_corrected: " << ADC_value_corrected << endl;
@@ -1323,10 +1726,12 @@ void Ali_AS_analysis_TRD_digits::UserExec(Option_t *)
                             time_max_bin  = i_time;
                         }
 
+
                         AS_Digit ->setADC_time_value(i_time,(Short_t)ADC_value);
                         //printf("ADC_value: %hi \n",(Short_t)ADC_value);
                         //AS_Digit ->setADC_time_value_corrected(i_time,(Short_t)ADC_value_corrected);
 
+                        //printf("i_time: %d, i_TRD_hit: %d, pos: {%4.3f, %4.3f, %4.3f} \n",i_time,i_TRD_hit,vec_TRD_hits_points_time_uncalib[i_TRD_hit][i_time].X(), vec_TRD_hits_points_time_uncalib[i_TRD_hit][i_time].Y(), vec_TRD_hits_points_time_uncalib[i_TRD_hit][i_time].Z());
                         AS_Digit ->set_pos(i_time,vec_TRD_hits_points_time_uncalib[i_TRD_hit][i_time].X(), vec_TRD_hits_points_time_uncalib[i_TRD_hit][i_time].Y(), vec_TRD_hits_points_time_uncalib[i_TRD_hit][i_time].Z());
 
                         //cout << "vec_TRD_hits_points_time[i_TRD_hit][i_time].X()" << vec_TRD_hits_points_time[i_TRD_hit][i_time].X() << endl;
@@ -1335,9 +1740,9 @@ void Ali_AS_analysis_TRD_digits::UserExec(Option_t *)
                         //AS_Digit ->setADC_time_value_corrected_tc(i_time,(Short_t)ADC_value_corrected_tc);
 		    }
 
+                    //cout << "Test digit C" << endl;
 		    Float_t pathA_max, dcaAB_max;
 		    FindDCAHelixPoint(vec_TRD_hits_points_time[i_TRD_hit][time_max_bin],aliHelix,path_initA-25.0,path_initA+25.0,pathA_max,dcaAB_max);
-
 		    //cout << "ADC_value_max: " << ADC_value_max << ", time_max_bin: " << time_max_bin << ", dcaAB_max: " << dcaAB_max << endl;
 		    //-------------------------------------------------------------------
 
@@ -1348,6 +1753,7 @@ void Ali_AS_analysis_TRD_digits::UserExec(Option_t *)
 	    } // End of TRD hit loop
 	    AS_Track  ->setimpact_angle_on_TRD(Impact_angle_first);
 
+            //cout << "Test B" << endl;
 	    //cout << "min_dca: " << min_dca << endl;
 	    //--------------------------------------------------------------------------------
 
@@ -1356,10 +1762,11 @@ void Ali_AS_analysis_TRD_digits::UserExec(Option_t *)
 	N_good_tracks++;
 
     } // End of TPC track loop
-
+    cout << "Tracks matched" << endl;
 
 
     Tree_AS_Event ->Fill();
+
 
     N_good_events++;
 

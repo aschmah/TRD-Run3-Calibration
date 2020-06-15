@@ -484,7 +484,7 @@ GUI_Sim_drift::GUI_Sim_drift() : TGMainFrame(gClient->GetRoot(), 200, 100)
 {
     //-------------------------------------
     //outputfile = new TFile("./TRD_Calib_vDfit_and_LAfit.root","RECREATE");
-    outputfile = new TFile("./TRD_Calib_vDfit_and_LAfit_3456.root","RECREATE");
+    outputfile = new TFile("./TRD_Calib_vDfit_and_LAfit_3456_new.root","RECREATE");
 
 
 
@@ -1285,7 +1285,7 @@ Int_t GUI_Sim_drift::Do_Minimize()
             i_point = i_point+1;
 
             //if(vec_vD_ratio_fit[i_detector] != 0.0) //IF WANT TO USE 1.56 AS vD_set
-            if(vec_vD_ratio_fit[i_detector] != 0.0 && v_drift_in > 0.0 && flag_defect_TRD !=1) //IF WANT TO USE vD from OCDB AS vD_set
+            if(vec_vD_ratio_fit[i_detector] != 0.0)// && v_drift_in > 0.0 && flag_defect_TRD !=1) //IF WANT TO USE vD from OCDB AS vD_set
 
             {
                 //vec_v_fit[i_detector] = vD_set/vec_vD_ratio_fit[i_detector];   //IF WANT TO USE 1.56 AS vD_set

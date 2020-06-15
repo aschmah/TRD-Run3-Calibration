@@ -153,6 +153,7 @@ using namespace std;
 //ClassImp(Ali_AS_Event)
 
 static vector< vector< vector<Double_t> > > vec_Dt_digit_pos_cluster;    // layer, merged time bin. xyzADC
+vector<TVector2> vec_TV2_points;
 static Int_t global_layer;
 
 static const Double_t TRD_res_XY = 0.725/TMath::Sqrt(12.0);
@@ -581,3 +582,36 @@ void SumDistance2_F_tr(Int_t &, Double_t *, Double_t & sum, Double_t * par, Int_
 }
 
 //------------------------------------------------------------------------------------
+
+//------------------------------------------------------------------------------------
+
+// distance between circle and point 2D
+double distance_circ_point_2D(Double_t x,double_t y,Double_t *p) {
+    // D = |sqrt((xp-x0)^2 + (yp-y0)^2)-r|
+
+    Double_t d2 = TMath::Abs(TMath::Sqrt(TMath::Power(x-p[0],2.0)+TMath::Power(y-p[1],2.0))-p[2]);
+    return d2;
+}
+
+// function to be minimized
+void sum_distance_circ_point_2D(Int_t &, Double_t *, Double_t & sum, Double_t * par, Int_t ) {
+
+    sum = 0;
+
+    for (Int_t i_layer = 0; i_layer < (Int_t)vec_Dt_digit_pos_cluster[6].size(); ++i_layer) {
+        if(vec_Dt_digit_pos_cluster[6][i_layer][0] == -999.0) continue;
+        Double_t d = distance_circ_point_2D(vec_Dt_digit_pos_cluster[6][i_layer][0],vec_Dt_digit_pos_cluster[6][i_layer][1],par);
+        sum += d;
+        //printf("i_layer: %d, sum: %4.8f \n",i_layer,sum);
+        //std::cout << "sum2 = " << sum << std::endl;
+
+#ifdef DEBUG
+        if (first) std::cout << "point " << i << "\t"
+            << x[i] << "\t"
+                << y[i] << "\t"
+                << std::sqrt(d) << std::endl;
+#endif
+    }
+//std::cout << "Total sum2 = " << sum << std::endl;
+}
+
