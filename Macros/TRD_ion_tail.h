@@ -11,6 +11,8 @@ static const Double_t TRD_anode_plane = 0.0335;
 static const Double_t TRD_ampl_stop   = 0.037;
 static const Int_t    N_clusters      = 100;
 static const Double_t step_clusters   = 0.00125; // cm
+static const Double_t t_zero          = 0.05; // us
+
 
 vector<Double_t> recon_points;
 vector<Double_t> primary_points;
@@ -538,7 +540,7 @@ void Make_ion_tail_convolution()
         for(Int_t i_ion_tail = i_cluster; i_ion_tail >= 0.0; i_ion_tail--)
         {
             Double_t i_time       = i_ion_tail*0.1; // in mus
-            Double_t y_pos_charge = y_pos - i_time*1.25*0.01; // 1.56 cm/mus, one time bin = 0.1 mus
+            Double_t y_pos_charge = y_pos - (i_time-t_zero)*1.25*0.01; // 1.56 cm/mus, one time bin = 0.1 mus
 
 
             for(Int_t i_charge_share = -2; i_charge_share <= 2; i_charge_share++) // two pads on the left and right for charge sharing
@@ -578,7 +580,7 @@ void Make_ion_tail_convolution()
         }
     }
 
-# if 0
+# if 1
 
     TCanvas* can_ADC_xy = new TCanvas("can_ADC_xy","can_ADC_xy",600,50,800,600);
     can_ADC_xy->cd()->SetTicks(1,1);

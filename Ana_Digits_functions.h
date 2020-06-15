@@ -586,7 +586,7 @@ void SumDistance2_F_tr(Int_t &, Double_t *, Double_t & sum, Double_t * par, Int_
 //------------------------------------------------------------------------------------
 
 // distance between circle and point 2D
-double distance_circ_point_2D(Double_t x,double_t y,Double_t *p) {
+Double_t distance_circ_point_2D(Double_t x,Double_t y,Double_t *p) {
     // D = |sqrt((xp-x0)^2 + (yp-y0)^2)-r|
 
     Double_t d2 = TMath::Abs(TMath::Sqrt(TMath::Power(x-p[0],2.0)+TMath::Power(y-p[1],2.0))-p[2]);

@@ -1,0 +1,994 @@
+#include <TFile.h>
+
+static TGraph* tg_pad_response;
+static TGraph* tg_time_response;
+
+static Int_t N_pads = 16;
+static Double_t pad_width = 0.00725; // m
+static const Double_t TRD_drift_start = 0.0;
+static const Double_t TRD_drift_stop  = 0.03;
+static const Double_t TRD_anode_plane = 0.0335;
+static const Double_t TRD_ampl_stop   = 0.037;
+static const Int_t    N_clusters      = 100;
+static const Double_t step_clusters   = 0.00125; // cm
+static const Double_t t_zero          = 0.05; // us
+
+
+vector<Double_t> recon_points;
+vector<Double_t> primary_points;
+
+TLinearFitter *lf_recon = new TLinearFitter(2);
+TLinearFitter *lf_primary = new TLinearFitter(2);
+
+static vector< vector<Double_t> > vec_pad_pos;
+static vector< vector<Double_t> > vec_cluster_pos;
+
+static TGraph* tg_rec_cluster;
+
+static TH2D* h2D_ADC_xy;
+
+TGraph* TG_Delta_alpha_vs_impact_angle_points = new TGraph();
+Int_t i_point = 0;
+
+Double_t LA_fit;
+Double_t vD_ratio_fit;
+
+
+//----------------------------------------------------------------------------------------
+void Load_data()
+{
+    tg_pad_response  = new TGraph(58);
+    tg_time_response = new TGraph();
+
+
+
+    Double_t arr_pad_response[58][2] =
+    {
+        {-1.975729998 ,  0.002407932},
+        {-1.865301489 ,  0.001416431},
+        {-1.81645811  ,   0.000566572},
+        {-1.735760353 ,  0.001416431},
+        {-1.64019722  ,   0.000566572},
+        {-1.565870338 ,  0.000566572},
+        {-1.474554456 ,  0.000424929},
+        {-1.385362198 ,  0.004390935},
+        {-1.304664441 ,  0.009348442},
+        {-1.22609031  ,   0.019263456},
+        {-1.166628805 ,  0.033144476},
+        {-1.098672799 ,  0.050991501},
+        {-1.039211294 ,  0.068838527},
+        {-0.990367915 ,  0.090651558},
+        {-0.939400911 ,  0.112464589},
+        {-0.879939406 ,  0.151133144},
+        {-0.818354275 ,  0.192776204},
+        {-0.765263646 ,  0.233427762},
+        {-0.712173016 ,  0.28796034},
+        {-0.642093385 ,  0.346458924},
+        {-0.595373632 ,  0.399008499},
+        {-0.535912127 ,  0.465439093},
+        {-0.484945122 ,  0.521954674},
+        {-0.421236367 ,  0.588385269},
+        {-0.342662235 ,  0.666713881},
+        {-0.287447981 ,  0.717280453},
+        {-0.247099102 ,  0.741076487},
+        {-0.185513972 ,  0.780736544},
+        {-0.138794218 ,  0.800566572},
+        {-0.100568965 ,  0.815439093},
+        {-0.051725586 ,  0.822379603},
+        {0.001365044  ,   0.828328612},
+        {0.054455673  ,   0.823371105},
+        {0.113917178  ,   0.811473088},
+        {0.175502308  ,   0.787677054},
+        {0.215851187  ,   0.769830028},
+        {0.256200065  ,   0.735127479},
+        {0.313537945  ,   0.692492918},
+        {0.37299945   ,   0.63796034},
+        {0.411224703  ,   0.604249292},
+        {0.462191708  ,   0.544759207},
+        {0.528024088  ,   0.47733711},
+        {0.595980094  ,   0.4},
+        {0.657565224  ,   0.332577904},
+        {0.717026729  ,   0.276062323},
+        {0.78710636   ,   0.214589235},
+        {0.889040369  ,   0.143201133},
+        {0.954872749  ,   0.104532578},
+        {1.022828755  ,   0.073796034},
+        {1.109897387  ,   0.044050992},
+        {1.20546052   ,   0.023229462},
+        {1.322259905  ,   0.005382436},
+        {1.419946663  ,   0.001416431},
+        {1.490026294  ,   0.000566572},
+        {1.596207553  ,   0.000424929},
+        {1.706636063  ,   0.002407932},
+        {1.836177199  ,   0.000424929},
+        {1.959347459  ,   0.000424929}
+    };
+
+
+    Double_t arr_time_response[73][2] =
+    {
+        {0.009707273,	0.288065844},
+        {0.050055426 ,   0.576131687},
+        {0.097838453 ,   2.77E-12   },
+        {0.146681107 ,   0.288065844},
+        {0.167916632 ,   0.576131687},
+        {0.177466392 ,   3.16872428 },
+        {0.182765259 ,   7.201646091},
+        {0.18805466  ,   14.97942387},
+        {0.192277877 ,   24.48559671},
+        {0.197558538 ,   35.72016461},
+        {0.202832645 ,   49.5473251 },
+        {0.205978756 ,   65.10288066},
+        {0.210186681 ,   80.65843621},
+        {0.215459331 ,   95.0617284 },
+        {0.220718872 ,   114.6502058},
+        {0.223857701 ,   133.0864198},
+        {0.228061984 ,   150.0823045},
+        {0.233325895 ,   167.9423868},
+        {0.23754183  ,   180.3292181},
+        {0.241769417 ,   188.1069959},
+        {0.244929366 ,   198.1893004},
+        {0.249143116 ,   211.4403292},
+        {0.256545218 ,   223.5390947},
+        {0.260761153 ,   235.9259259},
+        {0.264988012 ,   243.9917695},
+        {0.268155244 ,   251.1934156},
+        {0.274512282 ,   256.6666667},
+        {0.27768971  ,   259.8353909},
+        {0.276622799 ,   261.8518519},
+        {0.28086568  ,   263.5802469},
+        {0.286169646 ,   265.5967078},
+        {0.290416168 ,   265.8847737},
+        {0.294665603 ,   265.0205761},
+        {0.298916495 ,   263.5802469},
+        {0.304229928 ,   261.8518519},
+        {0.306357195 ,   260.4115226},
+        {0.313798623 ,   256.9547325},
+        {0.315931716 ,   253.2098765},
+        {0.318065537 ,   249.1769547},
+        {0.323384796 ,   245.1440329},
+        {0.329770237 ,   239.382716 },
+        {0.335102605 ,   230.1646091},
+        {0.341500427 ,   219.5061728},
+        {0.354284418 ,   202.7983539},
+        {0.366002227 ,   187.81893  },
+        {0.376664778 ,   170.2469136},
+        {0.389443672 ,   155.5555556},
+        {0.402228392 ,   138.5596708},
+        {0.416078565 ,   120.1234568},
+        {0.440554877 ,   98.51851852},
+        {0.465020264 ,   81.2345679 },
+        {0.485218009 ,   72.01646091},
+        {0.511791728 ,   60.781893  },
+        {0.540484703 ,   51.27572016},
+        {0.581916517 ,   42.9218107 },
+        {0.614849459 ,   36.2962963 },
+        {0.655204895 ,   33.7037037 },
+        {0.692377078 ,   30.24691358},
+        {0.743354281 ,   26.21399177},
+        {0.803885614 ,   23.04526749},
+        {0.873973989 ,   19.58847737},
+        {0.946183805 ,   16.99588477},
+        {1.033258998 ,   14.40329218},
+        {1.122457088 ,   12.09876543},
+        {1.205281389 ,   10.94650206},
+        {1.305095421 ,   9.506172839},
+        {1.436762377 ,   8.641975309},
+        {1.552503598 ,   7.201646091},
+        {1.659749591 ,   6.049382716},
+        {1.758498169 ,   6.049382716},
+        {1.833888324 ,   5.473251029},
+        {1.916711169 ,   4.897119342},
+        {1.997408203 ,   5.185185185}
+    };
+
+
+
+    for(Int_t i_point = 0; i_point < 58; i_point++)
+    {
+        tg_pad_response ->SetPoint(i_point,arr_pad_response[i_point][0],arr_pad_response[i_point][1]);
+    }
+
+    for(Int_t i_point = 0; i_point < 73; i_point++)
+    {
+        tg_time_response ->SetPoint(i_point,arr_time_response[i_point][0],arr_time_response[i_point][1]);
+    }
+
+}
+//----------------------------------------------------------------------------------------
+
+
+
+//----------------------------------------------------------------------------------------
+TLatex* plotTopLegend(char* label,Float_t x=-1,Float_t y=-1,Float_t size=0.06,Int_t color=1,Float_t angle=0.0, Int_t font = 42, Int_t NDC = 1, Int_t align = 1)
+{
+    // coordinates in NDC!
+    // plots the string label in position x and y in NDC coordinates
+    // size is the text size
+    // color is the text color
+
+    // Text alignment: https://root.cern.ch/doc/master/classTAttText.html#T1
+    // align = 10*HorizontalAlign + VerticalAlign
+    // horizontal: 1=left adjusted, 2=centered, 3=right adjusted
+    // vertical: 1=bottom adjusted, 2=centered, 3=top adjusted
+
+
+    if((x<0||y<0) && NDC == 1)
+    {   // defaults
+      x=gPad->GetLeftMargin()*1.15;
+      y=(1-gPad->GetTopMargin())*1.04;
+    }
+    TLatex* text=new TLatex(x,y,label);
+    text->SetTextFont(font);
+    text->SetTextSize(size);
+    if(NDC == 1) text->SetNDC();
+    text->SetTextColor(color);
+    text->SetTextAngle(angle);
+    text->SetTextAlign(align);
+    text->Draw();
+    return text;
+}
+//----------------------------------------------------------------------------------------
+
+
+
+//----------------------------------------------------------------------------------------
+TLine* PlotLine(Double_t x1_val, Double_t x2_val, Double_t y1_val, Double_t y2_val, Int_t Line_Col, Int_t LineWidth, Int_t LineStyle)
+{
+    TLine* Zero_line = new TLine();
+    Zero_line -> SetX1(x1_val);
+    Zero_line -> SetX2(x2_val);
+    Zero_line -> SetY1(y1_val);
+    Zero_line -> SetY2(y2_val);
+    Zero_line -> SetLineWidth(LineWidth);
+    Zero_line -> SetLineStyle(LineStyle);
+    Zero_line -> SetLineColor(Line_Col);
+    Zero_line -> Draw();
+    //delete Zero_line;
+
+    return Zero_line;
+}
+//----------------------------------------------------------------------------------------
+
+
+
+//----------------------------------------------------------------------------------------
+// Calculates integral of graph between x_start and x_stop
+Double_t calc_integral(TGraph *g, Double_t x_start, Double_t x_stop)
+{
+     Double_t area = 0.0;
+     Double_t x_point1 = 0.0;
+     Double_t x_point2 = 0.0;    
+     Double_t y_point1 = 0.0;
+     Double_t y_point2 = 0.0;
+     Int_t n_points = 0;
+
+     for (Int_t i_point = 0; i_point < g ->GetN() -1; i_point++)
+     {
+        g ->GetPoint(i_point,x_point1,y_point1);
+
+        if (x_point1 < x_start) continue;
+        
+        g ->GetPoint(i_point+1,x_point2,y_point2);
+
+        if (x_point2 > x_stop) break;
+
+        area += (x_point2-x_point1)*((y_point1+y_point2)/2);
+        n_points++;
+        
+        //printf("\n");
+        //printf("x_start: %4.3f, x_stop: %4.3f \n",x_start,x_stop);
+        //printf("i_point: %d, x_point1: %4.3f, x_point2: %4.3f, y_point1: %4.3f, y_point2: %4.3f, area: %4.3f \n",i_point,x_point1,x_point2,y_point1,y_point2,area);
+        //printf("\n");
+
+     }
+
+     if (n_points == 0) 
+     {
+        area = g ->Eval(x_point1);
+     }
+     
+     return area;
+}
+//----------------------------------------------------------------------------------------
+
+
+
+//----------------------------------------------------------------------------------------
+void Draw_TRD_detector_2D()
+{
+    tg_rec_cluster = new TGraph();
+
+    vector<Double_t> vec_start_stop;
+    vec_start_stop.resize(2);
+
+    TCanvas* can_track = new TCanvas("can_track","can_track",600,50,800,600);
+    can_track->cd()->SetTicks(1,1);
+    can_track->cd()->SetGrid(0,0);
+    can_track->cd()->SetFillColor(10);
+    can_track->cd()->SetRightMargin(0.01);
+    can_track->cd()->SetLeftMargin(0.18);
+    can_track->cd()->SetBottomMargin(0.12);
+    can_track->cd()->SetTopMargin(0.01);
+
+    Double_t x_range = 0.035;
+
+
+    TH1F* h_frame = can_track->cd()->DrawFrame(-x_range,-0.007,x_range,0.043,"h_frame");
+    h_frame->SetStats(0);
+    h_frame->SetTitle("");
+    h_frame->GetXaxis()->SetTitleOffset(1.0);
+    h_frame->GetYaxis()->SetTitleOffset(1.7);
+    h_frame->GetXaxis()->SetLabelSize(0.05);
+    h_frame->GetYaxis()->SetLabelSize(0.05);
+    h_frame->GetXaxis()->SetTitleSize(0.05);
+    h_frame->GetYaxis()->SetTitleSize(0.05);
+    h_frame->GetXaxis()->SetNdivisions(505,'N');
+    h_frame->GetYaxis()->SetNdivisions(505,'N');
+    h_frame->GetXaxis()->CenterTitle();
+    h_frame->GetYaxis()->CenterTitle();
+    h_frame->GetXaxis()->SetTitle("x (m)");
+    h_frame->GetYaxis()->SetTitle("y (m)");
+
+    PlotLine(-x_range,x_range,TRD_drift_start,TRD_drift_start,kBlack,2,2); // (Double_t x1_val, Double_t x2_val, Double_t y1_val, Double_t y2_val, Int_t Line_Col, Int_t LineWidth, Int_t LineStyle)
+    PlotLine(-x_range,x_range,TRD_drift_stop,TRD_drift_stop,kBlack,2,2); // (Double_t x1_val, Double_t x2_val, Double_t y1_val, Double_t y2_val, Int_t Line_Col, Int_t LineWidth, Int_t LineStyle)
+    PlotLine(-x_range,x_range,TRD_ampl_stop,TRD_ampl_stop,kBlack,2,2); // (Double_t x1_val, Double_t x2_val, Double_t y1_val, Double_t y2_val, Int_t Line_Col, Int_t LineWidth, Int_t LineStyle)
+    PlotLine(-x_range,x_range,TRD_anode_plane,TRD_anode_plane,kBlue+1,3,9); // (Double_t x1_val, Double_t x2_val, Double_t y1_val, Double_t y2_val, Int_t Line_Col, Int_t LineWidth, Int_t LineStyle)
+    TBox* box_amp = new TBox(-x_range,TRD_drift_stop,x_range,TRD_ampl_stop);
+    box_amp->SetFillColor(kRed-8);
+    box_amp->SetFillStyle(3001);
+    box_amp->Draw("same");
+
+    Double_t pad_pos = -x_range;
+    Int_t i_pad = 0;
+    while(pad_pos < x_range)
+    {
+        TBox* box_pad = new TBox(pad_pos+0.0003,TRD_ampl_stop,pad_pos+pad_width-0.0003,TRD_ampl_stop+0.001);
+        box_pad->SetFillColor(kBlue);
+        box_pad->SetFillStyle(3001);
+        box_pad->Draw("same");
+
+        vec_start_stop[0] = pad_pos;
+        vec_start_stop[1] = pad_pos + pad_width;
+        vec_pad_pos.push_back(vec_start_stop);
+
+        pad_pos += pad_width;
+
+        printf("i_pad: %d, pos: {%4.5f, %4.5f} \n",i_pad,vec_start_stop[0],vec_start_stop[1]);
+        i_pad++;
+    }
+
+    h2D_ADC_xy = new TH2D("h2D_ADC_xy","h2D_ADC_xy",(Int_t)vec_pad_pos.size(),vec_pad_pos[0][0],vec_pad_pos[(Int_t)vec_pad_pos.size()-1][1],24,0.0,0.03);
+}
+//----------------------------------------------------------------------------------------
+
+
+
+//----------------------------------------------------------------------------------------
+TVector2* Create_TRD_track(Double_t impact_angle, Double_t Lorentz_angle, Double_t drift_vel_ratio, Double_t Lorentz_angle_pre_corr)
+{
+    // Lorentz_angle_pre_corr: The Lorentz angle pre correction which was applied for the data used for calibration
+    lf_primary->SetFormula("x ++ 1");
+
+    vec_cluster_pos.clear();
+    vector<Double_t> vec_pos;
+    vec_pos.resize(2);
+
+    Double_t x_dir = TMath::Cos(impact_angle);
+    Double_t y_dir = TMath::Sin(impact_angle);
+    Double_t slope = 1.0;
+    if(x_dir != 0.0) slope = y_dir/x_dir;
+    x_dir /= y_dir;
+    y_dir /= y_dir;
+
+    Double_t Lorentz_tan   = TMath::Tan(Lorentz_angle);
+    Double_t Lorentz_slope = 1.0;
+    if(Lorentz_tan != 0.0) Lorentz_slope = 1.0/Lorentz_tan;
+
+    TPolyMarker* TPM_trd_track_clusters      = new TPolyMarker();
+    TPolyMarker* TPM_tpc_track_clusters      = new TPolyMarker();
+    TPolyMarker* TPM_trd_anode_plane         = new TPolyMarker();
+    TPolyMarker* TPM_trd_Lorentz_anode_plane = new TPolyMarker();
+    TPolyMarker* TPM_trd_Lorentz_drift       = new TPolyMarker();
+    TPolyMarker* TPM_trd_Lorentz_drift_pre_corr       = new TPolyMarker();
+
+    for(Int_t i_cluster = 0; i_cluster < N_clusters; i_cluster++)
+    {
+        Double_t x_val = x_dir*step_clusters*i_cluster;
+        Double_t y_val = 0.5*step_clusters + TRD_drift_start + y_dir*step_clusters*i_cluster;
+
+        TPM_tpc_track_clusters->SetNextPoint(x_val,y_val);
+
+        //Lorentz angle correction
+
+        Double_t shift = TMath::Tan(Lorentz_angle)*(0.03 - y_val);
+        x_val += shift;
+
+        lf_primary->AddPoint(&x_val,y_val);
+
+        if(y_val > TRD_ampl_stop) break;
+        TPM_trd_track_clusters ->SetNextPoint(x_val,y_val);
+
+        //printf("i_cluster: %d, step_clusters: %4.3f, y_dir*step_clusters*i_cluster: %4.3f, x_val: %4.3f, y_val: %4.3f \n \n",i_cluster,step_clusters,y_dir*step_clusters*i_cluster,x_val,y_val);
+        vec_pos[0] = x_val;
+        vec_pos[1] = y_val;
+
+        
+
+        vec_cluster_pos.push_back(vec_pos);
+    }
+
+    TPM_trd_track_clusters ->SetMarkerSize(0.5);
+    TPM_trd_track_clusters ->SetMarkerColor(kRed);
+    TPM_trd_track_clusters ->SetMarkerStyle(20);
+    TPM_trd_track_clusters ->Draw("");
+
+    TPM_tpc_track_clusters ->SetMarkerSize(0.5);
+    TPM_tpc_track_clusters ->SetMarkerColor(kBlack);
+    TPM_tpc_track_clusters ->SetMarkerStyle(20);
+    TPM_tpc_track_clusters ->Draw("");
+
+    Double_t x_anode_hit = TRD_anode_plane/slope;
+    Double_t y_anode_hit = TRD_anode_plane;
+    TPM_trd_anode_plane ->SetNextPoint(x_anode_hit,y_anode_hit);
+    TPM_trd_anode_plane ->SetMarkerSize(2.0);
+    TPM_trd_anode_plane ->SetMarkerColor(kGreen+1);
+    TPM_trd_anode_plane ->SetMarkerStyle(29);
+    TPM_trd_anode_plane ->Draw("");
+
+    // Physical hit of first cluster at anode wire after Lorentz shift
+    Double_t x_Lorentz_anode_hit = TRD_anode_plane/Lorentz_slope;
+    Double_t y_Lorentz_anode_hit = TRD_anode_plane;
+    TPM_trd_Lorentz_anode_plane ->SetNextPoint(x_Lorentz_anode_hit,y_Lorentz_anode_hit);
+    TPM_trd_Lorentz_anode_plane ->SetMarkerSize(2.0);
+    TPM_trd_Lorentz_anode_plane ->SetMarkerColor(kBlack);
+    TPM_trd_Lorentz_anode_plane ->SetMarkerStyle(29);
+    TPM_trd_Lorentz_anode_plane ->Draw("");
+
+    // Reconstructed hit of first cluster at chamber entrance before pre Lorentz angle correction applied
+    Double_t x_Lorentz_drift_hit = x_Lorentz_anode_hit;
+    Double_t y_Lorentz_drift_hit = TRD_anode_plane - TRD_anode_plane*drift_vel_ratio;
+    TPM_trd_Lorentz_drift ->SetNextPoint(x_Lorentz_drift_hit,y_Lorentz_drift_hit);
+    TPM_trd_Lorentz_drift ->SetMarkerSize(2.0);
+    TPM_trd_Lorentz_drift ->SetMarkerColor(kCyan+1);
+    TPM_trd_Lorentz_drift ->SetMarkerStyle(29);
+    TPM_trd_Lorentz_drift ->Draw("");
+
+#if 0
+    // Reconstructed hit of first cluster at chamber entrance after pre Lorentz angle correction
+    Double_t x_Lorentz_drift_hit_pre_corr = x_Lorentz_anode_hit - (TRD_anode_plane - y_Lorentz_drift_hit)*TMath::Tan(Lorentz_angle_pre_corr);
+    Double_t y_Lorentz_drift_hit_pre_corr = TRD_anode_plane - TRD_anode_plane*drift_vel_ratio;
+    TPM_trd_Lorentz_drift_pre_corr ->SetNextPoint(x_Lorentz_drift_hit_pre_corr,y_Lorentz_drift_hit_pre_corr);
+    TPM_trd_Lorentz_drift_pre_corr ->SetMarkerSize(2.0);
+    TPM_trd_Lorentz_drift_pre_corr ->SetMarkerColor(kOrange+1);
+    TPM_trd_Lorentz_drift_pre_corr ->SetMarkerStyle(29);
+    TPM_trd_Lorentz_drift_pre_corr ->Draw("");
+#endif
+
+    PlotLine(x_Lorentz_drift_hit,x_anode_hit,y_Lorentz_drift_hit,y_anode_hit,kGreen+2,2,2); // (Double_t x1_val, Double_t x2_val, Double_t y1_val, Double_t y2_val, Int_t Line_Col, Int_t LineWidth, Int_t LineStyle)
+
+    TVector2* TV2_trd_track = new TVector2(x_dir,y_dir);
+
+     Double_t impact_angle_track = TMath::ATan2(y_anode_hit,x_anode_hit);
+
+     Double_t Delta_x_Lorentz_drift_hit = x_anode_hit - x_Lorentz_drift_hit;
+     Double_t Delta_y_Lorentz_drift_hit = y_anode_hit - y_Lorentz_drift_hit;
+     Double_t impact_angle_rec   = TMath::ATan2(Delta_y_Lorentz_drift_hit,Delta_x_Lorentz_drift_hit);
+
+     Double_t Delta_angle = -(impact_angle_track - impact_angle_rec);
+
+     //TG_Delta_alpha_vs_impact_angle ->SetPoint(i_point,impact_angle*TMath::RadToDeg(),Delta_angle*TMath::RadToDeg());
+     //i_point++;
+     //printf("GUI SIm drift model: impact_angle: %4.3f, impact_angle_track: %4.3f, impact_angle_rec: %4.3f, Delta_angle: %4.3f, x_anode_hit: %4.3f, x_Lorentz_drift_hit: %4.3f \n",impact_angle*TMath::RadToDeg(),impact_angle_track*TMath::RadToDeg(),impact_angle_rec*TMath::RadToDeg(),Delta_angle*TMath::RadToDeg(),x_anode_hit,x_Lorentz_drift_hit);
+
+    return TV2_trd_track;
+}
+//----------------------------------------------------------------------------------------
+
+
+
+//----------------------------------------------------------------------------------------
+Int_t Find_pad_index(Double_t x_pos, Double_t &rel_pos_center)
+{
+    for(Int_t i_pad = 0; i_pad < (Int_t)vec_pad_pos.size(); i_pad++)
+    {
+        Double_t pad_start = vec_pad_pos[i_pad][0];
+        Double_t pad_stop  = vec_pad_pos[i_pad][1];
+
+        if(x_pos > pad_start && x_pos <= pad_stop)
+        {
+            Double_t center_pos = (pad_start + pad_stop)/2.0;
+            rel_pos_center = (x_pos - center_pos)/pad_width;
+            //printf("x_pos: %4.5f, center_pos: %4.5f, rel_pos_center: %4.5f \n",x_pos,center_pos,rel_pos_center);
+            return i_pad;
+        }
+    }
+
+    return -1;
+}
+//----------------------------------------------------------------------------------------
+
+
+
+//----------------------------------------------------------------------------------------
+void Make_ion_tail_convolution()
+{
+    printf("Make_ion_tail_convolution \n");
+
+    //for(Double_t impact_angle = 65.0*TMath::DegToRad(); impact_angle < 115.0*TMath::DegToRad(); impact_angle += 1.0*TMath::DegToRad())
+    //{
+
+    h2D_ADC_xy ->Reset();
+    Double_t prf = 0.0;
+    Double_t trf = 0.0;
+
+    for(Int_t i_cluster = 0; i_cluster < (Int_t)vec_cluster_pos.size(); i_cluster++)
+    {
+        Double_t x_pos = vec_cluster_pos[i_cluster][0];
+        Double_t y_pos = vec_cluster_pos[i_cluster][1];
+
+        if(y_pos > TRD_drift_stop) break;
+
+        Double_t rel_pos_center = 0.0;
+        Double_t rel_pos_x_start = 0.0;
+        Double_t rel_pos_x_stop = 0.0;
+
+        Int_t i_pad = Find_pad_index(x_pos,rel_pos_center);
+        // printf(" \n");
+        // printf("i_cluster: %d, pos: {%4.5f, %4.5f}, i_pad: %d, rel_pos_center: %4.5f \n",i_cluster,x_pos,y_pos,i_pad,rel_pos_center);
+
+        for(Int_t i_ion_tail = i_cluster; i_ion_tail >= 0.0; i_ion_tail--)
+        {
+            Double_t i_time       = i_ion_tail*0.1; // in mus
+            Double_t y_pos_charge = y_pos - (i_time-t_zero)*1.25*0.01; // 1.56 cm/mus, one time bin = 0.1 mus
+
+
+            for(Int_t i_charge_share = -2; i_charge_share <= 2; i_charge_share++) // two pads on the left and right for charge sharing
+            {
+                Double_t x_pos_charge = x_pos + i_charge_share*pad_width;
+                Double_t rel_pos_center_offset = (Double_t)i_charge_share; // in pad units
+                Double_t rel_pos_center_pad_response = rel_pos_center;
+
+                //printf("x_pos: %4.3f, x_pos_charge: %4.3f, rel_pos_center_offset: %4.3f, rel_pos_center_pad_response: %4.3f \n",x_pos,x_pos_charge,rel_pos_center_offset,rel_pos_center_pad_response);
+                //printf("vec_pad_pos[Find_pad_index(x_pos_charge,rel_pos_x_start)][0]: %4.3f, vec_pad_pos[Find_pad_index(x_pos_charge,rel_pos_x_start)][1]: %4.3f \n",vec_pad_pos[Find_pad_index(x_pos_charge,rel_pos_x_start)][0],vec_pad_pos[Find_pad_index(x_pos_charge,rel_pos_x_start)][1]);
+                trf = calc_integral(tg_time_response,0.3 + i_time - 0.05, 0.3 + i_time + 0.05);
+                //prf = calc_integral(tg_pad_response, floor(rel_pos_center_pad_response),ceil(rel_pos_center_pad_response));
+
+                Double_t low_int_prf = (-0.5 + rel_pos_center_offset) - rel_pos_center_pad_response;
+                Double_t up_int_prf  = (0.5  + rel_pos_center_offset) - rel_pos_center_pad_response;
+                prf = calc_integral(tg_pad_response,low_int_prf,up_int_prf);
+
+                //printf("tg_pad_response->Eval(rel_pos_center_pad_response): %4.3f \n",tg_pad_response->Eval(rel_pos_center_pad_response));
+                //Double_t ADC          = tg_time_response ->Eval(0.3 + i_time)*tg_pad_response->Eval(rel_pos_center_pad_response);
+                //Double_t ADC          = tg_time_response ->Eval(0.3 + i_time)*prf;
+
+                Double_t ADC = trf*prf;
+
+                //compensate for aplification region effect
+                //I think this is correct?
+                if (i_cluster >= 21)
+                {
+                    ADC *= 2;
+                }
+                
+                // printf("   i_charge_share: %d, i_ion_tail: %d, i_time: %4.3f, y_pos_charge: %4.5f, ADC: %4.3f \n",i_charge_share,i_ion_tail,i_time,y_pos_charge,ADC);
+
+                h2D_ADC_xy ->Fill(x_pos_charge,y_pos_charge,ADC);
+
+                // printf("   - i_charge_share: %d, x_pos_charge: %4.3f, rel_pos_center: %4.3f, rel_pos_center_pad_response: %4.3f, low_int_prf: %4.3f, up_int_prf: %4.3f, prf: %4.3f, trf: %4.3f, ADC: %4.3f \n",i_charge_share,x_pos_charge,rel_pos_center,rel_pos_center_pad_response,low_int_prf,up_int_prf,prf,trf,ADC);
+            }
+        }
+    }
+
+# if 1
+
+    TCanvas* can_ADC_xy = new TCanvas("can_ADC_xy","can_ADC_xy",600,50,800,600);
+    can_ADC_xy->cd()->SetTicks(1,1);
+    can_ADC_xy->cd()->SetGrid(0,0);
+    can_ADC_xy->cd()->SetFillColor(10);
+    can_ADC_xy->cd()->SetRightMargin(0.15);
+    can_ADC_xy->cd()->SetLeftMargin(0.18);
+    can_ADC_xy->cd()->SetBottomMargin(0.12);
+    can_ADC_xy->cd()->SetTopMargin(0.01);
+
+    h2D_ADC_xy->SetStats(0);
+    h2D_ADC_xy->SetTitle("");
+    h2D_ADC_xy->GetXaxis()->SetTitleOffset(1.0);
+    h2D_ADC_xy->GetYaxis()->SetTitleOffset(1.7);
+    h2D_ADC_xy->GetXaxis()->SetLabelSize(0.05);
+    h2D_ADC_xy->GetYaxis()->SetLabelSize(0.05);
+    h2D_ADC_xy->GetXaxis()->SetTitleSize(0.05);
+    h2D_ADC_xy->GetYaxis()->SetTitleSize(0.05);
+    h2D_ADC_xy->GetXaxis()->SetNdivisions(505,'N');
+    h2D_ADC_xy->GetYaxis()->SetNdivisions(505,'N');
+    h2D_ADC_xy->GetXaxis()->CenterTitle();
+    h2D_ADC_xy->GetYaxis()->CenterTitle();
+    h2D_ADC_xy->GetXaxis()->SetTitle("x (m)");
+    h2D_ADC_xy->GetYaxis()->SetTitle("y (m)");
+    h2D_ADC_xy->DrawCopy("colz");
+#endif
+    //TG_Delta_alpha_vs_impact_angle ->SetPoint(i_point,impact_angle*TMath::RadToDeg(),Delta_angle*TMath::RadToDeg());
+
+    //}
+}
+//----------------------------------------------------------------------------------------
+
+
+
+//----------------------------------------------------------------------------------------
+void Reconstruct_tracklet(Double_t Lorentz_angle)
+{
+    printf("Reconstruct_tracklet \n");
+
+    lf_recon->SetFormula("x ++ 1");
+
+    tg_rec_cluster ->Clear();
+
+    for(Int_t i_biny = 1; i_biny <= h2D_ADC_xy ->GetNbinsY(); i_biny++)
+    {
+        Double_t y_pos = h2D_ADC_xy ->GetYaxis()->GetBinCenter(i_biny);
+        Double_t x_pos_weighted = 0.0;
+        Double_t sum_ADC        = 0.0;
+        for(Int_t i_binx = 1; i_binx <= h2D_ADC_xy ->GetNbinsX(); i_binx++)
+        {
+            Double_t x_pos = h2D_ADC_xy ->GetXaxis()->GetBinCenter(i_binx);
+            Double_t ADC   = h2D_ADC_xy ->GetBinContent(i_binx,i_biny);
+
+            x_pos_weighted += x_pos*ADC;
+            sum_ADC        += ADC;
+        }
+
+        if(sum_ADC > 0.0)
+        {
+            x_pos_weighted /= sum_ADC;
+        }
+        else x_pos_weighted = -999.0;
+
+        tg_rec_cluster ->SetPoint(i_biny - 1,x_pos_weighted,y_pos);
+        lf_recon->AddPoint(&x_pos_weighted, y_pos);
+
+    }
+
+#if 1
+    tg_rec_cluster ->SetMarkerSize(0.8);
+    tg_rec_cluster ->SetMarkerStyle(20);
+    tg_rec_cluster ->SetMarkerColor(kGreen+2);
+    tg_rec_cluster ->Draw("same p");
+
+#endif
+}
+//----------------------------------------------------------------------------------------
+
+
+
+//----------------------------------------------------------------------------------------
+void straight_line_fits(Double_t impact_angle)
+{
+    lf_recon->Eval();
+    lf_primary->Eval();
+
+    Double_t Delta_x = -999.9;
+    Double_t Delta_y = TRD_anode_plane;
+    Double_t Delta_x_noIT = -999.9;
+
+    Double_t parFit_recon[2];
+    for(int i = 0; i < 2; ++i)
+    {
+        parFit_recon[i] = lf_recon->GetParameter(i);
+        // cout <<  "recon line: " << parFit_recon[i] << endl;
+    }
+
+    Double_t parFit_primary[2];
+    for(int i = 0; i < 2; ++i)
+    {
+        parFit_primary[i] = lf_primary->GetParameter(i);
+        // cout << "primary line: " << parFit_primary[i] << endl;
+    }
+
+    // range [0, 0.01]
+    // for(int i = 0; i < 100; ++i)
+    // {
+    //     Double_t x = -0.02/100 * i;
+    //     Double_t y_recon = parFit_recon[0]*x + parFit_recon[1];
+    //     Double_t y_primary = parFit_primary[0]*x + parFit_primary[1];
+    //      cout << "x val: " << x << endl;
+    //      cout << "y vals: " << y_recon << "    " << y_primary << endl;
+
+    //     // cout << "ratio at x = " << x << ": " << (0.03 - y_recon)/(0.03 - y_primary) << endl;
+    // } 
+
+    // Double_t x = -parFit_primary[1]/parFit_primary[0];
+    // cout << "first cluster ratio: " << (0.03 - (parFit_recon[0]*x + parFit_recon[1]))/(0.03) << endl;
+
+    // x = -parFit_recon[1]/parFit_recon[0];
+    // cout << "first cluster ratio (upwards): " << 0.03/(0.03 - (parFit_primary[0]*x + parFit_primary[1])) << endl;
+
+
+
+
+
+    if (parFit_recon[0] != 0)
+    {
+        Delta_x = (-parFit_recon[1]+TRD_anode_plane)/parFit_recon[0] + parFit_recon[1]/parFit_recon[0];
+    }
+
+    if (parFit_primary[0] != 0)
+    {
+        Delta_x_noIT = (-parFit_primary[1]+TRD_anode_plane)/parFit_primary[0] + parFit_primary[1]/parFit_primary[0];
+    }
+
+    Delta_y = TRD_anode_plane;
+
+
+
+    Double_t angle_recon;
+    Double_t x_diff_recon;
+    Double_t y_diff_recon;
+
+    if (parFit_recon[0] != 0)
+    {
+        x_diff_recon = (TRD_anode_plane - parFit_recon[1]) / parFit_recon[0];
+        y_diff_recon = TRD_anode_plane - parFit_recon[1];
+        angle_recon = TMath::ATan2(y_diff_recon, x_diff_recon);
+    }
+
+
+    Double_t angle_primary;
+    Double_t x_diff_primary;
+    Double_t y_diff_primary;
+
+    if (parFit_primary[0] != 0)
+    {
+        x_diff_primary = (TRD_anode_plane - parFit_primary[1]) / parFit_primary[0];
+        y_diff_primary = TRD_anode_plane - parFit_primary[1];
+        angle_primary = TMath::ATan2(y_diff_primary, x_diff_primary);
+    }
+
+
+
+    // Double_t x_diff_prim = (TRD_anode_plane - parFit_primary[1]) / parFit_primary[0];
+    // Double_t y_diff_prim = TRD_anode_plane - parFit_primary[1];
+
+    // Double_t angle_prim = TMath::ATan2(y_diff_prim, x_diff_prim);
+
+    //cout << "angles: " << angle_recon*TMath::RadToDeg() << "  " << \
+        "    " << impact_angle*TMath::RadToDeg() << endl;
+
+
+
+    Double_t impact_angle_rec   = TMath::ATan2(Delta_y,Delta_x);
+    Double_t impact_angle_noIT   = TMath::ATan2(Delta_y,Delta_x_noIT);
+
+
+    //printf("Delta_x: %4.3f, impact_angle_noIT: %4.3f, impact_angle_rec: %4.3f \n",Delta_x,impact_angle_noIT*TMath::RadToDeg(),impact_angle_rec*TMath::RadToDeg());
+
+    // Double_t x_dir = TMath::Cos(impact_angle);
+    // Double_t y_dir = TMath::Sin(impact_angle);
+    // Double_t slope = 1.0;
+    // if(x_dir != 0.0) slope = y_dir/x_dir;
+    // x_dir /= y_dir;
+    // y_dir /= y_dir;
+
+    // Double_t x_anode_hit = TRD_anode_plane/slope;
+    // Double_t y_anode_hit = TRD_anode_plane;
+
+    // Double_t impact_angle_track = TMath::ATan2(y_anode_hit,x_anode_hit);
+
+    Double_t impact_angle_track = impact_angle;
+
+
+    Double_t Delta_angle = -(impact_angle_track - impact_angle_rec);  //??
+
+    //cout << "Nastia delta ang:" << Delta_angle*TMath::RadToDeg() << endl;
+
+    //Delta_angle = -(impact_angle - angle_recon);
+
+    //cout << "Jason delta ang:" << Delta_angle*TMath::RadToDeg() << endl;
+
+    //printf("impact_angle_track: %4.3f, delta_angle: %4.3f \n",impact_angle*TMath::RadToDeg(),Delta_angle*TMath::RadToDeg());
+
+    // TG_Delta_alpha_vs_impact_angle_points ->SetPoint(i_point,impact_angle_track*TMath::RadToDeg(),Delta_angle*TMath::RadToDeg());
+    TG_Delta_alpha_vs_impact_angle_points ->SetPoint(i_point,impact_angle*TMath::RadToDeg(),Delta_angle*TMath::RadToDeg());
+    i_point++;
+
+    lf_recon->ClearPoints();
+    lf_primary->ClearPoints();
+
+}
+//----------------------------------------------------------------------------------------
+
+//----------------------------------------------------------------------------------------
+
+
+TGraph* calc_Delta_alpha(Double_t Lorentz_angle, Double_t drift_vel_ratio)
+{
+    TGraph* TG_Delta_alpha_vs_impact_angle = new TGraph();
+
+    Int_t i_point = 0;
+
+    //Double_t impact_angle = 110.0*TMath::DegToRad();
+    for(Double_t impact_angle = 65.0*TMath::DegToRad(); impact_angle < 105.0*TMath::DegToRad(); impact_angle += 1.0*TMath::DegToRad())
+    {
+
+        // Direction vector of incoming track
+        Double_t x_dir = TMath::Cos(impact_angle);
+        Double_t y_dir = TMath::Sin(impact_angle);
+
+        // Slope of incoming track
+        Double_t slope = 10000000.0;
+        if(x_dir != 0.0) slope = y_dir/x_dir;
+
+        // Slope of Lorentz angle
+        Double_t Lorentz_tan   = TMath::Tan(Lorentz_angle);
+        Double_t Lorentz_slope = 10000000.0;
+        if(Lorentz_tan != 0.0) Lorentz_slope = 1.0/Lorentz_tan;
+
+        // Hit point of incoming track with anode plane
+        Double_t x_anode_hit = TRD_anode_plane/slope;
+        Double_t y_anode_hit = TRD_anode_plane;
+
+        // Hit point at anode plane of Lorentz angle shifted cluster from the entrance
+        Double_t x_Lorentz_anode_hit = TRD_anode_plane/Lorentz_slope;
+        Double_t y_Lorentz_anode_hit = TRD_anode_plane;
+
+        // Cluster location within drift cell of cluster from entrance after drift velocity ratio is applied
+        Double_t x_Lorentz_drift_hit = x_Lorentz_anode_hit;
+        Double_t y_Lorentz_drift_hit = TRD_anode_plane - TRD_anode_plane*drift_vel_ratio;
+
+        // Reconstructed hit of first cluster at chamber entrance after pre Lorentz angle correction
+        // Double_t x_Lorentz_drift_hit_pre_corr = x_Lorentz_anode_hit - y_Lorentz_drift_hit*TMath::Tan(Lorentz_angle_pre_corr);
+        //Double_t x_Lorentz_drift_hit_pre_corr = x_Lorentz_anode_hit - (TRD_anode_plane - y_Lorentz_drift_hit)*TMath::Tan(Lorentz_angle_pre_corr);
+        //Double_t y_Lorentz_drift_hit_pre_corr = TRD_anode_plane - TRD_anode_plane*drift_vel_ratio;
+
+        Double_t impact_angle_track = TMath::ATan2(y_anode_hit,x_anode_hit);
+
+        Double_t Delta_x_Lorentz_drift_hit = x_anode_hit - x_Lorentz_drift_hit;
+        Double_t Delta_y_Lorentz_drift_hit = y_anode_hit - y_Lorentz_drift_hit;
+        Double_t impact_angle_rec   = TMath::ATan2(Delta_y_Lorentz_drift_hit,Delta_x_Lorentz_drift_hit);
+
+        Double_t Delta_angle = -(impact_angle_track - impact_angle_rec);
+
+        TG_Delta_alpha_vs_impact_angle ->SetPoint(i_point,impact_angle*TMath::RadToDeg(),Delta_angle*TMath::RadToDeg());
+        i_point++;
+        //printf("impact_angle: %4.3f, Delta_angle: %4.3f, impact_angle_track: %4.3f, impact_angle_rec: %4.3f, Delta: {%4.3f, %4.3f}, x_anode_hit: %4.3f, x_Lorentz_drift_hit: %4.3f \n",impact_angle*TMath::RadToDeg(),Delta_angle*TMath::RadToDeg(),impact_angle_track*TMath::RadToDeg(),impact_angle_rec*TMath::RadToDeg(),Delta_x_Lorentz_drift_hit,Delta_y_Lorentz_drift_hit,x_anode_hit,x_Lorentz_drift_hit);
+    }
+
+    return TG_Delta_alpha_vs_impact_angle;
+
+}
+
+//----------------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------
+
+
+void Chi2_TRD_vDrift(Int_t &, Double_t *, Double_t & sum, Double_t * par, Int_t )
+{
+    sum = 0;
+
+    //Double_t B_field_use = par[0];
+    //Double_t E_field_use = par[1];
+    //Double_t v_drift_use = par[2];
+    //Double_t vD_use      = par[3];
+    //Double_t LA_use      = par[4];
+
+    Double_t LA_use  = par[0];
+    Double_t vD_ratio_use = par[1];
+    //Double_t Lorentz_angle_pre_corr = LA_fit_corr->Eval(i_detector_global);
+
+    //TGraph* tg_Delta_vs_impact_single = calc_Delta_alpha(B_field_use,E_field_use,v_drift_use,vD_use,LA_use);
+    TGraph* tg_Delta_vs_impact_single = calc_Delta_alpha(LA_use,vD_ratio_use);
+
+    for(Int_t impact_angle = 65.0; impact_angle < 115.0; impact_angle++)
+    {
+        Double_t Delta_alpha     = TG_Delta_alpha_vs_impact_angle_points ->Eval(impact_angle);
+        //Double_t Delta_alpha      = vec_tp_Delta_vs_impact[i_detector_global] ->GetBinContent(i_bin);
+        //Double_t Delta_alpha_err  = vec_tp_Delta_vs_impact[i_detector_global] ->GetBinError(i_bin);
+        Double_t Delta_alpha_err = 1.0;
+
+        //if(Delta_alpha_err == 0.0) continue;
+        //if(impact_angle < 78.0) continue;
+        //if(impact_angle > 100.0) continue;
+
+        Double_t Delta_alpha_sim = tg_Delta_vs_impact_single ->Eval(impact_angle);
+
+        sum += TMath::Power(Delta_alpha_sim - Delta_alpha,2)/TMath::Power(Delta_alpha_err,2);
+        //sum += TMath::Power(Delta_alpha_sim - Delta_alpha,2);
+
+        //printf("sum: %4.3f \n",sum);
+
+    }
+
+    delete tg_Delta_vs_impact_single;
+}
+//----------------------------------------------------------------------------------------
+
+
+void fit_TG()
+{
+    TVirtualFitter *min = TVirtualFitter::Fitter(0,2);
+    min->SetFCN(Chi2_TRD_vDrift);
+    Double_t pStart[2] = {-7.5*TMath::DegToRad(),1.0}; // B-field, E-field, v_drift, vD_drift (1.7 instead of 1.56)
+    //Double_t pStart[5] = {B_field,HV_drift_in/l_drift,v_drift_in,1.56,0.134}; // B-field, E-field, v_drift, vD_drift (1.7 instead of 1.56)
+    //Double_t pStart[4] = {B_field,HV_drift_in/l_drift,1.48,1.56}; // B-field, E-field, v_drift, vD_drift (1.7 instead of 1.56)
+    //Double_t pStart[2] = {0.0,1.0}; //LA_diff, vD_ratio
+    // 73: 1.48  after fit: 1.269
+
+    min->SetParameter(0,"LA",pStart[0],0.01,0,0);
+    min->SetParameter(1,"Ratio",pStart[1],0.01,0,0);
+
+    //min->SetParameter(0,"B_field",pStart[0],0.01,0,0);
+    //min->SetParameter(1,"E_field",pStart[1]*fudge_Hdrift,0.01,0,0);
+    //min->SetParameter(2,"v_drift",pStart[2],0.01,0,0);
+    //min->SetParameter(3,"vD_drift",pStart[3],0.01,0,0);
+    //min->SetParameter(4,"LA_factor",pStart[4],0.01,0,0);
+
+    min->FixParameter(0);
+    //min->FixParameter(1);
+    //min->FixParameter(3);
+    //min->FixParameter(4);
+
+    Double_t arglist[2];
+    arglist[0] = 1000; // number of function calls
+    arglist[1] = 0.001; // tolerance
+    min->ExecuteCommand("MINIMIZE",arglist,2);
+    // get fit parameters
+    Double_t parFit[2];
+    for(int i = 0; i < 2; ++i)
+    {
+        parFit[i] = min->GetParameter(i);
+    }
+
+    //v_fit  = parFit[2];
+    //vD_fit = parFit[3];
+    //E_fit  = parFit[1];
+    //LA_factor_fit = parFit[4];
+
+    LA_fit  = parFit[0];
+    vD_ratio_fit = parFit[1];
+
+    printf("vD_ratio_fit: %4.3f, LA_fit: %4.3f \n",vD_ratio_fit,LA_fit*TMath::RadToDeg());
+
+
+}
+//----------------------------------------------------------------------------------------
+
+void Draw_delta_angle()
+{
+    TCanvas* can_delta_vs_angle = new TCanvas("can_delta_vs_angle","can_delta_vs_angle",50,50,600,600);
+    can_delta_vs_angle->cd()->SetTicks(1,1);
+    can_delta_vs_angle->cd()->SetGrid(0,0);
+    can_delta_vs_angle->cd()->SetFillColor(10);
+    can_delta_vs_angle->cd()->SetRightMargin(0.01);
+    can_delta_vs_angle->cd()->SetLeftMargin(0.18);
+    can_delta_vs_angle->cd()->SetBottomMargin(0.12);
+    can_delta_vs_angle->cd()->SetTopMargin(0.01);
+    TH1F* h_frame_delta_vs_angle = can_delta_vs_angle->cd()->DrawFrame(65.0,-10.0,115.0,10.0,"h_frame_delta_vs_angle");
+    h_frame_delta_vs_angle->SetStats(0);
+    h_frame_delta_vs_angle->SetTitle("");
+    h_frame_delta_vs_angle->GetXaxis()->SetTitleOffset(1.0);
+    h_frame_delta_vs_angle->GetYaxis()->SetTitleOffset(1.7);
+    h_frame_delta_vs_angle->GetXaxis()->SetLabelSize(0.05);
+    h_frame_delta_vs_angle->GetYaxis()->SetLabelSize(0.05);
+    h_frame_delta_vs_angle->GetXaxis()->SetTitleSize(0.05);
+    h_frame_delta_vs_angle->GetYaxis()->SetTitleSize(0.05);
+    h_frame_delta_vs_angle->GetXaxis()->SetNdivisions(505,'N');
+    h_frame_delta_vs_angle->GetYaxis()->SetNdivisions(505,'N');
+    h_frame_delta_vs_angle->GetXaxis()->CenterTitle();
+    h_frame_delta_vs_angle->GetYaxis()->CenterTitle();
+    h_frame_delta_vs_angle->GetXaxis()->SetTitle("impact angle (deg.)");
+    h_frame_delta_vs_angle->GetYaxis()->SetTitle("#Delta#alpha (deg.)");
+
+    TG_Delta_alpha_vs_impact_angle_points->SetLineColor(kBlack);
+    TG_Delta_alpha_vs_impact_angle_points->SetLineWidth(2);
+    TG_Delta_alpha_vs_impact_angle_points->Draw("same");
+
+    TGraph* tg_Delta_vs_impact_single_draw = calc_Delta_alpha(LA_fit,vD_ratio_fit);
+
+    tg_Delta_vs_impact_single_draw->SetLineColor(kRed);
+    tg_Delta_vs_impact_single_draw->SetLineWidth(2);
+    tg_Delta_vs_impact_single_draw->Draw("same");
+}
+
+//----------------------------------------------
+
+//----------------------------------------------

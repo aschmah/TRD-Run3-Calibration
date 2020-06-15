@@ -440,7 +440,8 @@ Bool_t Ali_AS_analysis_TRD_digits::UserNotify()
     }
 
     cout << "Open calibration file" << endl;
-    TRD_calibration_file_AA = TFile::Open("alien::///alice/cern.ch/user/a/aschmah/Data/TRD_Calib_vDfit_and_LAfit.root");
+    TRD_calibration_file_AA = TFile::Open("alien::///alice/cern.ch/user/a/aschmah/Data/TRD_Calib_vDfit_and_LAfit_3456.root");
+    //TRD_calibration_file_AA = TFile::Open("alien::///afs/cern.ch/user/a/aberdnik/TRD_Calib_vDfit_and_LAfit_3456.root");
     tg_v_fit_vs_det         = (TGraph*)TRD_calibration_file_AA ->Get("tg_v_fit_vs_det");
     h_v_fit_vs_det = new TH1D("h_v_fit_vs_det","h_v_fit_vs_det",540,0,540);
     for(Int_t i_det = 0; i_det < 540; i_det++)
@@ -451,7 +452,8 @@ Bool_t Ali_AS_analysis_TRD_digits::UserNotify()
     {
         Double_t det, vD;
         tg_v_fit_vs_det->GetPoint(i_point,det,vD);
-        h_v_fit_vs_det ->SetBinContent(det,vD);
+        //printf("i_det(start from 0?): %4.3f; vD: %4.3f \n",det,vD);
+        h_v_fit_vs_det ->SetBinContent(det+1,vD);
     }
     tg_LA_factor_fit_vs_det = (TGraph*)TRD_calibration_file_AA ->Get("tg_LA_factor_fit_vs_det");
     h_LA_factor_fit_vs_det = new TH1D("h_LA_factor_fit_vs_det","h_LA_factor_fit_vs_det",540,0,540);
@@ -463,7 +465,9 @@ Bool_t Ali_AS_analysis_TRD_digits::UserNotify()
     {
         Double_t det, LA;
         tg_LA_factor_fit_vs_det->GetPoint(i_point,det,LA);
-        h_LA_factor_fit_vs_det ->SetBinContent(det,LA);
+
+        //printf("i_det(start from 0?): %4.3f; LA: %4.3f \n",det,LA);
+        h_LA_factor_fit_vs_det ->SetBinContent(det+1,LA);
     }
     cout << "Calibration file opened" << endl;
 
@@ -847,16 +851,16 @@ void Ali_AS_analysis_TRD_digits::UserExec(Option_t *)
 	Int_t i_stack  = fGeo->GetStack(i_det);
         Int_t i_layer  = fGeo->GetLayer(i_det);
 
-        //Double_t vD_calib = h_v_fit_vs_det         ->GetBinContent(i_det + 1);
-        //Double_t LA_calib = h_LA_factor_fit_vs_det ->GetBinContent(i_det + 1);
+        Double_t vD_calib = h_v_fit_vs_det         ->GetBinContent(i_det + 1);
+        Double_t LA_calib = h_LA_factor_fit_vs_det ->GetBinContent(i_det + 1);
 
-        Double_t vD_calib = 1.546;
-        Double_t LA_calib = -0.16133;
+        //Double_t vD_calib = 1.546;
+        //Double_t LA_calib = -0.16133;
 
         // 1.546
         // 0.16133
 
-        //printf("vD_calib: %4.5f, LA_calib: %4.5f \n",vD_calib,LA_calib);
+        //printf("i_det(start from 0): %d, vD_calib: %4.5f, LA_calib: %4.5f \n",i_det,vD_calib,LA_calib);
 
 	//printf("i_det: %d, N_columns: %d, N_rows: %d, N_times: %d, i_sector: %d, i_stack: %d, i_layer: %d \n",i_det,N_columns,N_rows,N_times,i_sector,i_stack,i_layer);
 
