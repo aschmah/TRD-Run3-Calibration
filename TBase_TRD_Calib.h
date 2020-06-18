@@ -2883,7 +2883,7 @@ void TBase_TRD_Calib::Calibrate()
     
     }
 
-    for(Long64_t i_event = 0; i_event < 50000; i_event++)
+    for(Long64_t i_event = 0; i_event < 10000; i_event++)
     //for(Long64_t i_event = 0; i_event < file_entries_total; i_event++)
     {
         if(i_event % 20 == 0) printf("i_event: %lld out of %lld \n",i_event,file_entries_total);
