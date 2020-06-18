@@ -484,7 +484,7 @@ GUI_Sim_drift::GUI_Sim_drift() : TGMainFrame(gClient->GetRoot(), 200, 100)
 {
     //-------------------------------------
     //outputfile = new TFile("./TRD_Calib_vDfit_and_LAfit.root","RECREATE");
-    outputfile = new TFile("./TRD_Calib_vDfit_and_LAfit_3456.root","RECREATE");
+    outputfile = new TFile("./TRD_Calib_vDfit_and_LAfit_3456_minos.root","RECREATE");
 
 
 
@@ -701,7 +701,7 @@ Int_t GUI_Sim_drift::LoadData()
     //input_data[0]     = TFile::Open("./Data/TRD_Calib_TPC_impact.root");
     //input_data[1] = TFile::Open("./Data/TRD_Calib_All_170k_neg.root");
     //input_data[2] = TFile::Open("./Data/TRD_Calib_All_170k_pos.root");
-    input_data[0]     = TFile::Open("./Data/TRD_Calib_circle_3456.root");
+    input_data[0]     = TFile::Open("./Data/TRD_Calib_circle_3456_minos.root");
     //input_data[0]     = TFile::Open("./Data/TRD_Calib_on_trkl_corr.root");
     // input_data[0]     = TFile::Open("./Data/TRD_Calib_on_trkl_online.root");
 
@@ -966,16 +966,18 @@ Int_t GUI_Sim_drift::Do_Minimize_Single()
 
     
     Int_t i_detector = arr_NEntry_det->GetNumberEntry()->GetNumber();
-    Int_t flag_defect_TRD;
+    Int_t flag_defect_TRD = 0;
 
-    for(Int_t i_defect = 0; i_defect < 167; i_defect++)
+    for(Int_t i_defect = 0; i_defect < 91; i_defect++)
     {
-        if(i_detector == Defect_TRD_detectors[i_defect])
+        if(i_detector == official_qa[i_defect])
         {
             flag_defect_TRD = 1;
             break;
         }
     }
+
+     printf("flag defect: %d \n",flag_defect_TRD);
 
     if(flag_defect_TRD) return 0;
 
@@ -1285,7 +1287,7 @@ Int_t GUI_Sim_drift::Do_Minimize()
             i_point = i_point+1;
 
             //if(vec_vD_ratio_fit[i_detector] != 0.0) //IF WANT TO USE 1.56 AS vD_set
-            if(vec_vD_ratio_fit[i_detector] != 0.0 && v_drift_in > 0.0 && flag_defect_TRD !=1) //IF WANT TO USE vD from OCDB AS vD_set
+            if(vec_vD_ratio_fit[i_detector] != 0.0)// && v_drift_in > 0.0 && flag_defect_TRD !=1) //IF WANT TO USE vD from OCDB AS vD_set
 
             {
                 //vec_v_fit[i_detector] = vD_set/vec_vD_ratio_fit[i_detector];   //IF WANT TO USE 1.56 AS vD_set

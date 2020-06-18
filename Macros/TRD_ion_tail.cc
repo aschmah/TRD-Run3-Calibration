@@ -9,7 +9,7 @@ void TRD_ion_tail()
 
     tg_pad_response ->Draw();
 
-    Double_t impact_angle             = 110.0;//108.0;
+    Double_t impact_angle             = 120.0;//108.0;
     Double_t Lorentz_angle            = -7.5;
     Double_t Drift_vel_ratio          = 1.761; // 0.8
     Double_t Lorentz_angle_pre_corr   = -7.5; // -7.5

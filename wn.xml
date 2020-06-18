@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<alien>
+  <collection name="find  -l 1  -o 0 /alice/data/2016/LHC16q//000265338 /pass1_CENT_wSDD/*/AliESDs.root">
+    <event name="1">
+      <file name="AliESDs.root" dir="580909468" lfn="/alice/data/2016/LHC16q/000265338/pass1_CENT_wSDD/16000265338019.100/AliESDs.root" jobid="795095694" perm="755" owner="alidaq" turl="alien:///alice/data/2016/LHC16q/000265338/pass1_CENT_wSDD/16000265338019.100/AliESDs.root" ctime="2016-12-22 06:47:36" md5="2aa3a22c5a26aaf30341f53e3792a339" broken="0" aclId="" guid="158A2D7E-C809-11E6-94DC-83A33963430F" expiretime="" size="206349174" replicated="0" entryId="580968132" gowner="alidaq" />
+    </event>
+    <info comment="Exported XML" />
+</collection>
+</alien>
