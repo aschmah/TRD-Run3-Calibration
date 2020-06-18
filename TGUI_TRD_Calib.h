@@ -52,6 +52,7 @@ private:
     vector<TEveLine*>   vec_TPL3D_tracklets_match;
     TEvePointSet* TPM3D_cluster;
     TPolyMarker*  TPM_cluster;
+    TPolyMarker*  TPM_global_fit;
 
     Long64_t N_Events;
     Long64_t N_Tracks;
@@ -117,6 +118,7 @@ TGUI_TRD_Calib::TGUI_TRD_Calib() : TGMainFrame(gClient->GetRoot(), 100, 100)
     TPM3D_single  = new TEvePointSet();
     TPM3D_cluster = new TEvePointSet();
     TPM_cluster   = new TPolyMarker();
+    TPM_global_fit= new TPolyMarker();
     //-------------------------------------
 
 
@@ -253,8 +255,8 @@ TGUI_TRD_Calib::TGUI_TRD_Calib() : TGMainFrame(gClient->GetRoot(), 100, 100)
     //Base_TRD_Calib ->Init_tree("list_tree_pPb_full.txt");
     //Base_TRD_Calib ->Init_tree("list_tree_testB.txt");
     //Base_TRD_Calib ->Init_tree("list_tree_testA.txt");
-    //Base_TRD_Calib ->Init_tree("list_tree_off_trkl.txt");
-    Base_TRD_Calib ->Init_tree("list_tree_3456.txt");
+    Base_TRD_Calib ->Init_tree("list_tree_off_trkl_V1.txt");
+    //Base_TRD_Calib ->Init_tree("list_tree_3456.txt");
     Base_TRD_Calib ->Loop_event(0);
     vec_TPM3D_digits    = Base_TRD_Calib ->get_PM3D_digits();
     vec_TPL3D_tracklets = Base_TRD_Calib ->get_PL3D_tracklets();
@@ -457,6 +459,15 @@ Int_t TGUI_TRD_Calib::Draw_2D_track()
             }
         }
     }
+    for(Int_t i_layer = 0; i_layer < 6; i_layer++)
+    {
+
+        //printf("vec_TV3_digit_pos_cluster[6][i_layer][0]: %4.3f \n",vec_TV3_digit_pos_cluster[6][i_layer][0]);
+        if(vec_TV3_digit_pos_cluster[6][i_layer][0] > -999.0)
+        {
+            TPM_global_fit ->SetNextPoint(vec_TV3_digit_pos_cluster[6][i_layer][0],vec_TV3_digit_pos_cluster[6][i_layer][1]);
+        }
+    }
 
 
     Base_TRD_Calib ->Draw_2D_track(i_track);
@@ -516,7 +527,7 @@ Int_t TGUI_TRD_Calib::Draw_2D_track()
         vec_TPM_single_track_digit_layer[i_layer] ->Draw(""); // TRD digits
     }
 
-    TPM_cluster ->SetMarkerColor(kRed);
+    TPM_cluster ->SetMarkerColor(kGray);
     TPM_cluster ->SetMarkerSize(0.9);
     TPM_cluster ->SetMarkerStyle(20);
     TPM_cluster ->Draw("");
@@ -526,6 +537,11 @@ Int_t TGUI_TRD_Calib::Draw_2D_track()
 
     Base_TRD_Calib ->Draw_tracklets_line_2D(i_track);
     Base_TRD_Calib ->Draw_2D_online_circle();
+
+    TPM_global_fit ->SetMarkerColor(kRed);
+    TPM_global_fit ->SetMarkerSize(1.1);
+    TPM_global_fit ->SetMarkerStyle(20);
+    TPM_global_fit ->Draw("");
 
     return 1;
 }
