@@ -297,8 +297,8 @@ public:
 TBase_TRD_Calib::TBase_TRD_Calib()
 {
     //outputfile = new TFile("./TRD_Calib.root","RECREATE");
-    outputfile = new TFile("./Data/TRD_Calib_circle_3456_test.root","RECREATE");
-    outputfile_trkl = new TFile("./Data/TRD_Calib_on_trkl_3456_test.root","RECREATE");
+    outputfile = new TFile("./Data/TRD_Calib_circle_3456_minos.root","RECREATE");
+    outputfile_trkl = new TFile("./Data/TRD_Calib_on_trkl_3456_minos.root","RECREATE");
 
 
     Init_QA();
@@ -565,7 +565,7 @@ vector< vector<TVector3> >  TBase_TRD_Calib::make_clusters(Int_t i_track)
 
     //for old TV3
     vec_TV3_digit_pos_cluster.clear();
-    vec_TV3_digit_pos_cluster.resize(6); // 6 layers
+    vec_TV3_digit_pos_cluster.resize(7); // 6 layers
     for(Int_t i_layer = 0; i_layer < 6; i_layer++)
     {
         arr_layer_detector[i_layer] = -1;
@@ -698,6 +698,8 @@ vector< vector<TVector3> >  TBase_TRD_Calib::make_clusters(Int_t i_track)
                     if(i_xyzADC == 3)  //ADC value
                     {
                         vec_Dt_digit_pos_cluster[i_layer][i_time_merge][i_xyzADC] = vec_weight_digits_merged[i_layer][i_time_merge];
+                        //vec_Dt_digit_pos_cluster[i_layer][i_time_merge][i_xyzADC] = vec_weight_digits_merged[i_layer][i_time_merge];
+
                     }
                     //printf("i_xyzADC: %d, value: %4.3f \n",i_xyzADC,vec_Dt_digit_pos_cluster[i_layer][i_time_merge][i_xyzADC]);
                 }
@@ -708,11 +710,16 @@ vector< vector<TVector3> >  TBase_TRD_Calib::make_clusters(Int_t i_track)
     }
 
     // Fill the points for the global fit
+     vec_TV3_digit_pos_cluster[6].resize(6);
     for(Int_t i_layer = 0; i_layer < 6; i_layer++)
     {
+        vec_Dt_digit_pos_cluster[6][i_layer].resize(4);
+        vec_TV3_digit_pos_cluster[6][i_layer].SetXYZ(0.0,0.0,0.0);
+
         for(Int_t i_xyzADC = 0; i_xyzADC < 4; i_xyzADC++)
         {
             vec_Dt_digit_pos_cluster[6][i_layer][i_xyzADC] = 0.0;
+            //vec_TV3_digit_pos_cluster[6][i_layer][i_xyzADC] = 0.0;
             Double_t n_points_used = 0.0;
             for(Int_t i_time_merge = 0; i_time_merge < 5; i_time_merge++)
             {
@@ -723,13 +730,29 @@ vector< vector<TVector3> >  TBase_TRD_Calib::make_clusters(Int_t i_track)
                     continue;
                 }
                 vec_Dt_digit_pos_cluster[6][i_layer][i_xyzADC] += vec_Dt_digit_pos_cluster[i_layer][i_time_merge][i_xyzADC]*vec_Dt_digit_pos_cluster[i_layer][i_time_merge][3];
+                //vec_TV3_digit_pos_cluster[6][i_layer][i_xyzADC] += vec_TV3_digit_pos_cluster[i_layer][i_time_merge][i_xyzADC]*vec_TV3_digit_pos_cluster[i_layer][i_time_merge][3];
+
                 n_points_used += vec_Dt_digit_pos_cluster[i_layer][i_time_merge][3];
             }
             if(n_points_used > 0.0)
             {
                 vec_Dt_digit_pos_cluster[6][i_layer][i_xyzADC] /= (Double_t)n_points_used;
+                //vec_TV3_digit_pos_cluster[6][i_layer][i_xyzADC] /= (Double_t)n_points_used;
             }
-            else vec_Dt_digit_pos_cluster[6][i_layer][i_xyzADC] = -999.0;
+            else
+            {
+                vec_Dt_digit_pos_cluster[6][i_layer][i_xyzADC] = -999.0;
+                //vec_TV3_digit_pos_cluster[6][i_layer][i_xyzADC] = -999.0;
+            }
+
+            for (Int_t i_layer = 0; i_layer < 6; i_layer++)
+            {
+                vec_TV3_digit_pos_cluster[6][i_layer].SetXYZ(vec_Dt_digit_pos_cluster[6][i_layer][0],vec_Dt_digit_pos_cluster[6][i_layer][1],vec_Dt_digit_pos_cluster[6][i_layer][2]);
+                //printf("vec_Dt_digit_pos_cluster[6][i_layer][3]: %4.3f \n",vec_Dt_digit_pos_cluster[6][i_layer][3]);
+
+            }
+            //printf("vec_TV3_digit_pos_cluster[6][i_layer][0]: %4.3f \n",vec_TV3_digit_pos_cluster[6][i_layer][0]);
+
 
             //vec_Dt_digit_pos_cluster[6][i_layer][i_xyzADC] = vec_Dt_digit_pos_cluster[i_layer][0][i_xyzADC]; // old version
         }
@@ -1105,10 +1128,21 @@ Int_t TBase_TRD_Calib::get_2D_global_circle_fit()
 
     //n_layer_notempty = i_layer_notempty-1;  ?? check later
 
-    if (i_layer_notempty-1 < 1)  //<2
+    if (i_layer_notempty-1 < 2)  //<2
     {
         //printf("!!! less than 3 points to fit circle - you got bad circle !!! \n");
         return 0;
+    }
+
+    for (Int_t layer = 0; layer < 6; layer++)
+    {
+        if (arr_layer_detector[layer] == 229)
+        {printf("SECTOR OF 229!! i_layer_notempty: %d \n",i_layer_notempty);
+            for (Int_t i_lay = 0; i_lay < 6; i_lay++)
+            {
+                printf("arr_layer_det[layer] = %d \n",arr_layer_detector[i_lay]);
+            }
+        }
     }
 
     Double_t p0[3] = {10,20,1};
@@ -1179,8 +1213,8 @@ Int_t TBase_TRD_Calib::get_2D_global_circle_fit()
     arglist[1] = 0.001; // tolerance
 
     //min->ExecuteCommand("MIGRAD",arglist,2);
-    //min->ExecuteCommand("MINOS",arglist,2);
-    min->ExecuteCommand("MINIMIZE",arglist,2);
+    min->ExecuteCommand("MINOS",arglist,2);
+    //min->ExecuteCommand("MINIMIZE",arglist,2);
 
     //if (minos) min->ExecuteCommand("MINOS",arglist,0);
     Int_t nvpar,nparx;
@@ -1210,6 +1244,12 @@ Int_t TBase_TRD_Calib::get_2D_global_circle_fit()
     TVector2 circle_center_vector;
     circle_center_vector.SetX(parFit_circ[0]);
     circle_center_vector.SetY(parFit_circ[1]);
+
+        for (Int_t layer = 0; layer < 6; layer++)
+    {
+        if (arr_layer_detector[layer] == 229) printf("parFit_circ[0]: %4.3f, parFit_circ[1]: %4.3f \n",parFit_circ[0],parFit_circ[1]);
+    }
+
 
     //printf("parFit_circ[0]: %4.3f, parFit_circ[1]: %4.3f \n",parFit_circ[0],parFit_circ[1]);
 
@@ -1298,7 +1338,10 @@ Int_t TBase_TRD_Calib::get_2D_global_circle_fit()
 
         }
         //printf("vec_dir_vec_circle[i_layer].X: %4.3f, vec_dir_vec_circle[i_layer].Y: %4.3f, vec_dir_vec_circle[i_layer].Z: %4.3f \n",vec_dir_vec_circle[i_layer].X(),vec_dir_vec_circle[i_layer].Y(),vec_dir_vec_circle[i_layer].Z());
-
+                for (Int_t layer = 0; layer < 6; layer++)
+    {
+        if (arr_layer_detector[layer] == 229) printf("vec_dir_vec_circle[i_layer].X: %4.3f, vec_dir_vec_circle[i_layer].Y: %4.3f, vec_dir_vec_circle[i_layer].Z: %4.3f \n",vec_dir_vec_circle[i_layer].X(),vec_dir_vec_circle[i_layer].Y(),vec_dir_vec_circle[i_layer].Z());
+    }
 
     }
 
@@ -2473,9 +2516,9 @@ TGLViewer* TBase_TRD_Calib::Draw_TRD()
 void TBase_TRD_Calib::Init_tree(TString SEList)
 {
     cout << "Initialize tree" << endl;
-    //TString pinputdir = "/misc/alidata120/alice_u/schmah/TRD_offline_calib/Data/";
+    TString pinputdir = "/misc/alidata120/alice_u/schmah/TRD_offline_calib/Data/";
     //TString pinputdir = "/home/jasonb/Documents/masters/calibration/";
-    TString pinputdir = "/misc/alidata120/alice_u/berdnikova/TRD-Run3-Calibration/3456/";
+    //TString pinputdir = "/misc/alidata120/alice_u/berdnikova/TRD-Run3-Calibration/3456/";
 
     AS_Event = new Ali_AS_Event();
     AS_Track = new Ali_AS_Track();
@@ -2840,7 +2883,7 @@ void TBase_TRD_Calib::Calibrate()
     
     }
 
-    for(Long64_t i_event = 0; i_event < 1000; i_event++)
+    for(Long64_t i_event = 0; i_event < 50000; i_event++)
     //for(Long64_t i_event = 0; i_event < file_entries_total; i_event++)
     {
         if(i_event % 20 == 0) printf("i_event: %lld out of %lld \n",i_event,file_entries_total);
@@ -2969,8 +3012,16 @@ void TBase_TRD_Calib::Calibrate()
             }
             if(N_good_layers < 3) continue;    //  <5
 
-            //printf("N_good_layers: %d \n",N_good_layers);
-            //printf("i_event: %lld, i_track: %d \n",i_event,i_track);
+            for (Int_t layer = 0; layer < 6; layer++)
+    {
+        if (arr_layer_detector[layer] == 229)
+        {
+
+            printf("N_good_layers: %d \n",N_good_layers);
+            printf("i_event: %lld, i_track: %d \n",i_event,i_track);
+        }
+    }
+
 
 
             Double_t impact_angle[6] = {0.0};
@@ -3137,6 +3188,11 @@ void TBase_TRD_Calib::Calibrate()
                         if(Delta_angle_circle > TMath::Pi()*0.5)  Delta_angle_circle -= TMath::Pi();
                         if(Delta_angle_circle < -TMath::Pi()*0.5) Delta_angle_circle += TMath::Pi();
                         //printf("Delta_angle_circle: %4.3f \n",Delta_angle_circle);
+
+                        for (Int_t layer = 0; layer < 6; layer++)
+    {
+        if (arr_layer_detector[layer] == 229) printf("i_layer: %d, Delta_angle_circle: %4.3f \n",i_layer,Delta_angle_circle);
+    }
 
 
 

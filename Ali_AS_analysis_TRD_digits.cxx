@@ -440,7 +440,7 @@ Bool_t Ali_AS_analysis_TRD_digits::UserNotify()
     }
 
     cout << "Open calibration file" << endl;
-    TRD_calibration_file_AA = TFile::Open("alien::///alice/cern.ch/user/a/aschmah/Data/TRD_Calib_vDfit_and_LAfit_3456.root");
+    TRD_calibration_file_AA = TFile::Open("alien::///alice/cern.ch/user/a/aschmah/Data/TRD_Calib_vDfit_and_LAfit_3456_minos.root");
     //TRD_calibration_file_AA = TFile::Open("alien::///afs/cern.ch/user/a/aberdnik/TRD_Calib_vDfit_and_LAfit_3456.root");
     tg_v_fit_vs_det         = (TGraph*)TRD_calibration_file_AA ->Get("tg_v_fit_vs_det");
     h_v_fit_vs_det = new TH1D("h_v_fit_vs_det","h_v_fit_vs_det",540,0,540);
