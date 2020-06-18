@@ -188,7 +188,7 @@ void get_ADC_defects()
             {
                 adc_defects.push_back(detector);
                 all_defects.push_back(detector);
-                cout << detector << ", ";
+                // cout << detector << ", ";
                 // continue;
             }
 
@@ -196,11 +196,10 @@ void get_ADC_defects()
             plateu_hist->Fill(plateu);
             ratio_hist->Fill(ratio);
 
-            // if (detector == 431)
-            // {
-            //     redraw_ADC_curve(object->GetName());
-            // }
-
+            if (detector == 131)
+            {
+                redraw_ADC_curve(object->GetName());
+            }
         }
     }
 }
@@ -370,6 +369,12 @@ void get_HV_defects()
         next2:
         continue;
     }
+    sort( hv_anode_defects.begin(), hv_anode_defects.end() );
+    hv_anode_defects.erase( unique( hv_anode_defects.begin(), hv_anode_defects.end() ), hv_anode_defects.end() );
+    sort( hv_drift_defects.begin(), hv_drift_defects.end() );
+    hv_drift_defects.erase( unique( hv_drift_defects.begin(), hv_drift_defects.end() ), hv_drift_defects.end() );
+
+    cout << hv_anode_defects.size() << " | " << hv_drift_defects.size() << endl;
 
     // cout << "size drift: " << hv_drift_defects.size() << endl;
     // cout << "low: " << low << " | " << "missing: " << missing << endl;
@@ -387,10 +392,10 @@ void get_HV_defects()
     //         unique ++;
     //         drift_hv->GetPoint(hv_drift_defects[i], x, y);
     //         // cout << "x: " << x << " | " << "y: " << y << endl;
-    //         // drift_hv_unique->SetPoint(drift_hv_unique->GetN(), x, y);
+    //         drift_hv_unique->SetPoint(drift_hv_unique->GetN(), x, y);
     //     }  
     // }
-    // cout << "unique: " << unique << endl;
+    // // cout << "unique: " << unique << endl;
     // new_drift_hv->cd();
     // drift_hv->Draw("AP");
     // drift_hv_unique->Draw("*");
@@ -526,20 +531,25 @@ void get_no_calibration()
     TFile* calibration_params = TFile::Open("../Data/TRD_Calib_vDfit_and_LAfit_3456.root");
     TGraph* vdrift_fit = (TGraph*)calibration_params->Get("tg_v_fit_vs_det;1");
 
-    Double_t vdrift;
+    // Double_t vdrift;
     Double_t x;
     Double_t y;    
     
+    int count = 0;
     for (Int_t i_det=0; i_det<540; i_det++)
     {
         bool found = 0;
-
         for (Int_t vdrift_det=0; vdrift_det<540; vdrift_det++)
         {
-            vdrift = vdrift_fit->GetPoint(vdrift_det, x, y);
+            vdrift_fit->GetPoint(vdrift_det, x, y);
             if ((Int_t)x == i_det)
             {
                 found = 1;
+                if (fabs(y - 1.05) < 0.0001)
+                {
+                    found = 0;
+                }
+                break;
             }
         }
 
@@ -547,11 +557,12 @@ void get_no_calibration()
         {
             no_fit.push_back(i_det);
             // cout << i_det << ", ";
+            count ++;
         }
     }
-
-    int count = 0;
-    TFile* h1d_detector_hit_file = TFile::Open("../Data/h_detector_hit_76kbinfix.root");
+    cout << endl << count << endl;
+    count = 0;
+    TFile* h1d_detector_hit_file = TFile::Open("../Data/h_detector_hit_3layer_binfix_10ke.root");
     TH1D* h1d_detector_hit = (TH1D*)h1d_detector_hit_file->Get("h_detector_hit;1");
 
     // draw detector hits hist with axis labels
@@ -565,22 +576,11 @@ void get_no_calibration()
     // h1d_detector_hit_can->cd();
     // h1d_detector_hit->Draw();
 
-    cout << endl << endl;
-
-    // histogram of number of hits per chamber with no fit
-    // TH1D* h1d_hits_no_fit = new TH1D("h1d_hits_no_fit", "h1d_hits_no_fit", 56, 0, 10);
-
-    // TCanvas *h1d_hits_no_fit_can = new TCanvas("h1d_hits_no_fit_can", "h1d_hits_no_fit_can");
-    // h1d_hits_no_fit->GetXaxis()->SetTitle("Detector");
-    // h1d_hits_no_fit->GetYaxis()->SetTitle("Number of Tracklets per 10k Events");
-
-    // h1d_hits_no_fit->GetXaxis()->CenterTitle();
-    // h1d_hits_no_fit->GetYaxis()->CenterTitle();
 
     for (Int_t i_det=0; i_det<540; i_det++)
     {
         int hits = h1d_detector_hit->GetBinContent(i_det+1);
-        hits = hits/7.6; // per 10k events. there were 76k events total
+        hits = hits;
 
         // cout << "idet: " << i_det << " | " << "hits: " << hits << endl;
         if (hits < 10)
@@ -612,13 +612,14 @@ void get_no_calibration()
     326, 328, 335, 348, 368, 377, 386, 389, 402, 403, 404, 405, 406, 407, 432, 433, 434, 435, 436, 437, 452, 455, 456, 461, 462, 463,
     464, 465, 466, 467, 470, 480, 481, 482, 483, 484, 485, 490, 491, 493, 500, 502, 504, 533, 537, 538};
 
+    int no_fit_binfix_not_in_official[7] = {213, 309, 461, 480, 481, 533, 537};
+
     count = 0;
-    for (int i_det=0; i_det<147  ; i_det++)
+    for (int i_det=0; i_det<7  ; i_det++)
     {
-        int hits = h1d_detector_hit->GetBinContent(no_fit[i_det]+1);
-        hits = hits/7.6;
+        int hits = h1d_detector_hit->GetBinContent(no_fit_binfix_not_in_official[i_det]+1);
         // h1d_hits_no_fit->Fill(hits);
-        cout << "det: " << no_fit[i_det] << " | " << "hits: " << hits << endl;
+        cout << "det: " << no_fit_binfix_not_in_official[i_det] << " | " << "hits: " << hits << endl;
         if (hits < 10) {count ++;}
     }
     cout << count << endl;
@@ -893,21 +894,31 @@ void write_all_defects()
 {
     vector<int> v;
 
-    for (int i=0; i<540; i++)
+    for (int i_det=0; i_det<540; i_det++)
     {
         int flag = 0;
-        if (count(adc_defects.begin(), adc_defects.end(), i))
+
+        if (count(begin(official_qa), end(official_qa), i_det))
         {
             flag += 1;
         }
-	    if (count(hv_anode_defects.begin(), hv_anode_defects.end(), i))
+        if (count(no_fit.begin(), no_fit.end(), i_det))
         {
             flag += 2;
         }
-        if (count(hv_drift_defects.begin(), hv_drift_defects.end(), i))
+        if (count(hv_anode_defects.begin(), hv_anode_defects.end(), i_det))
         {
             flag += 4;
         }
+        if (count(hv_drift_defects.begin(), hv_drift_defects.end(), i_det))
+        {
+            flag += 8;
+        }
+        if (count(adc_defects.begin(), adc_defects.end(), i_det))
+        {
+            flag += 16;
+        }
+
         v.push_back(flag);
     }
 
@@ -927,7 +938,7 @@ void write_all_defects()
 
 void detector_qc()
 {
-    calib_file = TFile::Open("../../Merge_TRD_Calib_V4.root");
+    calib_file = TFile::Open("../../Calibrated_digits_veryhigh_stat.root");
 
     // TFile* hist = TFile::Open("./chamber_QC.root");
     // TH1D *histo = (TH1D *)hist->Get("all_defects_hist;1");
@@ -935,7 +946,7 @@ void detector_qc()
     
     // Init_tree("../list_tree_off_trkl_V1.txt");
 
-    get_ADC_defects();
+    // get_ADC_defects();
 
     // draw_ADC_hists();
 
@@ -943,9 +954,9 @@ void detector_qc()
 
     // get_noise_defects();
 
-    get_no_calibration();
+    // get_no_calibration();
 
-    draw_qc_summary();
+    // draw_qc_summary();
 
     // draw_all_defects_hist();
 
