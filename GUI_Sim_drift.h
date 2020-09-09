@@ -249,7 +249,7 @@ void Chi2_TRD_vDrift(Int_t &, Double_t *, Double_t & sum, Double_t * par, Int_t 
         Double_t Delta_alpha_sim = tg_Delta_vs_impact_single ->Eval(impact_angle);
 
         sum += TMath::Power(Delta_alpha_sim - Delta_alpha,2)/TMath::Power(Delta_alpha_err,2);
-        //sum += TMath::Power(Delta_alpha_sim - Delta_alpha,2);
+        // sum += TMath::Power(Delta_alpha_sim - Delta_alpha,2);
 
     }
 
@@ -484,7 +484,7 @@ GUI_Sim_drift::GUI_Sim_drift() : TGMainFrame(gClient->GetRoot(), 200, 100)
 {
     //-------------------------------------
     //outputfile = new TFile("./TRD_Calib_vDfit_and_LAfit.root","RECREATE");
-    outputfile = new TFile("./TRD_Calib_vDfit_and_LAfit_3456_minos.root","RECREATE");
+    outputfile = new TFile("./TRD_Calib_vDfit_and_LAfit_3456_minos_NEW.root","RECREATE");
 
 
 
@@ -701,7 +701,7 @@ Int_t GUI_Sim_drift::LoadData()
     //input_data[0]     = TFile::Open("./Data/TRD_Calib_TPC_impact.root");
     //input_data[1] = TFile::Open("./Data/TRD_Calib_All_170k_neg.root");
     //input_data[2] = TFile::Open("./Data/TRD_Calib_All_170k_pos.root");
-    input_data[0]     = TFile::Open("./Data/TRD_Calib_circle_3456_minos.root");
+    input_data[0]     = TFile::Open("./Data/TRD_Calib_circle_3456_minos_5plus_aminlt1_50k.root");
     //input_data[0]     = TFile::Open("./Data/TRD_Calib_on_trkl_corr.root");
     // input_data[0]     = TFile::Open("./Data/TRD_Calib_on_trkl_online.root");
 
@@ -1085,7 +1085,15 @@ Int_t GUI_Sim_drift::Do_Minimize()
 {
 
     //printf("circ_line_flag = %d \n",circ_line_flag);
+    TFile *drift_hv_file = TFile::Open("./Data/HV_drift_vs_det_265338.root");
+    TCanvas *drift_hv_can = (TCanvas *)drift_hv_file->Get("tg_HV_drift_vs_det_can;1");
+    TGraph* tg_drift_hv = (TGraph *)drift_hv_can->FindObject("tg_HV_drift_vs_det");
 
+    TH1D* h1d_vd_err = new TH1D("h1d_vd_err", "Drift Velocity", 100, 0, 0.3);
+    TH1D* h1d_la_err = new TH1D("h1d_la_err", "Lorentz Angle", 100, 0, 0.04);
+
+    TCanvas* vd_err_can = new TCanvas("h1d_vd_err","h1d_vd_err",10,10,800,600);
+    TCanvas* la_err_can = new TCanvas("h1d_la_err","h1d_la_err",10,10,800,600);
 
     Pixel_t green;
     gClient->GetColorByName("green", green);
@@ -1224,6 +1232,8 @@ Int_t GUI_Sim_drift::Do_Minimize()
             min->SetParameter(0,"LA",pStart[0],0.01,0,0);
             min->SetParameter(1,"Ratio",pStart[1],0.01,0,0);
 
+            // min->FixParameter(0);
+
             //min->SetParameter(0,"B_field",pStart[0],0.01,0,0);
             //min->SetParameter(1,"E_field",pStart[1]*fudge_Hdrift,0.01,0,0);
             //min->SetParameter(2,"v_drift",pStart[2],0.01,0,0);
@@ -1241,6 +1251,31 @@ Int_t GUI_Sim_drift::Do_Minimize()
 
             //min->ExecuteCommand("MINIMIZE",arglist,2);
             min->ExecuteCommand("MIGRAD",arglist,2);
+
+            double drift_det;
+            double drift_hv;
+
+            // get error
+            for (int ipoint = 0; ipoint < tg_drift_hv->GetN(); ipoint++)
+            {
+                tg_drift_hv->GetPoint(ipoint, drift_det, drift_hv);
+
+                if (2150 < drift_hv && drift_hv < 2170)
+                {
+                    if (i_detector == drift_det)
+                    {
+                        h1d_vd_err->Fill(min->GetParError(1));
+                        h1d_la_err->Fill(min->GetParError(0));
+                    }
+                }
+            }
+
+            //  
+
+            // h1d_vd_err->Fill(min->GetParError(1));
+            // h1d_la_err->Fill(min->GetParError(0));
+            // cout << "ERROR: " << min->GetParError(1) << endl;
+            // cout << "ERROR: " << min->GetParError(0) << endl;
 
             // get fit parameters
             Double_t parFit[5];
@@ -1322,6 +1357,22 @@ Int_t GUI_Sim_drift::Do_Minimize()
 
 
     }
+
+    h1d_vd_err->GetXaxis()->CenterTitle();
+    h1d_vd_err->GetYaxis()->CenterTitle();
+    h1d_vd_err->GetXaxis()->SetTitle("vD fit error");
+    h1d_vd_err->GetYaxis()->SetTitle("number of chambers");
+
+    h1d_la_err->GetXaxis()->CenterTitle();
+    h1d_la_err->GetYaxis()->CenterTitle();
+    h1d_la_err->GetXaxis()->SetTitle("LA fit error [rad.]");
+    h1d_la_err->GetYaxis()->SetTitle("number of chambers");
+
+    vd_err_can->cd();
+    h1d_vd_err->Draw();
+
+    la_err_can->cd();
+    h1d_la_err->Draw();
 
 
     can_vdrift       ->cd();
@@ -1406,6 +1457,8 @@ Int_t GUI_Sim_drift::Do_Minimize()
     tg_LA_factor_fit_vs_det ->SetName("tg_LA_factor_fit_vs_det ");
     tg_LA_factor_fit_vs_det ->Write();
     printf("All data written \n");
+
+
 
     return 1;
 
@@ -1535,21 +1588,17 @@ Int_t GUI_Sim_drift::Draw_data()
             //Double_t v_drift_vD = v_drift*fac_v_drift_vD*0.8;
             Double_t v_drift_vD = 1.0*vD_use*1E06/100.0; // m/s
             if(v_counter == 0) vec_v_drift_vals.push_back(v_drift_vD);
-
             printf("v_drift: %4.6f, v_drift_vD: %4.6f, E_field: %4.3f \n",v_drift,v_drift_vD,E_field);
-
             tg_delta_vs_angle[v_counter].push_back(new TGraph());
             Int_t phi_counter = 0;
             for(Double_t track_phi_deg = 135.0; track_phi_deg >= 45.0; track_phi_deg -= 1.0)
             {
                 Double_t track_phi   = track_phi_deg*TMath::DegToRad();
                 Double_t track_slope = TMath::Tan(track_phi);
-
                 vector< vector<Double_t> > vec_xy_pos_vD;
                 vec_xy_pos_vD.resize(2); // start, stop
                 vec_xy_pos_vD[0].resize(2); // x, y
                 vec_xy_pos_vD[1].resize(2); // x, y
-
                 //printf("v_drift_vD: %4.3f \n",v_drift_vD);
                 Int_t flag_first_time = 0;
                 for(Int_t i_time = 0; i_time < N_time; i_time++)
@@ -1565,8 +1614,6 @@ Int_t GUI_Sim_drift::Draw_data()
                         //printf("track_phi_deg: %4.3f \n",track_phi_deg);
                         tpm_track ->SetNextPoint(x_pos,y_pos);
                     }
-
-
                     if(phi_counter == phi_counter_plot && vD_counter == vD_counter_plot && v_counter == v_counter_plot)
                     {
                         tpm_track_drift[i_time]         = new TPolyMarker();
@@ -1576,18 +1623,13 @@ Int_t GUI_Sim_drift::Draw_data()
                     {
                         Double_t x_pos_drift = x_pos;  // drifted cluster position without Lorentz-angle effect
                         Double_t y_pos_drift = y_pos + v_drift*i_drift_time;
-
                         Double_t x_pos_drift_Lorentz = x_pos - TMath::Tan(alpha_L) * v_drift*i_drift_time; // drifted cluster position with Lorentz-angle effect
                         Double_t y_pos_drift_Lorentz = y_pos + v_drift*i_drift_time;
-
                         Double_t x_pos_Lorentz    = x_pos_drift_Lorentz; // Lorentz-angle shifted cluster position
                         Double_t y_pos_Lorentz    = y_pos_drift_Lorentz - v_drift*i_drift_time; // same as y_pos
-
                         Double_t x_pos_Lorentz_vD = x_pos_drift_Lorentz; // Lorentz-angle shifted cluster position with wrong drift velocity vD
                         Double_t y_pos_Lorentz_vD = y_pos_drift_Lorentz - v_drift_vD*i_drift_time;
-
                         //printf("v_drift: %4.3f, v_drift_vD: %4.3f \n",v_drift,v_drift_vD);
-
                         if(y_pos_drift > l_drift && y_pos_drift > 0.0) // at anonde wire
                         {
                             if(i_drift_time == 0) break;
@@ -1595,7 +1637,6 @@ Int_t GUI_Sim_drift::Draw_data()
                             {
                                 tpm_track_Lorentz    ->SetNextPoint(x_pos_Lorentz,y_pos_Lorentz);
                                 tpm_track_Lorentz_vD ->SetNextPoint(x_pos_Lorentz_vD,y_pos_Lorentz_vD);
-
                                 //printf("i_time: %d, pos_orig: {%4.3f, %4.3f}, pos: {%4.3f, %4.3f}, pos_vD: {%4.3f, %4.3f}, i_drift_time: %4.10f, Dx: %4.4f, Dx_vD: %4.3f \n",i_time,x_pos_drift_Lorentz,y_pos_drift_Lorentz,x_pos_Lorentz,y_pos_Lorentz,x_pos_Lorentz_vD,y_pos_Lorentz_vD,i_drift_time,v_drift*i_drift_time,v_drift_vD*i_drift_time);
                             }
                             //if(y_pos_Lorentz_vD >= 0.0 && y_pos_Lorentz_vD <= l_drift && !flag_first_time)
@@ -1622,22 +1663,17 @@ Int_t GUI_Sim_drift::Draw_data()
                         }
                     } // end of drift time loop
                 } // end of cluster time loop
-
-
                 if(phi_counter == phi_counter_plot && vD_counter == vD_counter_plot && v_counter == v_counter_plot)
                 {
                     tpm_track_Lorentz_vD_used ->SetNextPoint(vec_xy_pos_vD[0][0],vec_xy_pos_vD[0][1]);
                     tpm_track_Lorentz_vD_used ->SetNextPoint(vec_xy_pos_vD[1][0],vec_xy_pos_vD[1][1]);
                 }
-
                 Double_t track_phi_vD  = TMath::ATan((vec_xy_pos_vD[1][1] - vec_xy_pos_vD[0][1])/(vec_xy_pos_vD[1][0] - vec_xy_pos_vD[0][0]));
                 if(track_phi_vD < 0.0) track_phi_vD += TMath::Pi();
                 //Double_t delta_phi_deg = fabs(track_phi - track_phi_vD)*TMath::RadToDeg();
                 Double_t delta_phi_deg = -(track_phi - track_phi_vD)*TMath::RadToDeg();
-
                 if(phi_counter == phi_counter_plot && vD_counter == vD_counter_plot && v_counter == v_counter_plot) printf(" ---> ");
                 //printf("Lorentz angle: %4.3f degree, init angle: %4.3f, reconstructed angle: %4.3f \n",alpha_L*TMath::RadToDeg(),track_phi*TMath::RadToDeg(),track_phi_vD*TMath::RadToDeg());
-
                 tg_delta_vs_angle[v_counter][vD_counter] ->SetPoint(phi_counter,track_phi_deg,delta_phi_deg);
                 phi_counter++;
             } // end of phi loop
@@ -1673,32 +1709,24 @@ Int_t GUI_Sim_drift::Draw_data()
     h_frame->GetYaxis()->CenterTitle();
     h_frame->GetXaxis()->SetTitle("x (m)");
     h_frame->GetYaxis()->SetTitle("y (m)");
-
     PlotLine(-0.025,0.025,0.0,0.0,kBlack,2,2); // (Double_t x1_val, Double_t x2_val, Double_t y1_val, Double_t y2_val, Int_t Line_Col, Int_t LineWidth, Int_t LineStyle)
     PlotLine(-0.025,0.025,0.03,0.03,kBlack,2,2); // (Double_t x1_val, Double_t x2_val, Double_t y1_val, Double_t y2_val, Int_t Line_Col, Int_t LineWidth, Int_t LineStyle)
-
-
     tpm_track ->SetMarkerStyle(20);
     tpm_track ->SetMarkerSize(0.5);
     tpm_track ->SetMarkerColor(kRed);
     tpm_track ->Draw("same");
-
-
     tpm_track_Lorentz ->SetMarkerStyle(20);
     tpm_track_Lorentz ->SetMarkerSize(0.5);
     tpm_track_Lorentz ->SetMarkerColor(kMagenta);
     tpm_track_Lorentz ->Draw("same");
-
     tpm_track_Lorentz_vD ->SetMarkerStyle(20);
     tpm_track_Lorentz_vD ->SetMarkerSize(0.5);
     tpm_track_Lorentz_vD ->SetMarkerColor(kCyan);
     tpm_track_Lorentz_vD ->Draw("same");
-
     tpm_track_Lorentz_vD_used ->SetMarkerStyle(20);
     tpm_track_Lorentz_vD_used ->SetMarkerSize(1.0);
     tpm_track_Lorentz_vD_used ->SetMarkerColor(kOrange+1);
     tpm_track_Lorentz_vD_used ->Draw("same");
-
     for(Int_t i_time = 0; i_time < N_time; i_time++)
     {
         if(!(i_time % 5 == 0)) continue;
@@ -1706,18 +1734,15 @@ Int_t GUI_Sim_drift::Draw_data()
         tpm_track_drift[i_time] ->SetMarkerSize(0.1);
         tpm_track_drift[i_time] ->SetMarkerColor(kBlue);
         tpm_track_drift[i_time] ->Draw("same");
-
         tpm_track_drift_Lorentz[i_time] ->SetMarkerStyle(24);
         tpm_track_drift_Lorentz[i_time] ->SetMarkerSize(0.1);
         tpm_track_drift_Lorentz[i_time] ->SetMarkerColor(kGreen);
         tpm_track_drift_Lorentz[i_time] ->Draw("same");
     }
-
     plotTopLegend((char*)"track",0.72,0.5,0.045,kRed,0.0,42,1,1); // char* label,Float_t x=-1,Float_t y=-1, Float_t size=0.06,Int_t color=1,Float_t angle=0.0, Int_t font = 42, Int_t NDC = 1, Int_t align = 1
     plotTopLegend((char*)"Lorentz angle",0.25,0.265,0.045,kMagenta,0.0,42,1,1); // char* label,Float_t x=-1,Float_t y=-1, Float_t size=0.06,Int_t color=1,Float_t angle=0.0, Int_t font = 42, Int_t NDC = 1, Int_t align = 1
     plotTopLegend((char*)"wrong v_{D}",0.32,0.36,0.045,kCyan,0.0,42,1,1); // char* label,Float_t x=-1,Float_t y=-1, Float_t size=0.06,Int_t color=1,Float_t angle=0.0, Int_t font = 42, Int_t NDC = 1, Int_t align = 1
     plotTopLegend((char*)"drift",0.44,0.6,0.045,kGreen,0.0,42,1,1); // char* label,Float_t x=-1,Float_t y=-1, Float_t size=0.06,Int_t color=1,Float_t angle=0.0, Int_t font = 42, Int_t NDC = 1, Int_t align = 1
-
     can_track ->GetCanvas()->cd(1)->Modified();
     can_track ->GetCanvas()->cd(1)->Update();
     //------------------------------------------------------------------------
@@ -1762,12 +1787,10 @@ Int_t GUI_Sim_drift::Draw_data()
         tg_delta_vs_angle[0][i_vD] ->SetLineColor(kRed);
         tg_delta_vs_angle[0][i_vD] ->SetLineWidth(2);
         tg_delta_vs_angle[0][i_vD] ->Draw("same");
-
         HistName = "";
         sprintf(NoP,"%4.2f",vec_v_drift_vals[i_vD]/10000.0);
         HistName += NoP;
         plotTopLegend((char*)HistName.Data(),0.22,0.15+i_vD*0.086,0.045,kBlack,0.0,42,1,1); // char* label,Float_t x=-1,Float_t y=-1, Float_t size=0.06,Int_t color=1,Float_t angle=0.0, Int_t font = 42, Int_t NDC = 1, Int_t align = 1
-
         //tg_delta_vs_angle[5][i_vD] ->SetLineColor(arr_color_B[i_vD]);
         //tg_delta_vs_angle[5][i_vD] ->SetLineColor(kRed);
         //tg_delta_vs_angle[5][i_vD] ->SetLineWidth(2);
@@ -1814,7 +1837,6 @@ Int_t GUI_Sim_drift::Draw_data()
         vec_tp_Delta_vs_impact_all[2][i_detector] ->SetLineStyle(1);
         vec_tp_Delta_vs_impact_all[2][i_detector] ->Draw("same hl");
     }
-
     if(fCheckBox_sel[2]->GetState() == kButtonDown) // slider
     {
         vec_tp_Delta_vs_impact_all[1][i_detector] ->SetLineColor(kBlue);
@@ -1902,5 +1924,3 @@ Int_t GUI_Sim_drift::Draw3D_track()
     return 1;
 }
 //---------------------------------------------------------------------------------
-
-
