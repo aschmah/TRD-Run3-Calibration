@@ -411,6 +411,7 @@ public:
 class Ali_AS_Event : public TObject
 {
 private:
+    Int_t eventNumber;
     Float_t x; // Event vertex x
     Float_t y; // Event vertex y
     Float_t z; // Event vertex z
@@ -444,7 +445,7 @@ private:
 
 public:
     Ali_AS_Event() :
-	x(-1),y(-1),z(-1),id(-1),N_tracks(0),N_TRD_tracklets(0),
+	eventNumber(-1),x(-1),y(-1),z(-1),id(-1),N_tracks(0),N_TRD_tracklets(0),
 	cent_class_ZNA(0),cent_class_ZNC(0),cent_class_V0A(0),cent_class_V0C(0),cent_class_V0M(0),cent_class_CL0(0),cent_class_CL1(0),
         cent_class_SPD(0),cent_class_V0MEq(0),cent_class_V0AEq(0),cent_class_V0CEq(0),BeamIntAA(-1),T0zVertex(-1),TriggerWord(),fNumTracks(0),fNumTracklets(0),
         ADC_sum_det()
@@ -459,6 +460,8 @@ public:
             delete fTracklets;
 	    fTracklets = NULL;
 	}
+	void       setEventNumber(Float_t e)          { eventNumber = e;                         }
+	Float_t    getx() const                       { return eventNumber;                      }
 
 	void       setx(Float_t r)                    { x = r;                         }
 	Float_t    getx() const                       { return x;                      }
