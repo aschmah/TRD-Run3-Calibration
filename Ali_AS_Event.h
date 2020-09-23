@@ -460,8 +460,8 @@ public:
             delete fTracklets;
 	    fTracklets = NULL;
 	}
-	void       setEventNumber(Float_t e)          { eventNumber = e;                         }
-	Float_t    getx() const                       { return eventNumber;                      }
+	void       setEventNumber(Int_t e)          { eventNumber = e;                         }
+	Int_t    getEventNumber() const             { return eventNumber;                      }
 
 	void       setx(Float_t r)                    { x = r;                         }
 	Float_t    getx() const                       { return x;                      }
