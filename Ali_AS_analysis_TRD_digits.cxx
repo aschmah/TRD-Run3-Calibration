@@ -605,7 +605,7 @@ void Ali_AS_analysis_TRD_digits::UserExec(Option_t *)
     //cout << "Analysis started" << endl;
     //cout << "----------------------------------------------------------------------------------------------------------------------------------" << endl;
 
-
+    Int_t flag_calibrated = 0;
     //-----------------------------------------------------------------
     // IMPORTANT: call NextEvent() for book-keeping
     NextEvent();
@@ -857,13 +857,16 @@ void Ali_AS_analysis_TRD_digits::UserExec(Option_t *)
 	Int_t i_stack  = fGeo->GetStack(i_det);
         Int_t i_layer  = fGeo->GetLayer(i_det);
 
-        //for closure test: calib parameters from our file
-        //Double_t vD_calib = h_v_fit_vs_det         ->GetBinContent(i_det + 1);
-        //Double_t LA_calib = h_LA_factor_fit_vs_det ->GetBinContent(i_det + 1);
-
         //for uncalibrated digits: fixed vD and LA
         Double_t vD_calib = 1.546;
         Double_t LA_calib = -0.16133;
+
+        //for closure test: calib parameters from our file
+        if (flag_calibrated)
+        {
+            vD_calib = h_v_fit_vs_det         ->GetBinContent(i_det + 1);
+            LA_calib = h_LA_factor_fit_vs_det ->GetBinContent(i_det + 1);
+        }
 
         // 1.546
         // 0.16133
