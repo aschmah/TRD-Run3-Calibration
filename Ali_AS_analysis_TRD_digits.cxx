@@ -660,10 +660,10 @@ void Ali_AS_analysis_TRD_digits::UserExec(Option_t *)
     //cout << "cent: " << fPIDResponse->GetCurrentCentrality() << endl;
 
     Int_t 	       eventNumber      = fESD ->GetEventNumberInFile();
-    if (eventNumber != 8)
-    {
-        return;
-    }
+    //if (eventNumber != 8)
+    //{
+    //    return;
+    //}
 
     Int_t          N_tracks         = fESD ->GetNumberOfTracks();
     Int_t          N_TRD_tracks     = fESD ->GetNumberOfTrdTracks();
