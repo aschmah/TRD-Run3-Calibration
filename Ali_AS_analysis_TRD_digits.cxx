@@ -605,7 +605,7 @@ void Ali_AS_analysis_TRD_digits::UserExec(Option_t *)
     //cout << "Analysis started" << endl;
     //cout << "----------------------------------------------------------------------------------------------------------------------------------" << endl;
 
-    Int_t flag_calibrated = 0;
+    Int_t flag_calibrated = 0; // 0 = standard fixed precalibration used, 1 = use pre calibration from root input file
     //-----------------------------------------------------------------
     // IMPORTANT: call NextEvent() for book-keeping
     NextEvent();
@@ -660,10 +660,6 @@ void Ali_AS_analysis_TRD_digits::UserExec(Option_t *)
     //cout << "cent: " << fPIDResponse->GetCurrentCentrality() << endl;
 
     Int_t 	       eventNumber      = fESD ->GetEventNumberInFile();
-    //if (eventNumber != 8)
-    //{
-    //    return;
-    //}
 
     Int_t          N_tracks         = fESD ->GetNumberOfTracks();
     Int_t          N_TRD_tracks     = fESD ->GetNumberOfTrdTracks();
@@ -858,8 +854,8 @@ void Ali_AS_analysis_TRD_digits::UserExec(Option_t *)
         Int_t i_layer  = fGeo->GetLayer(i_det);
 
         //for uncalibrated digits: fixed vD and LA
-        Double_t vD_calib = 1.546;
-        Double_t LA_calib = -0.16133;
+        Double_t vD_calib = 1.2; // 1.546
+        Double_t LA_calib = -0.16133; // -0.16133
 
         //for closure test: calib parameters from our file
         if (flag_calibrated)
@@ -867,9 +863,6 @@ void Ali_AS_analysis_TRD_digits::UserExec(Option_t *)
             vD_calib = h_v_fit_vs_det         ->GetBinContent(i_det + 1);
             LA_calib = h_LA_factor_fit_vs_det ->GetBinContent(i_det + 1);
         }
-
-        // 1.546
-        // 0.16133
 
         //printf("i_det(start from 0): %d, vD_calib: %4.5f, LA_calib: %4.5f \n",i_det,vD_calib,LA_calib);
 
@@ -933,11 +926,10 @@ void Ali_AS_analysis_TRD_digits::UserExec(Option_t *)
                         Double_t             TRD_drift_time           = ((Double_t)i_time)*TRD_time_per_bin*vD_calib; // 100 ns per time bin, 1.56 cm/mus drift velocity, 3 cm drift length at maximum
                         Double_t             TRD_drift_time_uncalib   = ((Double_t)i_time)*TRD_time_per_bin*1.56; // 100 ns per time bin, 1.56 cm/mus drift velocity, 3 cm drift length at maximum
 
-
                         //printf("TRD_tim0: %4.3f, vdrift: %4.3f \n",TRD_time0,ChamberVdrift->GetValue(i_det));
 
                         //Float_t lorentz_angle_corr_y = ChamberExB->GetValue(i_det)*TRD_drift_time;
-                        Float_t lorentz_angle_corr_y = -LA_calib*TRD_drift_time;
+                        Float_t lorentz_angle_corr_y = -TMath::Tan(LA_calib)*TRD_drift_time;
                         TRD_loc_Y -= Sign_magnetic_field*lorentz_angle_corr_y;
 
                         //printf("LA_calib: %4.3f, LA: %4.3f \n",LA_calib,ChamberExB->GetValue(i_det));
@@ -953,7 +945,6 @@ void Ali_AS_analysis_TRD_digits::UserExec(Option_t *)
                         //Double_t             loc_uncalib[3]   = {TRD_time0 - TRD_drift_time_uncalib,TRD_loc_Y_uncalib,TRD_row_pos - TRD_row_size/2.0};
                         Double_t             loc_uncalib[3]  = {TRD_time0 - TRD_drift_time,TRD_loc_Y,TRD_row_pos - TRD_row_size/2.0};
                         Double_t             loc[3]          = {TRD_time0 - TRD_drift_time_uncalib,TRD_loc_Y_uncalib,TRD_row_pos - TRD_row_size/2.0};
-
 
                         Double_t             glb[3]           = {0.0,0.0,0.0};
                         Double_t             glb_uncalib[3]   = {0.0,0.0,0.0};
@@ -1773,7 +1764,7 @@ void Ali_AS_analysis_TRD_digits::UserExec(Option_t *)
 	N_good_tracks++;
 
     } // End of TPC track loop
-    cout << "Tracks matched" << endl;
+    //cout << "Tracks matched" << endl;
 
 
     Tree_AS_Event ->Fill();

@@ -321,8 +321,12 @@ public:
 TBase_TRD_Calib::TBase_TRD_Calib()
 {
     //outputfile = new TFile("./TRD_Calib.root","RECREATE");
-    outputfile = new TFile("./Data/TRD_Calib_circle_3456_minos.root","RECREATE");
-    outputfile_trkl = new TFile("./Data/TRD_Calib_on_trkl_3456_minos.root","RECREATE");
+
+    //outputfile = new TFile("./Data/TRD_Calib_circle_3456_minos.root","RECREATE");
+    //outputfile_trkl = new TFile("./Data/TRD_Calib_on_trkl_3456_minos.root","RECREATE");
+
+    outputfile = new TFile("./Data/TRD_Calib_circle_vD_1.2_LA_0.16133.root","RECREATE");
+    outputfile_trkl = new TFile("./Data/TRD_Calib_on_trkl_vD_1.2_LA_0.16133.root","RECREATE");
 
 
     Init_QA();
@@ -532,6 +536,8 @@ TBase_TRD_Calib::TBase_TRD_Calib()
         vec_TV3_TRD_center[TRD_detector][0].SetXYZ(glbX[0]-glb[0],glbX[1]-glb[1],glbX[2]-glb[2]);
         vec_TV3_TRD_center[TRD_detector][1].SetXYZ(glbY[0]-glb[0],glbY[1]-glb[1],glbY[2]-glb[2]);
         vec_TV3_TRD_center[TRD_detector][2].SetXYZ(glbZ[0]-glb[0],glbZ[1]-glb[1],glbZ[2]-glb[2]);
+
+        printf("det: %d, vec_TV3_TRD_center[%d][2]: {%4.3f, %4.3f, %4.3f} \n",TRD_detector,TRD_detector,vec_TV3_TRD_center[TRD_detector][2].X(),vec_TV3_TRD_center[TRD_detector][2].Y(),vec_TV3_TRD_center[TRD_detector][2].Z());
 
     }
 
@@ -1172,17 +1178,26 @@ Int_t TBase_TRD_Calib::get_2D_global_circle_fit()
     Double_t p0[3] = {10,20,1};
     tracklets_min_circle = -1.0;
 
+    //printf(" -------- MINOS Fit get_2D_global_circle_fit -------- \n");
     TVirtualFitter *min = TVirtualFitter::Fitter(0,3);
-
-    min->SetFCN(sum_distance_circ_point_2D);
 
     Double_t arglist_A[1] = {-1};
     Double_t arglist_B[1] = {0};
     Double_t arglist_C[1] = {-1};
-    min->ExecuteCommand("SET PRIntout",arglist_A,1); // http://www.fresco.org.uk/minuit/cern/node18.html
+    //min->ExecuteCommand("SET PRIntout",arglist_A,1); // http://www.fresco.org.uk/minuit/cern/node18.html
     //min->ExecuteCommand("SHOw FCNvalue",arglist_A,1);
+    min->ExecuteCommand("SET PRINT",arglist_C,1);
     min->ExecuteCommand("SET NOWarnings",arglist_B,1);
-    // min->ExecuteCommand("SET PRINT",arglist_C,1);
+
+    min->SetFCN(sum_distance_circ_point_2D);
+
+    //Double_t arglist_A[1] = {-1};
+    //Double_t arglist_B[1] = {0};
+    //Double_t arglist_C[1] = {-1};
+    //min->ExecuteCommand("SET PRIntout",arglist_A,1); // http://www.fresco.org.uk/minuit/cern/node18.html
+    //min->ExecuteCommand("SHOw FCNvalue",arglist_A,1);
+    //min->ExecuteCommand("SET NOWarnings",arglist_B,1);
+    //min->ExecuteCommand("SET PRINT",arglist_C,1);
 
 
 
@@ -1245,8 +1260,15 @@ Int_t TBase_TRD_Calib::get_2D_global_circle_fit()
     arglist[1] = 0.001; // tolerance
 
     //min->ExecuteCommand("MIGRAD",arglist,2);
-    min->ExecuteCommand("MINOS",arglist,2);
-    //min->ExecuteCommand("MINIMIZE",arglist,2);
+
+
+    //min->ExecuteCommand("MINOS",arglist,2);
+    min->ExecuteCommand("MINIMIZE",arglist,2);
+
+    //min->ExecuteCommand("SET PRIntout",arglist_A,1); // http://www.fresco.org.uk/minuit/cern/node18.html
+    //min->ExecuteCommand("SET NOWarnings",arglist_B,1);
+    //min->ExecuteCommand("SET PRINT",arglist_C,1);
+    //printf(" -------- END MINOS Fit get_2D_global_circle_fit -------- \n");
 
     //if (minos) min->ExecuteCommand("MINOS",arglist,0);
     Int_t nvpar,nparx;
@@ -1552,13 +1574,13 @@ void TBase_TRD_Calib::get_tracklets_fit(Int_t i_track)
         arglist[0] = 3;
         //min->ExecuteCommand("SET PRINT",arglist,1);
 
+        //printf("     ------------------ MIGRAD get_tracklets_fit ------------------ \n");
         Double_t arglist_A[1] = {-1};
-        Double_t arglist_B[1] = {1};
+        Double_t arglist_B[1] = {0};
         Double_t arglist_C[1] = {-1};
-        min->ExecuteCommand("SET PRIntout",arglist_A,1); // http://www.fresco.org.uk/minuit/cern/node18.html
-        min->ExecuteCommand("SET NOWarnings",arglist_B,1);
+        //min->ExecuteCommand("SET PRIntout",arglist_A,1); // http://www.fresco.org.uk/minuit/cern/node18.html
         min->ExecuteCommand("SET PRINT",arglist_C,1);
-
+        min->ExecuteCommand("SET NOWarnings",arglist_B,1);
 
         for(Int_t i_xyz = 0; i_xyz < 3; i_xyz++)
         {
@@ -1635,9 +1657,9 @@ void TBase_TRD_Calib::get_tracklets_fit(Int_t i_track)
         arglist[0] = 1000; // number of function calls
         arglist[1] = 0.001; // tolerance
 
-        //printf("     ------------------ MIGRAD ------------------ \n");
+       
         min->ExecuteCommand("MIGRAD",arglist,2);
-        //printf("     ------------------ END ------------------ \n");
+        //printf("     ------------------ END get_tracklets_fit ------------------ \n");
 
         //if (minos) min->ExecuteCommand("MINOS",arglist,0);
 
@@ -1951,11 +1973,13 @@ Int_t TBase_TRD_Calib::select_online_tracklets()
     //print all information of minimization procedure
     Double_t arglist_D[1] = {3};
 
-    
-    min->ExecuteCommand("SET PRIntout",arglist_A,1); // http://www.fresco.org.uk/minuit/cern/node18.html
+
+    printf("     ------------------ MIGRAD  select_online_tracklets ------------------ \n");
+    //min->ExecuteCommand("SET PRIntout",arglist_A,1); // http://www.fresco.org.uk/minuit/cern/node18.html
     //min->ExecuteCommand("SHOw FCNvalue",arglist_A,1);
-    min->ExecuteCommand("SET NOWarnings",arglist_B,1);
+    //min->ExecuteCommand("SET NOWarnings",arglist_B,1);
     //min->ExecuteCommand("SET PRINT",arglist_C,1);
+    printf("     ------------------ END  select_online_tracklets ------------------ \n");
 
 
     Double_t arglist[10];
@@ -2008,9 +2032,11 @@ Int_t TBase_TRD_Calib::select_online_tracklets()
     arglist[0] = 1000; // number of function calls
     arglist[1] = 0.001; // tolerance
 
+    printf("     ------------------ MIGRAD  select_online_tracklets B ------------------ \n");
     //min->ExecuteCommand("MIGRAD",arglist,2);
     //min->ExecuteCommand("MINOS",arglist,2);
     min->ExecuteCommand("MINIMIZE",arglist,2);
+    printf("     ------------------ END  select_online_tracklets B ------------------ \n");
 
     //if (minos) min->ExecuteCommand("MINOS",arglist,0);
     Int_t nvpar,nparx;
@@ -3071,11 +3097,14 @@ void TBase_TRD_Calib::Calibrate()
 
             //printf("i_track: %4.3d, i_event: %4.3d \n",i_track,i_event);
 
-              //printf("test 0 \n");
+            //printf("test 0 \n");
             make_clusters(i_track);
+            //printf("test 1 \n");
             //get_straight_line_fit(i_track);
             get_tracklets_fit(i_track);
+            //printf("test 2 \n");
             get_2D_global_circle_fit();  // i will get dir_vec_circle (not needed?) and vec_TPL_circle_tracklets[i_point] (basically i_layer)
+            //printf("test 3 \n");
 
             //vec_tracklet_fit_points[i_layer][i_start_stop][i_xyz]   including tracklets[0-5] and glibal line fit [6]  vector< vector< vector< Double_t> > >
             //vec_TPL_circle_tracklets[i_layer]    vector< TPolyLine*> ??

@@ -13,6 +13,9 @@ static const Double_t delta_t = 0.1; // mus
 static const Int_t    N_time  = 24;
 static const Double_t vD_set  = 1.56;
 
+static const Double_t vD_pre_corr_set = 1.546;
+static const Double_t LA_pre_corr_set = -0.16133;
+
 
 static const Double_t TRD_drift_start = 0.0;
 static const Double_t TRD_drift_stop  = 0.03;
@@ -33,6 +36,12 @@ static const Double_t fudge_LorentzAngle = 1.0;
 //TGraph* Create_TRD_Delta_alpha_vs_impact_angle(Double_t Lorentz_angle, Double_t drift_vel_ratio, Double_t Lorentz_angle_pre_corr)
 TGraph* calc_Delta_alpha(Double_t Lorentz_angle, Double_t drift_vel_ratio, Double_t Lorentz_angle_pre_corr)
 {
+    // The first cluster (the one at the bottom, last time time) is drifting to the anode plane. The position there is
+    // independent of the true drift velocity and depends only on the Lorentz angle. BUT the time bin depends on the
+    // true drift velocity. For large vDtrue the time bin is small, e.g. 18, for small vDtrue the time bin is large, e.g. 24.
+    // The cluster is then projected with the fixed drift velocity vDpreset = 1.546 along local y. Therefore Delta alpha vs. impact angle
+    // depends on vDtrue and vDpreset and the Lorentz angle.
+
     TGraph* TG_Delta_alpha_vs_impact_angle = new TGraph();
 
     Int_t i_point = 0;
@@ -56,11 +65,12 @@ TGraph* calc_Delta_alpha(Double_t Lorentz_angle, Double_t drift_vel_ratio, Doubl
         Double_t x_anode_hit = TRD_anode_plane/slope;
         Double_t y_anode_hit = TRD_anode_plane;
 
-        // Hit point at anode plane of Lorentz angle shifted cluster from the entrance
+        // Hit point at anode plane of Lorentz angle shifted cluster from the entrance -> independent of vDtrue
         Double_t x_Lorentz_anode_hit = TRD_anode_plane/Lorentz_slope;
         Double_t y_Lorentz_anode_hit = TRD_anode_plane;
 
         // Cluster location within drift cell of cluster from entrance after drift velocity ratio is applied
+        // drift_vel_ratio = vDset/vDtrue or vDset/vDeff
         Double_t x_Lorentz_drift_hit = x_Lorentz_anode_hit;
         Double_t y_Lorentz_drift_hit = TRD_anode_plane - TRD_anode_plane*drift_vel_ratio;
 
@@ -86,9 +96,77 @@ TGraph* calc_Delta_alpha(Double_t Lorentz_angle, Double_t drift_vel_ratio, Doubl
 //----------------------------------------------------------------------------------------
 #endif
 
-//----------------------------------------------------------------------------------------
-// New version : no precalib LA
+
+
 #if 1
+TGraph* calc_Delta_alpha(Double_t vD_fit, Double_t Lorentz_angle_fit, Double_t vD_pre_corr, Double_t Lorentz_angle_pre_corr)
+{
+    // 06.10.2020 A. Schmah Added comments, replaced drift_vel_ratio by (vD_pre_corr/vD_fit)
+
+    // The first cluster (the one at the bottom, last time time) is drifting to the anode plane. The position there is
+    // independent of the true drift velocity and depends only on the Lorentz angle. BUT the time bin depends on the
+    // true drift velocity. For large vDtrue the time bin is small, e.g. 18, for small vDtrue the time bin is large, e.g. 24.
+    // The cluster is then projected with the fixed drift velocity, e.g. vD_pre_corr = 1.546, along local y. Therefore Delta alpha vs. impact angle
+    // depends on vDtrue and vD_pre_corr and the Lorentz angle.
+
+    TGraph* TG_Delta_alpha_vs_impact_angle = new TGraph();
+
+    Int_t i_point = 0;
+    for(Double_t impact_angle = 65.0*TMath::DegToRad(); impact_angle < 115.0*TMath::DegToRad(); impact_angle += 1.0*TMath::DegToRad())
+    {
+
+        // Direction vector of incoming track
+        Double_t x_dir = TMath::Cos(impact_angle);
+        Double_t y_dir = TMath::Sin(impact_angle);
+
+        // Slope of incoming track
+        Double_t slope = 10000000.0;
+        if(x_dir != 0.0) slope = y_dir/x_dir;
+
+        // Slope of Lorentz angle
+        Double_t Lorentz_tan   = TMath::Tan(Lorentz_angle_fit);
+        Double_t Lorentz_slope = 10000000.0;
+        if(Lorentz_tan != 0.0) Lorentz_slope = 1.0/Lorentz_tan;
+
+        // Hit point of incoming track with anode plane
+        Double_t x_anode_hit = TRD_anode_plane/slope;
+        Double_t y_anode_hit = TRD_anode_plane;
+
+        // Hit point at anode plane of Lorentz angle shifted cluster from the entrance -> independent of vDtrue
+        Double_t x_Lorentz_anode_hit = TRD_anode_plane/Lorentz_slope;
+        Double_t y_Lorentz_anode_hit = TRD_anode_plane;
+
+        // Cluster location within drift cell of cluster from entrance after drift velocity ratio is applied
+        Double_t x_Lorentz_drift_hit = x_Lorentz_anode_hit;
+        Double_t y_Lorentz_drift_hit = TRD_anode_plane - TRD_anode_plane*(vD_pre_corr/vD_fit);
+
+        // Reconstructed hit of first cluster at chamber entrance after pre Lorentz angle correction
+        Double_t x_Lorentz_drift_hit_pre_corr = x_Lorentz_anode_hit - (TRD_anode_plane - y_Lorentz_drift_hit)*TMath::Tan(Lorentz_angle_pre_corr);
+        Double_t y_Lorentz_drift_hit_pre_corr = TRD_anode_plane - TRD_anode_plane*(vD_pre_corr/vD_fit);
+
+        Double_t impact_angle_track = TMath::ATan2(y_anode_hit,x_anode_hit);
+
+        Double_t Delta_x_Lorentz_drift_hit = x_anode_hit - x_Lorentz_drift_hit_pre_corr;
+        Double_t Delta_y_Lorentz_drift_hit = y_anode_hit - y_Lorentz_drift_hit_pre_corr;
+        Double_t impact_angle_rec   = TMath::ATan2(Delta_y_Lorentz_drift_hit,Delta_x_Lorentz_drift_hit);
+
+        Double_t Delta_angle = -(impact_angle_track - impact_angle_rec);
+        TG_Delta_alpha_vs_impact_angle ->SetPoint(i_point,impact_angle*TMath::RadToDeg(),Delta_angle*TMath::RadToDeg());
+        i_point++;
+        //printf("impact_angle: %4.3f, impact_angle_track: %4.3f, impact_angle_rec: %4.3f, Delta: {%4.3f, %4.3f}, x_anode_hit: %4.3f, x_Lorentz_drift_hit: %4.3f \n",impact_angle*TMath::RadToDeg(),impact_angle_track*TMath::RadToDeg(),impact_angle_rec*TMath::RadToDeg(),Delta_x_Lorentz_drift_hit,Delta_y_Lorentz_drift_hit,x_anode_hit,x_Lorentz_drift_hit);
+    }
+
+    return TG_Delta_alpha_vs_impact_angle;
+}
+//----------------------------------------------------------------------------------------
+#endif
+
+
+
+
+//----------------------------------------------------------------------------------------
+#if 0
+// Old version : no precalib LA
 TGraph* calc_Delta_alpha(Double_t Lorentz_angle_diff, Double_t drift_vel_ratio)
 {
     TGraph* TG_Delta_alpha_vs_impact_angle = new TGraph();
@@ -228,12 +306,14 @@ void Chi2_TRD_vDrift(Int_t &, Double_t *, Double_t & sum, Double_t * par, Int_t 
     //Double_t vD_use      = par[3];
     //Double_t LA_use      = par[4];
 
-    Double_t LA_use  = par[0];
-    Double_t vD_ratio_use = par[1];
+    Double_t LA_fit  = par[0];
+    Double_t vD_fit  = par[1];
     Double_t Lorentz_angle_pre_corr = LA_fit_corr->Eval(i_detector_global);
 
-    TGraph* tg_Delta_vs_impact_single = calc_Delta_alpha(LA_use,vD_ratio_use); //old version
-    //TGraph* tg_Delta_vs_impact_single = calc_Delta_alpha(LA_use,vD_ratio_use,Lorentz_angle_pre_corr); //new version
+    //Double_t vD_fit, Double_t Lorentz_angle_fit, Double_t vD_pre_corr, Double_t Lorentz_angle_pre_corr
+    TGraph* tg_Delta_vs_impact_single = calc_Delta_alpha(vD_fit,LA_fit,vD_pre_corr_set,LA_pre_corr_set); // new version
+    //TGraph* tg_Delta_vs_impact_single = calc_Delta_alpha(LA_use,vD_ratio_use); // old version
+    //TGraph* tg_Delta_vs_impact_single = calc_Delta_alpha(LA_use,vD_ratio_use,Lorentz_angle_pre_corr); // old version
 
     for(Int_t i_bin = 1; i_bin <= vec_tp_Delta_vs_impact[i_detector_global]->GetNbinsX(); i_bin++)
     {
@@ -704,12 +784,15 @@ Int_t GUI_Sim_drift::LoadData()
     //input_data[1] = TFile::Open("./Data/TRD_Calib_All_170k_neg.root");
     //input_data[2] = TFile::Open("./Data/TRD_Calib_All_170k_pos.root");
 
-    input_data[0]     = TFile::Open("./Data/TRD_Calib_circle_3456_minos_5plus_aminlt1_50k.root");
+    //input_data[0]     = TFile::Open("./Data/TRD_Calib_circle_3456_minos_5plus_aminlt1_50k.root");
+
     //input_data[0]     = TFile::Open("./Data/TRD_Calib_circle_3456_minos_5plus_aminlt1_20k.root");
 
     //input_data[0]     = TFile::Open("./Data/TRD_Calib_on_trkl_corr.root");
     // input_data[0]     = TFile::Open("./Data/TRD_Calib_on_trkl_online.root");
 
+    input_data[0]     = TFile::Open("./Data/TRD_Calib_circle_vD_1.546_LA_0.16133.root");
+    //input_data[0]     = TFile::Open("./Data/TRD_Calib_circle_vD_1.2_LA_0.16133.root");
 
 
     for(Int_t i_charge = 0; i_charge < 3; i_charge++)      // this should be circles only
@@ -1021,7 +1104,7 @@ Int_t GUI_Sim_drift::Do_Minimize_Single()
     // 73: 1.48  after fit: 1.269
 
     min->SetParameter(0,"LA",pStart[0],0.01,0,0);
-    min->SetParameter(1,"Ratio",pStart[1],0.01,0,0);
+    min->SetParameter(1,"vD",pStart[1],0.01,0,0);
 
     //min->SetParameter(0,"B_field",pStart[0],0.01,0,0);
     //min->SetParameter(1,"E_field",pStart[1]*fudge_Hdrift,0.01,0,0);
@@ -1062,8 +1145,8 @@ Int_t GUI_Sim_drift::Do_Minimize_Single()
     if(vD_ratio_fit != 0.0 && v_drift_in > 0.0) //IF WANT TO USE vD from OCDB AS vD_set
     {
         //v_fit = v_drift_in/vD_ratio_fit;   //IF WANT TO USE vD from OCDB AS vD_set
-        v_fit       = 1.546/vD_ratio_fit;      //OLD
-        v_fit_error = 1.546*vD_ratio_fit_error/(vD_ratio_fit*vD_ratio_fit);      //OLD
+        v_fit       = vD_ratio_fit;      //OLD
+        v_fit_error = vD_ratio_fit_error/(vD_ratio_fit*vD_ratio_fit);      //OLD
         //v_fit = fabs(v_fit/TMath::Cos(LA_fit));
         //v_fit = (vdrift_fit_corr->Eval(i_detector_global))/vD_ratio_fit;  //new version
     }
@@ -1237,7 +1320,7 @@ Int_t GUI_Sim_drift::Do_Minimize()
             //Double_t pStart[4] = {B_field,HV_drift_in/l_drift,v_drift_in-0.1,1.56}; // B-field, E-field, v_drift, vD_drift (1.7 insread of 1.56)
 
             min->SetParameter(0,"LA",pStart[0],0.01,0,0);
-            min->SetParameter(1,"Ratio",pStart[1],0.01,0,0);
+            min->SetParameter(1,"vD",pStart[1],0.01,0,0);
 
             // min->FixParameter(0);
 
@@ -1311,7 +1394,7 @@ Int_t GUI_Sim_drift::Do_Minimize()
             //E_fit                              = parFit[1];
             //vec_LA_factor_fit[i_detector]      = parFit[4];
 
-            vec_LA_fit[i_detector]  = parFit[0];
+            vec_LA_fit[i_detector]       = parFit[0];
             vec_vD_ratio_fit[i_detector] = parFit[1];
 
             printf("det: %d, LA_fit: %4.3f, vD_ratio: %4.3f \n",i_detector,vec_LA_fit[i_detector]*TMath::RadToDeg(),vec_vD_ratio_fit[i_detector]);
@@ -1333,7 +1416,7 @@ Int_t GUI_Sim_drift::Do_Minimize()
 
             {
                 //vec_v_fit[i_detector] = vD_set/vec_vD_ratio_fit[i_detector];   //IF WANT TO USE 1.56 AS vD_set
-                vec_v_fit[i_detector] = 1.546/vec_vD_ratio_fit[i_detector];   //IF WANT TO USE vD from OCDB AS vD_set
+                vec_v_fit[i_detector] = vec_vD_ratio_fit[i_detector];   //IF WANT TO USE vD from OCDB AS vD_set
                 //vec_v_fit[i_detector] = fabs(vec_v_fit[i_detector]/TMath::Cos(vec_LA_fit[i_detector]));
                 //vec_v_fit[i_detector] = (vdrift_fit_corr->Eval(i_detector_global))/vec_vD_ratio_fit[i_detector]; //NEW
 
@@ -1562,7 +1645,8 @@ Int_t GUI_Sim_drift::Draw_data()
 
 
     //TGraph* tg_Delta_alpha_fit = calc_Delta_alpha(LA_use,vD_ratio_use,Lorentz_angle_pre_corr);
-    TGraph* tg_Delta_alpha_fit = calc_Delta_alpha(LA_use,vD_ratio_use);
+    //TGraph* tg_Delta_alpha_fit = calc_Delta_alpha(LA_use,vD_ratio_use);
+    TGraph* tg_Delta_alpha_fit = calc_Delta_alpha(vD_fit,LA_fit,vD_pre_corr_set,LA_pre_corr_set);
     /*
     //------------------------------------------------------------------------
     Int_t v_counter = 0;
