@@ -13,8 +13,12 @@ static const Double_t delta_t = 0.1; // mus
 static const Int_t    N_time  = 24;
 static const Double_t vD_set  = 1.56;
 
-static const Double_t vD_pre_corr_set = 1.546;
+static const Double_t low_angle_fit = 80.0;
+static const Double_t up_angle_fit  = 100.0;
+
+static const Double_t vD_pre_corr_set = 1.546;  // 1.546, 1.2
 static const Double_t LA_pre_corr_set = -0.16133;
+//static const Double_t LA_pre_corr_set = 0.0;
 
 
 static const Double_t TRD_drift_start = 0.0;
@@ -320,11 +324,11 @@ void Chi2_TRD_vDrift(Int_t &, Double_t *, Double_t & sum, Double_t * par, Int_t 
         Double_t impact_angle     = vec_tp_Delta_vs_impact[i_detector_global] ->GetBinCenter(i_bin);
         Double_t Delta_alpha      = vec_tp_Delta_vs_impact[i_detector_global] ->GetBinContent(i_bin);
         Double_t Delta_alpha_err  = vec_tp_Delta_vs_impact[i_detector_global] ->GetBinError(i_bin);
-        Delta_alpha_err = 1.0;
+        //Delta_alpha_err = 1.0;
 
         if(Delta_alpha_err == 0.0) continue;
-        if(impact_angle < 78.0) continue;
-        if(impact_angle > 100.0) continue;
+        if(impact_angle < low_angle_fit) continue;
+        if(impact_angle > up_angle_fit)  continue;
 
         Double_t Delta_alpha_sim = tg_Delta_vs_impact_single ->Eval(impact_angle);
 
@@ -737,7 +741,7 @@ GUI_Sim_drift::GUI_Sim_drift() : TGMainFrame(gClient->GetRoot(), 200, 100)
 
 
     LoadData();
-    Draw_helix_line_diff();
+    //Draw_helix_line_diff();
     //Draw_offline_trkl_diff();     not needed at the moment
 }
 //---------------------------------------------------------------------------------
@@ -791,10 +795,11 @@ Int_t GUI_Sim_drift::LoadData()
     //input_data[0]     = TFile::Open("./Data/TRD_Calib_on_trkl_corr.root");
     // input_data[0]     = TFile::Open("./Data/TRD_Calib_on_trkl_online.root");
 
-    input_data[0]     = TFile::Open("./Data/TRD_Calib_circle_vD_1.546_LA_0.16133.root");
+    input_data[0]     = TFile::Open("./Data/Merge_calib_histos_KF_vD_1.546_LA_0.16133_V2.root");
+    //input_data[0]     = TFile::Open("./Data/TRD_Calib_circle_vD_1.546_LA_0.16133.root");
     //input_data[0]     = TFile::Open("./Data/TRD_Calib_circle_vD_1.2_LA_0.16133.root");
 
-
+    /*
     for(Int_t i_charge = 0; i_charge < 3; i_charge++)      // this should be circles only
     {
         for(Int_t TRD_detector = 0; TRD_detector < 547; TRD_detector++)
@@ -813,6 +818,7 @@ Int_t GUI_Sim_drift::LoadData()
             vec_h_diff_ref_loc_off_trkl[i_charge][TRD_detector] = (TH1D*)input_data[0]->Get(HistName.Data());
         }
     }
+    */
 
     /*
     for(Int_t i_file = 0; i_file < 3; i_file++)
@@ -1138,11 +1144,14 @@ Int_t GUI_Sim_drift::Do_Minimize_Single()
     LA_fit             = parFit[0];
     vD_ratio_fit       = parFit[1];
     vD_ratio_fit_error = parFit_error[1];
+    vD_fit = parFit[1];
+
+    printf("GUI_Sim_drift::Do_Minimize_Single() --> vD: %4.3f, LA: %4.3f \n",vD_ratio_fit,LA_fit);
 
 
     //if(vD_ratio_fit != 0.0) v_fit = vD_set/vD_ratio_fit;  //IF WE Want ot use 1.56
 
-    if(vD_ratio_fit != 0.0 && v_drift_in > 0.0) //IF WANT TO USE vD from OCDB AS vD_set
+    if(vD_ratio_fit != 0.0 && v_drift_in > 0.0)
     {
         //v_fit = v_drift_in/vD_ratio_fit;   //IF WANT TO USE vD from OCDB AS vD_set
         v_fit       = vD_ratio_fit;      //OLD
@@ -1557,11 +1566,12 @@ Int_t GUI_Sim_drift::Do_Minimize()
 //---------------------------------------------------------------------------------
 Int_t GUI_Sim_drift::Draw_data()
 {
+    printf("GUI_Sim_drift::Draw_data() \n");
 
     Double_t v_slider   = 0.1   + 0.1*vec_slider[0]->GetPosition();
     Double_t vD_slider  = 0.06  + 0.1*vec_slider[1]->GetPosition();
     Double_t UD_slider  = 500.0 + 100*vec_slider[2]->GetPosition();
-    Double_t LA_slider  = 0.0   + 0.01*vec_slider[3]->GetPosition();
+    Double_t LA_slider  = -0.2   + 0.04*vec_slider[3]->GetPosition();
 
     Double_t arr_param_val[5] = {v_slider,vD_slider,UD_slider,LA_slider,0.0};
 
@@ -1618,35 +1628,38 @@ Int_t GUI_Sim_drift::Draw_data()
     Double_t vD_use = 1.56;
     Double_t v_drift_use = 1.546;//= v_drift_in;
     Double_t LA_factor = 1.0;
+
+    Double_t LA_use = 0.0;
+    Double_t vD_ratio_use = 0.0;
+    //Double_t Lorentz_angle_pre_corr =  -0.16133;
+
     if(fCheckBox_sel[0]->GetState() == kButtonDown) // slider
     {
         printf("Use slider data \n");
         v_drift_use = v_slider;
         vD_use      = vD_slider;
         E_field     = 1.0*(UD_slider/l_drift); // V/cm = kg * m * s^-3 * A^-1;
-        LA_factor   = LA_slider;
+        //LA_factor   = LA_slider;
+        LA_use   = LA_slider;
     }
-
-    Double_t LA_use = 0.0;
-    Double_t vD_ratio_use = 0.0;
-    Double_t Lorentz_angle_pre_corr =  -0.16133;
 
 
     if(fCheckBox_sel[1]->GetState() == kButtonDown) // fit
     {
         printf("Use fit data \n");
         LA_use  = LA_fit;
-        vD_ratio_use = vD_ratio_fit;
+        //vD_ratio_use = vD_ratio_fit;
         //v_drift_use = v_fit;
-        //vD_use      = vD_fit;
+        vD_use      = vD_fit;
         //E_field     = E_fit;
         //LA_factor   = LA_factor_fit;
     }
 
 
+    printf("vD: %4.3f, LA: %4.3f \n",vD_use,LA_use);
     //TGraph* tg_Delta_alpha_fit = calc_Delta_alpha(LA_use,vD_ratio_use,Lorentz_angle_pre_corr);
     //TGraph* tg_Delta_alpha_fit = calc_Delta_alpha(LA_use,vD_ratio_use);
-    TGraph* tg_Delta_alpha_fit = calc_Delta_alpha(vD_fit,LA_fit,vD_pre_corr_set,LA_pre_corr_set);
+    TGraph* tg_Delta_alpha_fit = calc_Delta_alpha(vD_use,LA_use,vD_pre_corr_set,LA_pre_corr_set);
     /*
     //------------------------------------------------------------------------
     Int_t v_counter = 0;
@@ -1975,6 +1988,10 @@ Int_t GUI_Sim_drift::Draw_data()
 
     PlotLine(70.0,110.0,0.0,0.0,kBlack,2,2); // (Double_t x1_val, Double_t x2_val, Double_t y1_val, Double_t y2_val, Int_t Line_Col, Int_t LineWidth, Int_t LineStyle)
     //PlotLine(90.0,90.0,-13.5,13.5,kBlack,2,2); // (Double_t x1_val, Double_t x2_val, Double_t y1_val, Double_t y2_val, Int_t Line_Col, Int_t LineWidth, Int_t LineStyle)
+
+    PlotLine(low_angle_fit,low_angle_fit,-16.5,16.0,kGreen,4,2); // (Double_t x1_val, Double_t x2_val, Double_t y1_val, Double_t y2_val, Int_t Line_Col, Int_t LineWidth, Int_t LineStyle)
+    PlotLine(up_angle_fit,up_angle_fit,-16.5,16.0,kGreen,4,2); // (Double_t x1_val, Double_t x2_val, Double_t y1_val, Double_t y2_val, Int_t Line_Col, Int_t LineWidth, Int_t LineStyle)
+
 
     can_delta_vs_angle ->GetCanvas()->cd(1)->Modified();
     can_delta_vs_angle ->GetCanvas()->cd(1)->Update();
